@@ -29,6 +29,7 @@ extend namespace Server {
     public namespace Main {
 	public void main () {
 	    file    f = Net::create (RR::Port);
+	    File::fprintf (stderr, "RR server started on port %d.\n", RR::Port);
     	    Net::listen (Dispatch::client, f);
 	}
     }
