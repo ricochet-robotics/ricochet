@@ -191,6 +191,13 @@ extend namespace Server {
 		"ABANDON, TURN can be used to move to the next turn.\n"
 	    },
 	    {
+		command = "NOBID",
+		usage = "NOBID",
+		describe =
+		"Give up trying to improve bids in the current turn.\n"+
+		"When all users NOBID, game moves to SHOW state.\n"
+	    },
+	    {
 		command = "MOVE",
 		usage = "MOVE <color> <dir1> <dir2> ...",
 		describe =
@@ -451,6 +458,13 @@ extend namespace Server {
 		respond ("ABANDON\n");
 	    }
 
+	    void	nobid () {
+		assert_user ();
+		assert_game ();
+		Games::nobid (&c.game.game, &c);
+		respond ("NOBID\n");
+	    }
+
 	    void	move (Color color, &Direction[*] directions) {
 		assert_user ();
 		assert_game ();
@@ -591,6 +605,9 @@ extend namespace Server {
 			break;
 		    case ABANDON:
 			abandon ();
+			break;
+		    case NOBID:
+			nobid ();
 			break;
 		    case MOVE m:
 			move (m.color, &m.directions);

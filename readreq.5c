@@ -139,6 +139,9 @@ extend namespace Server {
 		number_ (&packet);
 		req = (Request.BID) packet;
 		break;
+	    case "NOBID":
+		req = Request.NOBID;
+		break;
 	    case "REVOKE":
 		req = Request.REVOKE;
 		break;

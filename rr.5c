@@ -105,6 +105,7 @@ namespace RR {
 	struct {
 	    int	number;
 	}	BID;
+	void	NOBID;
 	void	REVOKE;
 	void	ABANDON;
 	struct {

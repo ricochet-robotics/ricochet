@@ -80,6 +80,7 @@ namespace Server {
 	Bid	    bid;
 	bool	    playing;
 	bool	    abandon;
+	bool	    nobid;
     } Client;
 
     public typedef union {

@@ -153,6 +153,16 @@ extend namespace Server {
 	    iterate_client (&g, abandon_set, true, false);
 	    return all;
 	}
+
+	bool all_nobid (&Game g) {
+	    bool    all = true;
+	    void nobid_set (&Client c) {
+		if (!c.nobid)
+		    all = false;
+	    }
+	    iterate_client (&g, nobid_set, true, false);
+	    return all;
+	}
 	
 	public ClientRef lowest_bidder (&Game g) {
 	    Bid		min = Bid.none;
@@ -271,6 +281,7 @@ extend namespace Server {
 	    void reset_client (&Client c) {
 		c.bid = Bid.none;
 		c.abandon = false;
+		c.nobid = false;
 	    }
 	    iterate_client (&g, reset_client, true, false);
 	    game_send (&g, "NOTICE TURN %C %S\n", g.target.color, g.target.shape);
@@ -399,6 +410,7 @@ extend namespace Server {
 	    c.score = 0;
 	    c.bid = Bid.none;
 	    c.abandon = false;
+	    c.nobid = false;
 	    Array::append (&g.clients, &c);
 	    game_send (&g, "NOTICE %s %s\n", 
 		       playing ? "JOIN" : "WATCH",
@@ -444,6 +456,17 @@ extend namespace Server {
 		    revoke (&g, &c);
 		if (all_abandon (&g))
 		    set_state (&g, GameState.DONE);
+	    }
+	}
+
+	public void nobid (&Game g, &Client c) {
+	    assert_playing (&g, &c);
+	    assert_bidding (&g);
+	    if (!c.nobid) {
+		c.nobid = true;
+		game_send (&g, "NOTICE NOBID %s\n", c.user.username);
+		if (all_nobid (&g))
+		    set_state (&g, GameState.SHOW);
 	    }
 	}
 	

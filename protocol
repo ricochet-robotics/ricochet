@@ -1,6 +1,6 @@
 		 Ricochet Robots Game Protocol (RRGP)
-			    Version 0.1.1
-			     2003-5-30
+			   Version 0.1.2
+			     2003-5-31
 		
 		  Keith Packard         Carl Worth
 		keithp@keithp.com     cworth@isi.edu
@@ -303,7 +303,20 @@ Document Conventions
 	    Possible errors: NOTINGAME, NOTBIDDING
     
 	    Mark this user as having abandoned this turn.  If all users
-	    abandon, then 'TURN' can be used to move to the next turn.
+	    abandon, then the game state is switched to DONE.
+
+	1.5.2.4. No more bids
+
+	    NOBID
+
+	    ->
+
+	    NOBID
+
+	    Possible errors: NOTINGAME, NOTBIDDING
+    
+	    Mark this user as done bidding.  If all users NOBID, then
+	    the game state is switched to SHOW.
     
     1.5.3. Solving commands
 
@@ -459,6 +472,14 @@ Document Conventions
 	    before bidding has closed.  If all players make such
 	    a request, the TURN command may be used to move to the next
 	    turn.
+
+	2.2.2.5. Nobid request
+
+	    NOTICE NOBID <username>
+
+	    <username> has announced that they plan on making no more bids
+	    in the current turn.  If all players make such a request,
+	    the game moves to the SHOW state.
 
    2.2.3. Solving notices
 
