@@ -70,6 +70,11 @@ extend namespace Server {
 	    void text_ (&struct { string text; } packet) {
 		packet.text = word (f);
 	    }
+	    void texts_ (&struct { string text; } packet) {
+		packet.text = word (f);
+		while (!eol (f))
+		    packet.text += " " + word (f);
+	    }
 	    void upper_ (&struct { string text; } packet) {
 		packet.text = upper (word (f));
 	    }
@@ -158,7 +163,7 @@ extend namespace Server {
 		break;
 	    case "MESSAGE":
 		packet = (struct { string text; }) {};
-		text_ (&packet);
+		texts_ (&packet);
 		req = (Request.MESSAGE) packet;
 		break;
 	    case "PART":

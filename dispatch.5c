@@ -446,10 +446,8 @@ extend namespace Server {
 		assert_user ();
 		assert_game ();
 		for (int i = 0; i < dim(directions); i++)
-		{
 		    Games::move (&c.game.game, &c, color, directions[i]);
-		    respond ("MOVE %d\n", Games::count (&c.game.game));
-		}
+		respond ("MOVE %d\n", Games::count (&c.game.game));
 	    }
 
 	    void	undo () {

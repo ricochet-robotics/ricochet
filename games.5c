@@ -161,6 +161,8 @@ extend namespace Server {
 	}
 
 	void set_state (&Game g, GameState state) {
+	    if (g.state == state)
+		return;
 	    g.state = state;
 	    game_send (&g, "NOTICE GAMESTATE %G\n", state);
 	    switch (state) {
@@ -187,6 +189,7 @@ extend namespace Server {
 					      validate, notify, expire);
 		break;
 	    case GameState.Showing:
+		g.active = ClientRef.none;
 		set_active (&g);
 		break;
 	    }
