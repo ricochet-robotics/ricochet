@@ -71,7 +71,49 @@ Document Conventions
 
 	USERS <username1> <score1> <username2> <score2> ...
 
-1.5. Creating a new game
+1.5. Get game information
+
+	GAMEINFO <game>
+
+	->
+
+	GAMEINFO <turn> <color> <shape> <state> <time> <bid> <active>
+
+	<turn> is a number from 1 to 17 indicating the current turn
+	<color> <shape> indicate the active piece
+	<state> is one of:
+		NEW	Turn just started, no bids yet
+		BID	Bidding opened.  <time> indicates time remaining,
+			<bid> indicates the minimum bid
+		SHOW	Bidding closed and solution being demonstrated
+			<active> indicates the person demonstrating
+		SOLVED 	Solution succesfully demonstrated that
+			is less than the active users bid. <active>
+			indicates the winner.
+	<time> is valid only in BID state, else it's 0
+	<bid> is valid in all but NEW state where it's 0
+	<active> is valid in SHOW and SOLVED states, else it's ""
+
+1.6. Get user information
+
+	USERINFO <username>
+
+	->
+
+	USERINFO <game> <playing> <score> <bid>
+
+	<game> is any currently associated game, else "".  If the user
+	is not associated with any game, the remaining fields are
+	false 0 0.
+	
+	<playing> is true if the user is playing and false if watching.
+
+	<score> is a number from 0 to 17 indicating this players score
+
+	<bid> is either "none" indicating no bid or a number indicating
+	the users minimum bid.
+	
+1.7. Creating a new game
 
 	NEW <game-suggestion>
 
@@ -79,7 +121,7 @@ Document Conventions
 
 	NEW <game>
 
-1.6. Joining an existing game
+1.8. Joining an existing game
 
 	JOIN <game>
 
@@ -89,7 +131,7 @@ Document Conventions
 
 	Possible errors: NOGAME
 
-1.7. Watching an existing game
+1.9. Watching an existing game
 
 	WATCH <game>
 
@@ -102,7 +144,7 @@ Document Conventions
 
 	Possible errors: NOGAME
 
-1.8. Get the game contents
+1.10. Get the game contents
 
 	SHOW
 
@@ -143,7 +185,7 @@ Document Conventions
 
 	Possible errors: NOTINGAME
 
-1.9. Bid
+1.11. Bid
 
 	BID <number>
 
@@ -153,7 +195,7 @@ Document Conventions
 
 	Possible errors: NOTINGAME, TIMEOUT, NOTNUMBER
 
-1.10. Move
+1.12. Move
 
 	MOVE <color> <dir>
 
@@ -166,7 +208,7 @@ Document Conventions
 
 	Possible errors: NOTINGAME, NOTACTIVE, BLOCKED
 
-1.12. Undo
+1.13. Undo
 
 	UNDO
 
@@ -180,7 +222,7 @@ Document Conventions
 
 	XXX: Do we add another error code for no further undo?
 
-1.13. Reset
+1.14. Reset
 
 	RESET
 
@@ -232,6 +274,16 @@ Document Conventions
 
 	Possible errors: NOTINGAME
 
+1.17. Part
+
+	PART
+
+	->
+
+	PART
+
+	Departs the current game
+
 1.17. Quit
 
 	QUIT
@@ -249,59 +301,63 @@ Document Conventions
 
 	NOTICE <notice-code> <args>
 
-2.1. Move notice
+	Game-specific notices are sent to users involved in the related
+	game, other notices are sent to all users.  Note that even the user
+	originating the notice receives a copy.
+
+2.1. Move notice (game)
 
 	NOTICE MOVE <color> <dir>
 
-2.2. New users
+2.2. New users (all)
 
 	NOTICE USER <username>
 
-2.3. Disconnected user
+2.3. Disconnected user (all)
 
-	NOTICE PART <username>
+	NOTICE QUIT <username>
 
-2.4. New games
+2.4. New games (all)
 
 	NOTICE GAME <game>
 
-2.5. Terminated games
+2.5. Terminated games (all)
 
 	NOTICE TERMINATE <game>
 
-2.6. Bids
+2.6. Bids (game)
 
 	NOTICE BID <username> <number>
 
-2.7. Timer
+2.7. Timer (game)
 
 	NOTICE TIME <seconds>
 
 	Timer ticks are sent every 10 seconds
 
-2.8. Select active player
+2.8. Select active player (game)
 
 	NOTICE ACTIVE <username>
 
 	Only the active player may move the robots
 
-2.9. Undo
+2.9. Undo (game)
 
 	NOTICE UNDO
 
-2.11. Reset
+2.11. Reset (game)
 
 	NOTICE RESET
 
-2.12. Next turn
+2.12. Next turn (game)
 
 	NOTICE TURN <color> <shape>
 
-2.13. Message
+2.13. Message (all)
 
 	NOTICE MESSAGE <username> <text>
 
-2.14. Abandon request
+2.14. Abandon request (game)
 
 	NOTICE ABANDON <username>
 
@@ -311,6 +367,10 @@ Document Conventions
 	request, then the turn is abandoned and the next turn
 	selected with the robots reset to their position before the
 	turn started.
+
+2.15. User departed game (game)
+
+	NOTICE PART <username>
 
 3. Errors
 
