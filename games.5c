@@ -51,7 +51,7 @@ extend namespace Server {
     
 	void assert_active (&Game g, &Client c) {
 	    if (g.active != (ClientRef.client) (&c))
-		raise error (Error.NOTACTIVE);
+		raise rr_error (Error.NOTACTIVE);
 	}
 
 	void assert_active_or_done (&Game g, &Client c) {
@@ -60,18 +60,18 @@ extend namespace Server {
 	    if (g.state == GameState.SHOW &&
 	        g.active == (ClientRef.client) (&c))
 		return;
-	    raise error (Error.NOTACTIVE);
+	    raise rr_error (Error.NOTACTIVE);
 	}
 
 	void assert_playing (&Game c, &Client c) {
 	    if (!c.playing)
-		raise error (Error.NOTPLAYING);
+		raise rr_error (Error.NOTPLAYING);
 	}
 
 	void assert_done (&Game g) {
 	    if (g.state == GameState.DONE)
 		return;
-	    raise error (Error.NOTDONE);
+	    raise rr_error (Error.NOTDONE);
 	}
 	
 	/* find a game by name */
@@ -340,7 +340,7 @@ extend namespace Server {
 		break;
 	    case GameState.SHOW:
 	    case GameState.DONE:
-		raise error (Error.NOTBIDDING);
+		raise rr_error (Error.NOTBIDDING);
 		break;
 	    }
 	    
@@ -372,7 +372,7 @@ extend namespace Server {
 
 	public void dispose (&Game g) {
 	    void bail (&Client c) {
-		raise error (Error.NOTEMPTY);
+		raise rr_error (Error.NOTEMPTY);
 	    }
 	    iterate_client (&g, bail, true, false);
 	    remove (&g);
@@ -430,7 +430,7 @@ extend namespace Server {
 		set_state (&g, GameState.BID);
 	    /*
 	    if (c.bid != Bid.none && c.bid.number <= number)
-		raise error (Error.NOTLOWER);
+		raise rr_error (Error.NOTLOWER);
 	     */
 	    c.bid = (Bid.number) number;
 	    game_send (&g, "NOTICE BID %s %d\n", c.user.username, number);
@@ -440,7 +440,7 @@ extend namespace Server {
 	    assert_playing (&g, &c);
 	    assert_bidding (&g);
 	    if (c.bid == Bid.none)
-		raise error (Error.NOBID);
+		raise rr_error (Error.NOBID);
 	    c.bid = Bid.none;
 	    game_send (&g, "NOTICE REVOKE %s\n", c.user.username);
 	    if (!any_bids(&g))
@@ -506,11 +506,11 @@ extend namespace Server {
 	    assert_active_or_done (&g, &c);
 	    if (g.state == GameState.SHOW &&
 		count (&g) >= c.bid.number)
-		raise error (Error.TOOMANYMOVES);
+		raise rr_error (Error.TOOMANYMOVES);
 	    ObjectLoc	src = Boards::find_robot (&g.board, color);
 	    ObjectLoc	dst = Boards::move_robot (&g.board, color, dir);
 	    if (src == dst)
-		raise error (Error.BLOCKED);
+		raise rr_error (Error.BLOCKED);
 	    Array::push (&g.history, src);
 	    Boards::position_robot (&g.board, color, dst.x, dst.y);
 	    game_send (&g, "NOTICE MOVE %d %C %D\n", count (&g), color, dir);

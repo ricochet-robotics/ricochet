@@ -29,187 +29,30 @@ autoload Server
 
 extend namespace Server {
     public namespace Readreq {
-	public exception invalid_request (string w);
-	public exception request_closed ();
-
 	import RR;
 	import Lex;
 
-	string function upper (string s)
-	{
-	    string  r = "";
-	    for (int i = 0; i < String::length (s); i++)
-		r = r + String::new (Ctype::toupper (s[i]));
-	    return r;
+	string[] read_unlocked (file f) {
+
+	    string[*]	words = {};
+
+	    void add (string w) {
+		words = (string[dim(words)+1]) { 
+		    [i] = i == dim(words) ? w :	words[i]
+		};
+	    }
+
+	    string w = firstword (f);
+	    add (w);
+	    while (!eol (f))
+	        add (word(f));
+	    return words;
 	}
 
-	Request read_unlocked (file f) {
-	    struct {} packet;
-	    void username_ (&struct { string username; } packet) {
-		packet.username = word (f); 
-	    }
-	    void game_ (&struct { string game; } packet) {
-		packet.game = word (f); 
-	    }
-	    void number_ (&struct { int number; } packet) {
-		packet.number = number (f);
-	    }
-	    void color_ (&struct { Color color; } packet) {
-		packet.color = color (f);
-	    }
-	    void shape_ (&struct { Shape shape; } packet) {
-		packet.shape = shape (f);
-	    }
-	    void direction_ (&struct { Direction direction; } packet) {
-		packet.direction = direction (f);
-	    }
-	    void directions_ (&struct { Direction[*] directions; } packet) {
-		while (!eol (f))
-		    Array::push (&packet.directions, direction(f));
-	    }
-	    void text_ (&struct { string text; } packet) {
-		packet.text = word (f);
-	    }
-	    void texts_ (&struct { string text; } packet) {
-		packet.text = word (f);
-		while (!eol (f))
-		    packet.text += " " + word (f);
-	    }
-	    void upper_ (&struct { string text; } packet) {
-		packet.text = upper (word (f));
-	    }
-	    Request req;
-	    switch (string w = upper (firstword (f))) {
-	    case "HELO":
-		packet = (struct { string username; }) {};
-		username_ (&packet);
-		req = (Request.HELO) packet;
-		break;
-	    case "WHO":
-		req = Request.WHO;
-		break;
-	    case "GAMES":
-		req = Request.GAMES;
-		break;
-	    case "PLAYERS":
-		packet = (struct { string game; }) {};
-		game_ (&packet);
-		req = (Request.PLAYERS) packet;
-		break;
-	    case "WATCHERS":
-		packet = (struct { string game; }) {};
-		game_ (&packet);
-		req = (Request.WATCHERS) packet;
-		break;
-	    case "GAMEINFO":
-		packet = (struct { string game; }) {};
-		game_ (&packet);
-		req = (Request.GAMEINFO) packet;
-		break;
-	    case "USERINFO":
-		packet = (struct { string username; }) {};
-		username_ (&packet);
-		req = (Request.USERINFO) packet;
-		break;
-	    case "NEW":
-		packet = (struct { string game; }) {};
-		game_ (&packet);
-		req = (Request.NEW) packet;
-		break;
-	    case "JOIN":
-		packet = (struct { string game; }) {};
-		game_ (&packet);
-		req = (Request.JOIN) packet;
-		break;
-	    case "WATCH":
-		packet = (struct { string game; }) {};
-		game_ (&packet);
-		req = (Request.WATCH) packet;
-		break;
-	    case "DISPOSE":
-		packet = (struct { string game; }) {};
-		game_ (&packet);
-		req = (Request.DISPOSE) packet;
-		break;
-	    case "SHOW":
-		req = Request.SHOW;
-		break;
-	    case "BID":
-		packet = (struct { int number; }) {};
-		number_ (&packet);
-		req = (Request.BID) packet;
-		break;
-	    case "NOBID":
-		req = Request.NOBID;
-		break;
-	    case "REVOKE":
-		req = Request.REVOKE;
-		break;
-	    case "ABANDON":
-		req = Request.ABANDON;
-		break;
-	    case "MOVE":
-		packet = (struct { 
-		    Color color; 
-		    Direction[*] directions; 
-		}) { directions = {} };
-		color_ (&packet);
-		directions_ (&packet);
-		req = (Request.MOVE) packet;
-		break;
-	    case "UNDO":
-		req = Request.UNDO;
-		break;
-	    case "RESET":
-		req = Request.RESET;
-		break;
-	    case "TURN":
-		req = Request.TURN;
-		break;
-	    case "PASS":
-		req = Request.PASS;
-		break;
-	    case "MESSAGE":
-		packet = (struct { string text; }) {};
-		texts_ (&packet);
-		req = (Request.MESSAGE) packet;
-		break;
-	    case "PART":
-		req = Request.PART;
-		break;
-	    case "QUIT":
-		req = Request.QUIT;
-		break;
-	    case "HELP":
-		packet = (struct { string text; }) { text = "" };
-		if (!eol (f))
-		    upper_ (&packet);
-		req = (Request.HELP) packet;
-		break;
-	    case "":
-		raise request_closed ();
-	    default:
-		raise error (Error.COMMAND);
-	    }
-	    if (!eol (f))
-		raise error (Error.SYNTAX);
-	    return req;
-	}
-
-	public Request read (file f) {
-	    try {
-		twixt (unlock (); lock ())
-		    twixt (true; skipline (f))
-			return read_unlocked (f);
-	    } catch RR::Lex::syntax() {
-		raise error (Error.SYNTAX);
-	    } catch RR::Lex::invalid_color (string color) {
-		raise error (Error.NOTCOLOR);
-	    } catch RR::Lex::invalid_shape (string shape) {
-		raise error (Error.NOTSHAPE);
-	    } catch RR::Lex::invalid_direction (string direction) {
-		raise error (Error.NOTDIRECTION);
-	    } 
+	public string[] read (file f) {
+	    twixt (unlock (); lock ())
+		twixt (true; skipline (f))
+		    return read_unlocked (f);
 	    raise notreached ();
 	}
     }

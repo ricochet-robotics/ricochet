@@ -33,258 +33,31 @@ autoload Server::Games
 extend namespace Server {
     public namespace Dispatch {
 
+	string function upper (string s)
+	{
+	    string  r = "";
+	    for (int i = 0; i < String::length (s); i++)
+		r = r + String::new (Ctype::toupper (s[i]));
+	    return r;
+	}
 
-	typedef struct {
-	    string  command;
-	    string  usage;
-	    string  describe;
-	} Help;
-
-	Help[] cmd_help = {
-	    {	
-		command = "HELO", 
-		usage = "HELO <username>",
-		describe = 
-		"Sets the session username.  Must be used before\n"+
-		"any other command (aside from QUIT)\n"
-	    },
-	    {
-		command = "WHO",
-		usage = "WHO",
-		describe =
-		"List connected users and the number of games they've won.\n"
-	    },
-	    {
-		command = "GAMES",
-		usage = "GAMES",
-		describe =
-		"List available games.\n"
-	    },
-	    {
-		command = "PLAYERS",
-		usage = "PLAYERS <game>",
-		describe =
-		"List players in the indicated game and their current score.\n"
-	    },
-	    {
-		command = "WATCHERS",
-		usage = "WATCHERS <game>",
-		describe =
-		"List users watching the indicated game.\n"
-	    },
-	    {
-		command = "GAMEINFO",
-		usage = "GAMEINFO <game>",
-		describe =
-		"GAMEINFO <turn> <color> <shape> <state> <time> <bid> <active>\n"+
-		"\n"+
-		"<turn> is a number from 1 to 17 indicating the current turn\n"+
-		"<color> <shape> indicate the active piece\n"+
-		"<state> is one of:\n"+
-		"       new     Turn just started, no bids yet\n"+
-		"       bid     Bidding opened.  <time> indicates time remaining,\n"+
-		"               <bid> indicates the minimum bid\n"+
-		"       show    Bidding closed and solution being demonstrated\n"+
-		"               <active> indicates the person demonstrating\n"+
-		"       solved  Solution succesfully demonstrated that\n"+
-		"               is less than the active users bid. <active>\n"+
-		"               indicates the winner.\n"+
-		"<time> is valid only in BID state, else it's 0\n"+
-		"<bid> is valid in all but NEW state where it's 0\n"+
-		"<active> is valid in SHOW and SOLVED states, else it's \"\".\n"
-	    },
-	    {
-		command = "USERINFO",
-		usage = "USERINFO <username>",
-		describe =
-		"USERINFO <game> <playing> <score> <bid>\n"+
-		"\n"+
-		"<game> is any currently associated game, else \"\".  If the user\n"+
-		"is not associated with any game, the remaining fields are\n"+
-		"false 0 0.\n"+
-		"\n"+
-		"<playing> is true if the user is playing and false if watching.\n"+
-		"\n"+
-		"<score> is a number from 0 to 17 indicating this players score\n"+
-		"\n"+
-		"<bid> is either \"0\" indicating no bid or a number indicating\n"+
-		"the users minimum bid.\n"
-	    },
-	    {
-		command = "NEW",
-		usage = "NEW <game-suggestion>",
-		describe =
-		"Create new game.  <game-suggestion> will be used to construct\n"+
-		"the game name.\n"
-	    },
-	    {
-		command = "JOIN",
-		usage = "JOIN <game>",
-		describe =
-		"Join an existing game.\n"
-	    },
-	    {
-		command = "WATCH",
-		usage = "WATCH <game>",
-		describe =
-		"Watch an existing game.\n"
-	    },
-	    {
-		command = "DISPOSE",
-		usage = "DISPOSE <game>",
-		describe =
-		"Dispose an empty game.\n"
-	    },
-	    {
-		command = "SHOW",
-		usage = "SHOW",
-		describe =
-		"<game-board> is a quoted multi-line string containing an\n"+
-		"diagram of the game contents, (an array of cells). A single\n"+
-		"cell and its surrounding are indicated as:\n"+
-		"\n"+
-		" HHH \n"+
-		"VrcsV\n"+
-		" HHH\n"+
-		"\n"+
-		"H = ' ' or '='\n"+
-		"V = ' ' or '|'\n"+
-		"r = '.' or <robot-color>  (one of 'r', 'g', 'b', or 'y')\n"+
-		"c = '.' or <target-color> (one of 'r', 'g', 'b', or 'y')\n"+
-		"s = '.' or <target-shape> (one of 'c', 's', 'o', or 't')\n"+
-		"\n"+
-		"The goal robot and target (color and shape) are indicated with\n"+
-		"capital letters.\n"+
-		"\n"+
-		"For example:\n"+
-		"\n"+
-		"SHOW \"\n"+
-		" ===\n"+
-		"|R.. ... .gs\n"+
-		"\n"+
-		" byc|... .RT|\n"+
-		" ===    ===\"\n"+
-		"\n"+
-		"R.. = 	Red robot (goal robot)\n"+
-		".gs = 	Green square target\n"+
-		"byc = 	Blue robot on yellow circle target\n"+
-		".RT =	Red triangle (goal target)\n"
-	    },
-	    {
-		command = "BID",
-		usage = "BID <number>",
-		describe =
-		"Make a bid on the current turn.\n"
-	    },
-	    {
-		command = "REVOKE",
-		usage = "REVOKE",
-		describe =
-		"Revoke the current bid.  This makes it appear as if the user has\n"+
-		"never bid.\n"
-	    },
-	    {
-		command = "ABANDON",
-		usage = "ABANDON",
-		describe =
-		"Give up trying to solve the current turn.  When all users\n"+
-		"ABANDON, TURN can be used to move to the next turn.\n"
-	    },
-	    {
-		command = "NOBID",
-		usage = "NOBID",
-		describe =
-		"Give up trying to improve bids in the current turn.\n"+
-		"When all users NOBID, game moves to SHOW state.\n"
-	    },
-	    {
-		command = "MOVE",
-		usage = "MOVE <color> <dir1> <dir2> ...",
-		describe =
-		"Move the robot indicated by <color> in the indicated\n"+
-		"sequence of directions.\n"
-	    },
-	    {
-		command = "UNDO",
-		usage = "UNDO",
-		describe =
-		"Undo the last move.\n"
-	    },
-	    {
-		command = "RESET",
-		usage = "RESET",
-		describe =
-		"Reset all robots back to their positions at the\n"+
-		"start of the turn.\n"
-	    },
-	    {
-		command = "TURN",
-		usage = "TURN",
-		describe =
-		"Advance the game to the next turn, (which will have a new\n"+
-		"target square). The robots will start in their final positions\n"+
-		"at the end of the first successfully demonstrated solution.\n"+
-		"\n"+
-		"TURN succeeds if one of the following is true:\n"+
-		"\n"+
-		"       + a solution has been demonstrated\n"+
-		"       + all players have passed\n"+
-		"       + all players have abandoned the turn\n"
-	    },
-	    {
-		command = "PASS",
-		usage = "PASS",
-		describe =
-		"Give up attempting to demonstrate a solution.  Control passes\n"+
-		"to the next lowest bidder.  When all users have passed, TURN\n"+
-		"can be used to move to the next turn.\n"
-	    },
-	    {
-		command = "MESSAGE",
-		usage = "MESSAGE <text>",
-		describe =
-		"Broadcast <text> to all users.\n"
-	    },
-	    {
-		command = "PART",
-		usage = "PART",
-		describe =
-		"Depart from the current game, but remain connected to the server.\n"
-	    },
-	    {
-		command = "QUIT",
-		usage = "QUIT",
-		describe =
-		"Disconnect from the server.\n"
-	    },
-	    {
-		command = "HELP",
-		usage = "HELP <command>",
-		describe =
-		"Provide help for <command>.\n"
-	    }
-	};
 	void client_locked (file f, &Client c) {
-	    
-	    exception	notactive ();
-	    exception	notingame ();
-	    exception	invalidname ();
-	    exception	nonameset ();
-
 	    void	respond (string fmt, poly args...) {
 		Clients::client_send (&c, fmt, args...);
 	    }
 
+	    exception	closed ();
+
 	    void assert_user ()
 	    {
 		if (c.user == User.none)
-		    raise error (Error.NONAMESET);
+		    raise rr_error (Error.NONAMESET);
 	    }
 
 	    void assert_game ()
 	    {
 		if (c.game == GameRef.none)
-		    raise error (Error.NOTINGAME);
+		    raise rr_error (Error.NOTINGAME);
 	    }
 
 	    void print_client_score (&Client o) {
@@ -299,347 +72,521 @@ extend namespace Server {
 		Clients::print_client (&c, &o);
 	    }
 
-	    void	helo (string username) {
-		if (Clients::find (username) != ClientRef.none)
-		    raise error (Error.INVALIDNAME);
-		c.user.username = username;
-		respond ("HELO %s\n", server_id);
-		Clients::server_send ("NOTICE USER %s\n", username);
-	    }
+	    typedef struct {
+		string	    command;
+		string	    usage;
+		string	    describe;
+		void(string[])  f;
+	    } Cmd;
 
-	    void	who () {
-		assert_user ();
-		respond ("WHO");
-		Clients::iterate (print_client_games);
-		respond ("\n");
-	    }
-
-	    void	games() {
-		assert_user ();
-		respond ("GAMES");
-		Games::iterate (void func(&Game g) {
-		    respond (" %s", g.name);
-		});
-		respond ("\n");
-	    }
-
-	    void	players(string game) {
-		assert_user ();
-		&Game	g = Games::find (game);
-		respond ("PLAYERS");
-		Games::iterate_client (&g, print_client_score, true, false);
-		respond ("\n");
-	    }
-
-	    void	watchers(string game) {
-		assert_user ();
-		&Game	g = Games::find (game);
-		respond ("WATCHERS");
-		Games::iterate_client (&g, print_client, false, true);
-		respond ("\n");
-	    }
-
-	    void	gameinfo (string game) {
-		assert_user ();
-		&Game	g = Games::find (game);
-
-		int	    turn = 17 - dim (g.targets);
-		
-		int	    remain = 0;
-		if (g.state == GameState.BID)
-		{
-		    remain = g.expire_time - time();
-		    if (remain < 0) remain = 0;
-		}
-		
-		int	    bid = 0;
-		union switch (Games::lowest_bidder (&g)) {
-		case none: break;
-		case client c: bid = c.bid.number; break;
-		}
-
-		string	    active = "";
-		if (g.state == GameState.SHOW)
-		    active = g.active.client.user.username;
-
-		respond ("GAMEINFO %d %C %S %G %d %d %s\n",
-			 turn, 
-			 g.target.color,
-			 g.target.shape,
-			 g.state,
-			 remain,
-			 bid,
-			 active);
-	    }
-
-	    void	userinfo (string username) {
-		assert_user ();
-		ClientRef	cr = Clients::find (username);
-		union switch (cr) {
-		case none:
-		    raise error (Error.NOUSER);
-		case client c:
-		    string  game = "";
-		    bool    playing = false;
-		    int	    score = 0;
-		    int	    bid = 0;
-
-		    union switch (c.game) {
-		    case none:	break;
-		    case game g:
-			game = g.name;
-			playing = c.playing;
-			if (playing)
-			{
-			    score = c.score;
-			    if (c.bid != Bid.none)
-				bid = c.bid.number;
-			}
+	    Cmd[] commands = {
+		{	
+		    command = "HELO", 
+		    usage = "HELO <username>",
+		    describe = 
+		    "Sets the session username.  Must be used before\n"+
+		    "any other command (aside from QUIT)\n",
+		    f = void func (string[] w) {
+			string username = w[0];
+			if (Clients::find (username) != ClientRef.none)
+			    raise rr_error (Error.INVALIDNAME);
+			c.user.username = username;
+			respond ("HELO %s\n", server_id);
+			Clients::server_send ("NOTICE USER %s\n", username);
 		    }
-		    respond ("USERINFO %s %b %d %d\n",
-			     game, playing, score, bid);
-		}
-	    }
-	    
-	    void	new(string game) {
-		assert_user ();
-		&Game g = Games::new (game);
-		Games::add_client (&g, &c, true);
-		respond ("NEW %s\n", g.name);
-	    }
-
-	    void	join (string game) {
-		assert_user ();
-		&Game g = Games::find (game);
-		Games::add_client (&g, &c, true);
-		respond ("JOIN\n");
-	    }
-	    
-	    void	watch (string game) {
-		assert_user ();
-		&Game g = Games::find (game);
-		Games::add_client (&g, &c, false);
-		respond ("WATCH\n");
-	    }
-
-	    void	dispose (string game) {
-		assert_user ();
-		&Game g = Games::find (game);
-		Games::dispose (&g);
-		respond ("DISPOSE\n");
-	    }
-	    
-	    void	show () {
-		assert_user ();
-		assert_game ();
-		File::fprintf (f, "SHOW \"\n");
-		Show::show (f, &c.game.game.board);
-		File::fprintf (f, "\"\n");
-	    }
-
-	    void	bid (int number) {
-		assert_user ();
-		assert_game ();
-		Games::bid (&c.game.game, &c, number);
-		respond ("BID\n");
-	    }
-
-	    void	revoke () {
-		assert_user ();
-		assert_game ();
-		Games::revoke (&c.game.game, &c);
-		respond ("REVOKE\n");
-	    }
-
-	    void	abandon () {
-		assert_user ();
-		assert_game ();
-		Games::abandon (&c.game.game, &c);
-		respond ("ABANDON\n");
-	    }
-
-	    void	nobid () {
-		assert_user ();
-		assert_game ();
-		Games::nobid (&c.game.game, &c);
-		respond ("NOBID\n");
-	    }
-
-	    void	move (Color color, &Direction[*] directions) {
-		assert_user ();
-		assert_game ();
-		for (int i = 0; i < dim(directions); i++)
-		    Games::move (&c.game.game, &c, color, directions[i]);
-		respond ("MOVE %d\n", Games::count (&c.game.game));
-	    }
-
-	    void	undo () {
-		assert_user ();
-		assert_game ();
-		Games::undo (&c.game.game, &c);
-		respond ("UNDO\n");
-	    }
-
-	    void	reset () {
-		assert_user ();
-		assert_game ();
-		Games::reset (&c.game.game, &c);
-		respond ("RESET\n");
-	    }
-
-	    void	turn () {
-		assert_user ();
-		assert_game ();
-		Games::turn (&c.game.game, &c);
-		respond ("TURN\n");
-	    }
-
-	    void	pass () {
-		assert_user ();
-		assert_game ();
-		Games::pass (&c.game.game, &c);
-		respond ("PASS\n");
-	    }
-
-	    void	message (string text) {
-		assert_user ();
-		respond ("MESSAGE\n");
-		string u = (c.user == User.none ? "anonymous" :
-			    c.user.username);
-		Clients::server_send ("NOTICE MESSAGE %s %s\n", u, text);
-	    }
-
-	    void	part () {
-		assert_user ();
-		assert_game ();
-		Games::remove_client (&c);
-		respond ("PART\n");
-	    }
-	    
-	    void	quit () {
-		respond ("QUIT\n");
-		raise Readreq::request_closed();
-	    }
-	    void	help (string command) {
-
-		void	print_help (&Help h, bool describe)
+		},
 		{
-		    File::fprintf (c.f, "%-12.12s %s\n", h.command, h.usage);
-		    if (describe)
-		    {
-			int len = String::length (h.describe);
-			bool newline = true;
-			for (int i = 0; i < len; i++) 
+		    command = "WHO",
+		    usage = "WHO",
+		    describe =
+		    "List connected users and the number of games they've won.\n",
+		    f = void func (string[] w) {
+			assert_user ();
+			respond ("WHO");
+			Clients::iterate (print_client_games);
+			respond ("\n");
+		    }
+		},
+		{
+		    command = "GAMES",
+		    usage = "GAMES",
+		    describe =
+		    "List available games.\n",
+		    f = void func (string[] w) {
+			assert_user ();
+			respond ("GAMES");
+			Games::iterate (void func(&Game g) {
+			    respond (" %s", g.name);
+			});
+			respond ("\n");
+		    }
+		},
+		{
+		    command = "PLAYERS",
+		    usage = "PLAYERS <game>",
+		    describe =
+		    "List players in the indicated game and their current score.\n",
+		    f = void func (string[] w) {
+			string game = w[0];
+			assert_user ();
+			&Game g = Games::find (game);
+			respond ("PLAYERS");
+			Games::iterate_client (&g, print_client_score, true, false);
+			respond ("\n");
+		    }
+		},
+		{
+		    command = "WATCHERS",
+		    usage = "WATCHERS <game>",
+		    describe =
+		    "List users watching the indicated game.\n",
+		    f = void func (string[] w) {
+			string game = w[0];
+			assert_user ();
+			&Game	g = Games::find (w[1]);
+			respond ("WATCHERS");
+			Games::iterate_client (&g, print_client, false, true);
+			respond ("\n");
+		    }
+		},
+		{
+		    command = "GAMEINFO",
+		    usage = "GAMEINFO <game>",
+		    describe =
+		    "GAMEINFO <turn> <color> <shape> <state> <time> <bid> <active>\n"+
+		    "\n"+
+		    "<turn> is a number from 1 to 17 indicating the current turn\n"+
+		    "<color> <shape> indicate the active piece\n"+
+		    "<state> is one of:\n"+
+		    "       new     Turn just started, no bids yet\n"+
+		    "       bid     Bidding opened.  <time> indicates time remaining,\n"+
+		    "               <bid> indicates the minimum bid\n"+
+		    "       show    Bidding closed and solution being demonstrated\n"+
+		    "               <active> indicates the person demonstrating\n"+
+		    "       solved  Solution succesfully demonstrated that\n"+
+		    "               is less than the active users bid. <active>\n"+
+		    "               indicates the winner.\n"+
+		    "<time> is valid only in BID state, else it's 0\n"+
+		    "<bid> is valid in all but NEW state where it's 0\n"+
+		    "<active> is valid in SHOW and SOLVED states, else it's	\"\".\n",
+		    f = void func (string[] w) {
+			string game = w[0];
+			assert_user ();
+			&Game	g = Games::find (game);
+
+			int	    turn = 17 - dim (g.targets);
+
+			int	    remain = 0;
+			if (g.state == GameState.BID)
 			{
-			    if (newline)
-			    {
-				for (int j = 0; j < 13; j++)
-				    File::putc (' ', c.f);
-				newline = false;
+			    remain = g.expire_time - time();
+			    if (remain < 0) remain = 0;
+			}
+
+			int	    bid = 0;
+			union switch (Games::lowest_bidder (&g)) {
+			case none: break;
+			case client c: bid = c.bid.number; break;
+			}
+
+			string	    active = "";
+			if (g.state == GameState.SHOW)
+			    active = g.active.client.user.username;
+
+			respond ("GAMEINFO %d %C %S %G %d %d %s\n",
+				 turn, 
+				 g.target.color,
+				 g.target.shape,
+				 g.state,
+				 remain,
+				 bid,
+				 active);
+		    }
+		},
+		{
+		    command = "USERINFO",
+		    usage = "USERINFO <username>",
+		    describe =
+		    "USERINFO <game> <playing> <score> <bid>\n"+
+		    "\n"+
+		    "<game> is any currently associated game, else \"\".  If the user\n"+
+		    "is not associated with any game, the remaining fields are\n"+
+		    "false 0 0.\n"+
+		    "\n"+
+		    "<playing> is true if the user is playing and false if watching.\n"+
+		    "\n"+
+		    "<score> is a number from 0 to 17 indicating this players score\n"+
+		    "\n"+
+		    "<bid> is either \"0\" indicating no bid or a number indicating\n"+
+		    "the users minimum bid.\n",
+		    f = void func (string[] w) {
+			string username = w[0];
+			assert_user ();
+			ClientRef	cr = Clients::find (username);
+			union switch (cr) {
+			case none:
+			    raise rr_error (Error.NOUSER);
+			case client c:
+			    string  game = "";
+			    bool    playing = false;
+			    int	    score = 0;
+			    int	    bid = 0;
+
+			    union switch (c.game) {
+			    case none:	break;
+			    case game g:
+				game = g.name;
+				playing = c.playing;
+				if (playing)
+				{
+				    score = c.score;
+				    if (c.bid != Bid.none)
+					bid = c.bid.number;
+				}
 			    }
-			    int ch = h.describe[i];
-			    File::putc (ch, c.f);
-			    if (ch == '\n') newline = true;
+			    respond ("USERINFO %s %b %d %d\n",
+				     game, playing, score, bid);
+			}
+		    }
+		},
+		{
+		    command = "NEW",
+		    usage = "NEW <game-suggestion>",
+		    describe =
+		    "Create new game.  <game-suggestion> will be used to construct\n"+
+		    "the game name.\n",
+		    f = void func (string[] w) {
+			string game=w[0];
+			assert_user ();
+			&Game g = Games::new (game);
+			Games::add_client (&g, &c, true);
+			respond ("NEW %s\n", g.name);
+		    }
+		},
+		{
+		    command = "JOIN",
+		    usage = "JOIN <game>",
+		    describe =
+		    "Join an existing game.\n",
+		    f = void func (string[] w) {
+			string game=w[0];
+			assert_user ();
+			&Game g = Games::find (game);
+			Games::add_client (&g, &c, true);
+			respond ("JOIN\n");
+		    }
+		},
+		{
+		    command = "WATCH",
+		    usage = "WATCH <game>",
+		    describe =
+		    "Watch an existing game.\n",
+		    f = void func (string[] w) {
+			string game=w[0];
+			assert_user ();
+			&Game g = Games::find (game);
+			Games::add_client (&g, &c, false);
+			respond ("WATCH\n");
+		    }
+		},
+		{
+		    command = "DISPOSE",
+		    usage = "DISPOSE <game>",
+		    describe =
+		    "Dispose an empty game.\n",
+		    f = void func (string[] w) {
+			string game=w[0];
+			assert_user ();
+			&Game g = Games::find (game);
+			Games::dispose (&g);
+			respond ("DISPOSE\n");
+		    }
+		},
+		{
+		    command = "SHOW",
+		    usage = "SHOW",
+		    describe =
+		    "<game-board> is a quoted multi-line string containing an\n"+
+		    "diagram of the game contents, (an array of cells). A single\n"+
+		    "cell and its surrounding are indicated as:\n"+
+		    "\n"+
+		    " HHH \n"+
+		    "VrcsV\n"+
+		    " HHH\n"+
+		    "\n"+
+		    "H = ' ' or '='\n"+
+		    "V = ' ' or '|'\n"+
+		    "r = '.' or <robot-color>  (one of 'r', 'g', 'b', or 'y')\n"+
+		    "c = '.' or <target-color> (one of 'r', 'g', 'b', or 'y')\n"+
+		    "s = '.' or <target-shape> (one of 'c', 's', 'o', or 't')\n"+
+		    "\n"+
+		    "The goal robot and target (color and shape) are indicated with\n"+
+		    "capital letters.\n"+
+		    "\n"+
+		    "For example:\n"+
+		    "\n"+
+		    "SHOW \"\n"+
+		    " ===\n"+
+		    "|R.. ... .gs\n"+
+		    "\n"+
+		    " byc|... .RT|\n"+
+		    " ===    ===\"\n"+
+		    "\n"+
+		    "R.. = 	Red robot (goal robot)\n"+
+		    ".gs = 	Green square target\n"+
+		    "byc = 	Blue robot on yellow circle target\n"+
+		    ".RT =	Red triangle (goal target)\n",
+		    f = void func (string[] w) {
+			assert_user ();
+			assert_game ();
+			File::fprintf (f, "SHOW \"\n");
+			Show::show (f, &c.game.game.board);
+			File::fprintf (f, "\"\n");
+		    }
+		},
+		{
+		    command = "BID",
+		    usage = "BID <number>",
+		    describe =
+		    "Make a bid on the current turn.\n",
+		    f = void func (string[] w) {
+			int number = string_to_integer (w[0]);
+			assert_user ();
+			assert_game ();
+			Games::bid (&c.game.game, &c, number);
+			respond ("BID\n");
+		    }
+		},
+		{
+		    command = "REVOKE",
+		    usage = "REVOKE",
+		    describe =
+		    "Revoke the current bid.  This makes it appear as if the user has\n"+
+		    "never bid.\n",
+		    f = void func (string[] w) {
+			assert_user ();
+			assert_game ();
+			Games::revoke (&c.game.game, &c);
+			respond ("REVOKE\n");
+		    }
+		},
+		{
+		    command = "ABANDON",
+		    usage = "ABANDON",
+		    describe =
+		    "Give up trying to solve the current turn.  When all users\n"+
+		    "ABANDON, TURN can be used to move to the next turn.\n",
+		    f = void func (string[] w) {
+			assert_user ();
+			assert_game ();
+			Games::abandon (&c.game.game, &c);
+			respond ("ABANDON\n");
+		    }
+		},
+		{
+		    command = "NOBID",
+		    usage = "NOBID",
+		    describe =
+		    "Give up trying to improve bids in the current turn.\n"+
+		    "When all users NOBID, game moves to SHOW state.\n",
+		    f = void func (string[] w) {
+			assert_user ();
+			assert_game ();
+			Games::nobid (&c.game.game, &c);
+			respond ("NOBID\n");
+		    }
+		},
+		{
+		    command = "MOVE",
+		    usage = "MOVE <color> <dir1> <dir2> ...",
+		    describe =
+		    "Move the robot indicated by <color> in the indicated\n"+
+		    "sequence of directions.\n",
+		    f = void func (string[] w) {
+			Color col = color(w[0]);
+			Direction[dim(w)-1] directions = { 
+			    [i] = direction(w[i+1]) 
+			};
+			assert_user ();
+			assert_game ();
+			for (int i = 0; i < dim(directions); i++)
+			    Games::move (&c.game.game, &c, col, directions[i]);
+			respond ("MOVE %d\n", Games::count (&c.game.game));
+		    }
+		},
+		{
+		    command = "UNDO",
+		    usage = "UNDO",
+		    describe =
+		    "Undo the last move.\n",
+		    f = void func (string[] w) {
+			assert_user ();
+			assert_game ();
+			Games::undo (&c.game.game, &c);
+			respond ("UNDO\n");
+		    }
+		},
+		{
+		    command = "RESET",
+		    usage = "RESET",
+		    describe =
+		    "Reset all robots back to their positions at the\n"+
+		    "start of the turn.\n",
+		    f = void func (string[] w) {
+			assert_user ();
+			assert_game ();
+			Games::reset (&c.game.game, &c);
+			respond ("RESET\n");
+		    }
+		},
+		{
+		    command = "TURN",
+		    usage = "TURN",
+		    describe =
+		    "Advance the game to the next turn, (which will have a new\n"+
+		    "target square). The robots will start in their final positions\n"+
+		    "at the end of the first successfully demonstrated solution.\n"+
+		    "\n"+
+		    "TURN succeeds if one of the following is true:\n"+
+		    "\n"+
+		    "       + a solution has been demonstrated\n"+
+		    "       + all players have passed\n"+
+		    "       + all players have abandoned the turn\n",
+		    f = void func (string[] w) {
+			assert_user ();
+			assert_game ();
+			Games::turn (&c.game.game, &c);
+			respond ("TURN\n");
+		    }
+		},
+		{
+		    command = "PASS",
+		    usage = "PASS",
+		    describe =
+		    "Give up attempting to demonstrate a solution.  Control passes\n"+
+		    "to the next lowest bidder.  When all users have passed, TURN\n"+
+		    "can be used to move to the next turn.\n",
+		    f = void func (string[] w) {
+			assert_user ();
+			assert_game ();
+			Games::pass (&c.game.game, &c);
+			respond ("PASS\n");
+		    }
+		},
+		{
+		    command = "MESSAGE",
+		    usage = "MESSAGE <text>",
+		    describe =
+		    "Broadcast <text> to all users.\n",
+		    f = void func (string[] w) {
+			assert_user ();
+			respond ("MESSAGE\n");
+			string text = w[0];
+			for (int i = 1; i < dim(w); i++)
+			    text = text + " " + w[i];
+			string u = (c.user == User.none ? "anonymous" :
+				    c.user.username);
+			Clients::server_send ("NOTICE MESSAGE %s %s\n", u, text);
+		    }
+		},
+		{
+		    command = "PART",
+		    usage = "PART",
+		    describe =
+		    "Depart from the current game, but remain connected\n"+
+		    "to the server.\n",
+		    f = void func (string[] w) {
+			assert_user ();
+			assert_game ();
+			Games::remove_client (&c);
+			respond ("PART\n");
+		    }
+		},
+		{
+		    command = "QUIT",
+		    usage = "QUIT",
+		    describe =
+		    "Disconnect from the server.\n",
+		    f = void func (string[] w) {
+			respond ("QUIT\n");
+			raise closed();
+		    }
+		},
+		{
+		    command = "HELP",
+		    usage = "HELP <command>",
+		    describe =
+		    "Provide help for <command>.\n",
+		    f = void func (string[] w) {
+			void	print_help (&Cmd cmd, bool describe)
+			{
+			    File::fprintf (c.f, "%-12.12s %s\n", cmd.command, cmd.usage);
+			    if (describe)
+			    {
+				int len = String::length (cmd.describe);
+				bool newline = true;
+				for (int i = 0; i < len; i++) 
+				{
+				    if (newline)
+				    {
+					for (int j = 0; j < 13; j++)
+					    File::putc (' ', c.f);
+					newline = false;
+				    }
+				    int ch = cmd.describe[i];
+				    File::putc (ch, c.f);
+				    if (ch == '\n') newline = true;
+				}
+			    }
+			}
+			if (dim(w) > 0)
+			{
+			    for (int j = 0; j < dim(w); j++)
+			    {
+				string command = upper (w[j]);
+				int i;
+				for (i = 0; i < dim(commands); i++)
+				    if (command == commands[i].command)
+				    {
+					print_help (&commands[i], true);
+					break;
+				    }
+				if (i == dim(commands))
+				    raise rr_error (Error.COMMAND);
+			    }
+			}
+			else
+			{
+			    for (int i = 0; i < dim(commands); i++)
+				print_help (&commands[i], false);
 			}
 		    }
 		}
-		for (int i = 0; i < dim(cmd_help); i++)
-		    if (command == cmd_help[i].command)
-		    {
-			print_help (&cmd_help[i], true);
-			return;
-		    }
-    		for (int i = 0; i < dim(cmd_help); i++)
-		    print_help (&cmd_help[i], false);
-	    }
-	    
+	    };
+
 	    printf ("New client\n");
 
 	    for (;;) {
 		try {
 		    File::flush (f);
-		    Request	r = Readreq::read (f);
+		    string[]  words = Readreq::read (f);
 		    
-		    union switch (r) {
-		    case HELO h:    
-			helo (h.username);
-			break;
-		    case WHO:
-			who ();
-			break;
-		    case GAMES:
-			games ();
-			break;
-		    case PLAYERS p:
-			players (p.game);
-			break;
-		    case WATCHERS w:
-			watchers (w.game);
-			break;
-		    case GAMEINFO g:
-			gameinfo (g.game);
-			break;
-		    case USERINFO u:
-			userinfo (u.username);
-			break;
-		    case NEW n:
-			new (n.game);
-			break;
-		    case JOIN j:
-			join (j.game);
-			break;
-		    case WATCH w:
-			watch (w.game);
-			break;
-		    case DISPOSE d:
-			dispose (d.game);
-			break;
-		    case SHOW:
-			show ();
-			break;
-		    case BID b:
-			bid (b.number);
-			break;
-		    case REVOKE:
-			revoke ();
-			break;
-		    case ABANDON:
-			abandon ();
-			break;
-		    case NOBID:
-			nobid ();
-			break;
-		    case MOVE m:
-			move (m.color, &m.directions);
-			break;
-		    case UNDO:
-			undo ();
-			break;
-		    case RESET:
-			reset ();
-			break;
-		    case TURN:
-			turn ();
-			break;
-		    case PASS:
-			pass ();
-			break;
-		    case MESSAGE m:
-			message (m.text);
-			break;
-		    case PART:
-			part ();
-			break;
-		    case QUIT:
-			quit ();
-			break;
-		    case HELP h:
-			help (h.text);
-			break;
-		    }
-		} catch error (Error e) {
+		    string  command = upper (words[0]);
+		    string[dim(words)-1] args = { [i] = words[i+1] };
+		    
+		    if (words[0] == "") return;
+		    int i;
+		    for (i = 0; i < dim(commands); i++)
+			if (command == commands[i].command)
+			{
+			    commands[i].f (args);
+			    break;
+			}
+		    if (i == dim(commands))
+			raise rr_error (Error.COMMAND);
+		} catch rr_error (Error e) {
 		    respond ("ERROR %E\n", e);
-		} catch Readreq::request_closed () {
+		} catch closed () {
 		    return;
 		}
 	    }

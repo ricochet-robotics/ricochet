@@ -71,140 +71,6 @@ namespace RR {
     
     public typedef Object[Width,Height]	Board;
 
-    public typedef union {
-	struct {
-	    string	username;
-	}	HELO;
-	void    WHO;
-	void    GAMES;
-	struct {
-	    string	game;
-	}	PLAYERS;
-	struct {
-	    string	game;
-	}	WATCHERS;
-	struct {
-	    string	game;
-	}	GAMEINFO;
-	struct {
-	    string	username;
-	}	USERINFO;
-	struct {
-	    string	game;
-	}	NEW;
-	struct {
-	    string	game;
-	}	JOIN;
-	struct {
-	    string	game;
-	}	WATCH;
-	struct {
-	    string	game;
-	}	DISPOSE;
-	void    SHOW;
-	struct {
-	    int	number;
-	}	BID;
-	void	NOBID;
-	void	REVOKE;
-	void	ABANDON;
-	struct {
-	    Color	    color;
-	    Direction[*]    directions;
-	}	MOVE;
-	void    UNDO;
-	void    RESET;
-	void    TURN;
-	void    PASS;
-	struct {
-	    string	text;
-	}	MESSAGE;
-	void	PART;
-	void	QUIT;
-	struct {
-	    string	text;
-	}	HELP;
-    } Request;
-
-    public typedef union {
-	struct {
-	    string	servername;
-	}	    HELO;
-	struct {
-	    string[]    users;
-	}	    WHO;
-	struct {
-	    string[]    games;
-	}	    GAMES;
-	struct {
-	    string[]    users;
-	}	    USERS;
-	struct {
-	    string	    game;
-	}	    NEW;
-	struct {
-	    string[]    users;
-	}	    JOIN;
-	struct {
-	    string[]    users;
-	}	    WATCH;
-	struct {
-	    Board	    board;
-	}	    SHOW;
-	void    BID;
-	void    MOVE;
-	void    UNDO;
-	void    RESET;
-	void    TURN;
-	void    PASS;
-	void    MESSAGE;
-    } Reply;
-
-    public typedef struct {
-	struct {
-	    Color	color;
-	    Direction   direction;
-	}	MOVE;
-	struct {
-	    string	username;
-	}	USER;
-	struct {
-	    string	username;
-	}	PART;
-	struct {
-	    string	game;
-	}	GAME;
-	struct {
-	    string	game;
-	}	TERMINATE;
-	struct {
-	    int	number;
-	    string	username;
-	}	BID;
-	struct {
-	    string	username;
-	}	REVOKE;
-	struct {
-	    int	seconds;
-	}	TIME;
-	struct {
-	    string	username;
-	}	    ACTIVE;
-	void    UNDO;
-	void    RESET;
-	struct {
-	    Color	color;
-	    Shape	shape;
-	}	TURN;
-	struct {
-	    string	text;
-	    string	username;
-	}	MESSAGE;
-	struct {
-	    string	username;
-	}	ABANDON;
-    } Notice;
-
     public typedef enum {
 	NOGAME,
 	NOUSER,
@@ -228,9 +94,37 @@ namespace RR {
 	INVALIDNAME
     } Error;
 
-    public typedef union {
-	Reply	reply;
-	Notice	notice;
-	Error	error;
-    } Response;
+    public exception rr_error (Error e);
+
+    public Color color (string w) {
+	switch (w[0]) {
+	case 'r': case 'R': return Color.Red;
+	case 'y': case 'Y': return Color.Yellow;
+	case 'g': case 'G': return Color.Green;
+	case 'b': case 'B': return Color.Blue;
+	case 'w': case 'W': return Color.Whirl;
+	    default: raise rr_error (Error.NOTCOLOR);
+	}
+    }
+    
+    public Shape shape (string w) {
+	switch (w[0]) {
+	case 't': case 'T': return Shape.Triangle;
+	case 's': case 'S': return Shape.Square;
+	case 'o': case 'O': return Shape.Octagon;
+	case 'c': case 'C': return Shape.Circle;
+	case 'w': case 'W': return Shape.Whirl;
+	    default: raise rr_error (Error.NOTSHAPE);
+	}
+    }
+
+    public Direction direction (string w) {
+	switch (w[0]) {
+	case 'n': case 'N': return Direction.North;
+	case 'e': case 'E': return Direction.East;
+	case 's': case 'S': return Direction.South;
+	case 'w': case 'W': return Direction.West;
+	    default: raise rr_error (Error.NOTDIRECTION);
+	}
+    }
 }
