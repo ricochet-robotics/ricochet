@@ -26,9 +26,9 @@ Document Conventions
 
 	->
 
-	<response> <data>
+	<response>
 
-	<response-code> is one of:
+	<response> is one of:
 
 	<command> <args>
 	ERROR <message>
