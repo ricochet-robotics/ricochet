@@ -503,7 +503,15 @@ Document Conventions
 
 	    NOTICE RESET
 
-	2.2.3.5. Score (game)
+	2.2.3.5. Position (after move/undo/reset)
+
+	    NOTICE POSITION <color> <x> <y>
+
+	    The indicated robot has moved to the indicated position.
+	    The board is 0-based with the origin in the upper left
+	    corner.
+
+	2.2.3.6. Score (game)
 
 	    NOTICE SCORE <username> <score>
 

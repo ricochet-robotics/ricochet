@@ -29,6 +29,36 @@ autoload Server::Boards
 autoload Server::Clients
 
 extend namespace Server {
+    namespace Track {
+	typedef struct {
+	    Color   color;
+	    int	    x, y;
+	} Pos;
+
+	public typedef Pos[*] Loc;
+
+	public void note (&Loc loc, Color color, int x, int y) {
+	    for (int i = 0; i < dim (loc); i++)
+		if (loc[i].color == color) {
+		    loc[i].x = x;
+		    loc[i].y = y;
+		    return;
+		}
+	    Array::push (&loc, (Pos) {
+		color = color,
+		x = x,
+		y = y });
+	}
+
+	public Loc new () {
+	    return (Pos[0]) {};
+	}
+
+	public void report (void (Color c, int x, int y) call, &Loc loc) {
+	    for (int i = 0; i < dim (loc); i++)
+		call (loc[i].color, loc[i].x, loc[i].y);
+	}
+    }
     public namespace Games {
 	/* array of all games */
 	public (&Game)[0]	games = {};
@@ -115,6 +145,14 @@ extend namespace Server {
 		Clients::client_send (&c, "\n");
 	    }
 	    iterate_client (&g, message_client, true, true);
+	}
+
+	void game_send_loc (&Game g, &Track::Loc loc) {
+	    void report_position (Color c, int x, int y)
+	    {
+		game_send (&g, "NOTICE POSITION %C %d %d\n", c, x, y);
+	    }
+	    Track::report (report_position, &loc);
 	}
 
 	/* does the given game exist? */
@@ -236,21 +274,32 @@ extend namespace Server {
 	    }
 	}
 
-	void undo_move (&Game g)
+	void undo_move (&Game g, &Track::Loc loc)
 	{
 	    ObjectLoc ol = Array::pop (&g.history);
 	    Boards::position_robot (&g.board, ol.object.robot.robot.color,
 				    ol.x, ol.y);
+	    Track::note (&loc, ol.object.robot.robot.color,
+			 ol.x, ol.y);
 	}
 
-	void reset_move (&Game g)
+	void reset_move (&Game g, &Track::Loc loc)
 	{
 	    if (dim (g.history) > 0)
 	    {
 		while (dim (g.history) > 0)
-		    undo_move (&g);
-		game_send (&g, "NOTICE RESET\n");
+		    undo_move (&g, &loc);
 	    }
+	}
+	
+	void make_move (&Game g, &Track::Loc loc, Color color, Direction dir) {
+	    ObjectLoc	src = Boards::find_robot (&g.board, color);
+	    ObjectLoc	dst = Boards::move_robot (&g.board, color, dir);
+	    if (src == dst)
+		raise rr_error (Error.BLOCKED);
+	    Array::push (&g.history, src);
+	    Track::note (&loc, color, dst.x, dst.y);
+	    Boards::position_robot (&g.board, color, dst.x, dst.y);
 	}
 	
     	void next_game (&Game g);
@@ -477,15 +526,20 @@ extend namespace Server {
 	    assert_active_or_done (&g, &c);
 	    if (dim (g.history) > 0)
 	    {
-		undo_move (&g);
+		Track::Loc loc = Track::new ();
+		undo_move (&g, &loc);
 		game_send (&g, "NOTICE UNDO\n");
+		game_send_loc (&g, &loc);
 	    }
 	}
 
 	public void reset (&Game g, &Client c) {
 	    assert_playing (&g, &c);
 	    assert_active_or_done (&g, &c);
-	    reset_move (&g);
+	    Track::Loc	loc = Track::new();
+	    reset_move (&g, &loc);
+	    game_send (&g, "NOTICE RESET\n");
+	    game_send_loc (&g, &loc);
 	}
 
 	public void pass (&Game g, &Client c) {
@@ -504,13 +558,10 @@ extend namespace Server {
 	    if (g.state == GameState.SHOW &&
 		count (&g) >= c.bid.number)
 		raise rr_error (Error.TOOMANYMOVES);
-	    ObjectLoc	src = Boards::find_robot (&g.board, color);
-	    ObjectLoc	dst = Boards::move_robot (&g.board, color, dir);
-	    if (src == dst)
-		raise rr_error (Error.BLOCKED);
-	    Array::push (&g.history, src);
-	    Boards::position_robot (&g.board, color, dst.x, dst.y);
+	    Track::Loc  loc = Track::new();
+	    make_move (&g, &loc, color, dir);
 	    game_send (&g, "NOTICE MOVE %d %C %D\n", count (&g), color, dir);
+	    game_send_loc (&g, &loc);
 	    if (g.state != GameState.DONE && Boards::solved (&g.board))
 	    {
 		if (g.active != ClientRef.none)
