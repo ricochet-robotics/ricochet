@@ -360,7 +360,7 @@ extend namespace Server {
 		    "|R.. ... .gs\n"+
 		    "\n"+
 		    " byc|... .RT|\n"+
-		    " ===    ===\"\n"+
+		    " ===    === \"\n"+
 		    "\n"+
 		    "R.. = 	Red robot (goal robot)\n"+
 		    ".gs = 	Green square target\n"+

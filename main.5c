@@ -30,8 +30,14 @@ extend namespace Server {
     public namespace Main {
 	public void main () {
 	    PRNG::dev_srandom (32);
+	    for (int i = 0; i < dim (argv); i++)
+		switch (argv[i]) {
+		case "--logfile":
+		    File::reopen (argv[i+1], "a", stdout);
+		    break;
+		}
 	    file    f = Net::create (RR::Port);
-	    File::fprintf (stderr, "RR server started on port %d.\n", RR::Port);
+	    printf ("RR server started on port %d.\n", RR::Port);
     	    Net::listen (Dispatch::client, f);
 	}
     }

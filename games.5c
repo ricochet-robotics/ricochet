@@ -155,6 +155,16 @@ extend namespace Server {
 	    Track::report (report_position, &loc);
 	}
 
+	void game_send_board (&Game g, string fmt, poly args...) {
+	    void    board_client (&Client c) {
+		Clients::client_send (&c, fmt, args);
+		File::fprintf (c.f, " \"\n");
+		Show::show (c.f, &g.board);
+		File::fprintf (c.f, "\"\n");
+	    }
+	    iterate_client (&g, board_client, true, true);
+	}
+	
 	/* does the given game exist? */
 	bool exists (string name) {
 	    exception	found (&Game g);
@@ -385,6 +395,7 @@ extend namespace Server {
 	    g.active = ClientRef.none;
 	    g.timer_serial = 0;
 	    g.done_robots = (ObjectLoc[0]) {};
+	    game_send_board (&g, "NOTICE BOARD");
 	    next_target (&g);
 	}
 	

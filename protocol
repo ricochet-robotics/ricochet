@@ -551,7 +551,7 @@ Document Conventions
 	    NOTICE ACTIVATE <bid>
 
 	    Sent to the player which has just become active
-
+	    
 3. Errors
 
     The following error codes may be returned.
