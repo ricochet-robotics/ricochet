@@ -33,9 +33,11 @@ namespace Server {
 
     mutex   server_mutex = Mutex::new ();
 
-    string	server_id = "RicochetServer";
+    string	server_id = Sockets::gethostname();
 
     public void set_server_id (string id) { server_id = id; }
+
+    const int server_version = 1;
 
     public bool lock () {
 	Mutex::acquire (server_mutex);
@@ -80,6 +82,7 @@ namespace Server {
 	GameRef	    game;
 	int	    score;
 	int	    games;
+	int	    version;
 	Bid	    bid;
 	bool	    playing;
 	bool	    abandon;

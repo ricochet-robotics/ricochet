@@ -79,6 +79,25 @@ extend namespace Server {
 		void(string[])  f;
 	    } Cmd;
 
+	    string random_user () {
+		const string	consonant = "bcdfghjklmnpqrstvwxz";
+		const string	vowel = "aeiou";
+		
+		string randc (string a)
+		{
+		    int i = PRNG::randint (String::length (a));
+		    return String::substr (a, i, 1);
+		}
+		string randthree ()
+		{
+		    return (randc (consonant) + 
+			    randc (vowel) + 
+			    randc (consonant));
+		}
+
+		return randthree () + randthree ();
+	    }
+	    
 	    Cmd[] commands = {
 		{	
 		    command = "HELO", 
@@ -87,11 +106,22 @@ extend namespace Server {
 		    "Sets the session username.  Must be used before\n"+
 		    "any other command (aside from QUIT)\n",
 		    f = void func (string[] w) {
-			string username = w[0];
+			string username;
+			if (dim (w) == 0) {
+			    do
+				username = random_user ();
+			    while (Clients::find (username) != ClientRef.none);
+			} else
+			    username = w[0];
 			if (Clients::find (username) != ClientRef.none)
 			    raise rr_error (Error.INVALIDNAME);
 			c.user.username = username;
-			respond ("HELO %s\n", server_id);
+			Sockets::sockaddr s = Sockets::getsockname (c.f);
+			respond ("HELO %s %s %s %d\n",
+				 server_id,
+				 username,
+				 Sockets::addr_to_string (s.addr),
+				 s.port);
 			Clients::server_send ("NOTICE USER %s\n", username);
 		    }
 		},
@@ -560,6 +590,18 @@ extend namespace Server {
 			    for (int i = 0; i < dim(commands); i++)
 				print_help (&commands[i], false);
 			}
+		    }
+		},
+		{
+		    command = "VERSION",
+		    usage = "VERSION <client-version>",
+		    describe =
+		    "Negotiate protocol version.\n",
+		    f = void func (string[] w) {
+			int version = min (string_to_integer (w[0],
+							      server_version));
+			c.version = version;
+			respond ("VERSION %d\n", version);
 		    }
 		}
 	    };

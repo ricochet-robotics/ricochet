@@ -236,6 +236,8 @@ extend namespace Server {
 		case client c:
 		    game_send (&g, "NOTICE ACTIVE %s %d\n",
 			       c.user.username, c.bid.bid.number);
+		    Clients::client_send (&c, "NOTICE ACTIVATE %d\n",
+					  c.bid.bid.number);
 		    break;
 		}
 	    }
