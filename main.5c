@@ -22,12 +22,14 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
+autoload PRNG;
 autoload Server::Net
 autoload Server::Dispatch
 
 extend namespace Server {
     public namespace Main {
 	public void main () {
+	    PRNG::dev_srandom (32);
 	    file    f = Net::create (RR::Port);
 	    File::fprintf (stderr, "RR server started on port %d.\n", RR::Port);
     	    Net::listen (Dispatch::client, f);

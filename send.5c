@@ -27,7 +27,10 @@ autoload RR
 extend namespace RR {
     public namespace Send {
 	bool needsquote (string s) {
-	    for (int i = 0; i < String::length (s); i++)
+	    int	len = String::length (s);
+	    if (len == 0)
+		return true;
+	    for (int i = 0; i < len; i++)
 		if (Ctype::isblank (s[i]) || s[i] == '"' || s[i] == '\\')
 		    return true;
 	    return false;
@@ -83,6 +86,15 @@ extend namespace RR {
 		case Direction.East:	File::fprintf (f, "east"); break;
 		case Direction.South:	File::fprintf (f, "south"); break;
 		case Direction.West:	File::fprintf (f, "west"); break;
+		}
+	    }
+
+	    void put_gamestate (GameState s) {
+		switch (s) {
+		case GameState.New:	File::fprintf (f, "new"); break;
+		case GameState.Bidding:	File::fprintf (f, "bid"); break;
+		case GameState.Showing:	File::fprintf (f, "show"); break;
+		case GameState.Solved:	File::fprintf (f, "solved"); break;
 		}
 	    }
 
@@ -172,6 +184,7 @@ extend namespace RR {
 		    case 'C':	put_color (a); break;
 		    case 'D':	put_direction (a); break;
 		    case 'S':	put_shape (a); break;
+		    case 'G':	put_gamestate (a); break;
 		    }
 		}
 		else

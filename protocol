@@ -82,12 +82,12 @@ Document Conventions
 	<turn> is a number from 1 to 17 indicating the current turn
 	<color> <shape> indicate the active piece
 	<state> is one of:
-		NEW	Turn just started, no bids yet
-		BID	Bidding opened.  <time> indicates time remaining,
+		new	Turn just started, no bids yet
+		bid	Bidding opened.  <time> indicates time remaining,
 			<bid> indicates the minimum bid
-		SHOW	Bidding closed and solution being demonstrated
+		show	Bidding closed and solution being demonstrated
 			<active> indicates the person demonstrating
-		SOLVED 	Solution succesfully demonstrated that
+		solved 	Solution succesfully demonstrated that
 			is less than the active users bid. <active>
 			indicates the winner.
 	<time> is valid only in BID state, else it's 0
@@ -193,7 +193,7 @@ Document Conventions
 
 	BID
 
-	Possible errors: NOTINGAME, TIMEOUT, NOTNUMBER
+	Possible errors: NOTINGAME, NOTBIDDING, NOTNUMBER, NOTLOWER
 
 1.12. Move
 
@@ -201,12 +201,12 @@ Document Conventions
 
 	->
 
-	MOVE
+	MOVE <count>
 
 	<color> is one of 'R', 'Y', 'G' or 'B', <dir> is one of 'N', 'E',
 	'S' or 'W'.
 
-	Possible errors: NOTINGAME, NOTACTIVE, BLOCKED
+	Possible errors: NOTINGAME, NOTACTIVE, BLOCKED, TOOMANYMOVES
 
 1.13. Undo
 
@@ -307,7 +307,7 @@ Document Conventions
 
 2.1. Move notice (game)
 
-	NOTICE MOVE <color> <dir>
+	NOTICE MOVE <count> <color> <dir>
 
 2.2. New users (all)
 
@@ -337,9 +337,13 @@ Document Conventions
 
 2.8. Select active player (game)
 
-	NOTICE ACTIVE <username>
+	NOTICE ACTIVE <username> <bid>
 
 	Only the active player may move the robots
+
+2.9. Game state change
+
+	NOTICE GAMESTATE <state>
 
 2.9. Undo (game)
 
@@ -392,15 +396,23 @@ Document Conventions
 	Possibly returned by: SHOW, MOVE, RESET, UNDO, TURN, PASS,
 	MESSAGE.
 
-3.2. Time out
+3.2. Not bidding
 
-	ERROR TIMEOUT
+	ERROR NOTBIDDING
 
-	A bid was submitted after the timer expired.
+	A bid was submitted after the bidding closed
 
 	Possibly returned by: BID
 
-3.3. Not active
+3.3. Not lower
+
+	ERROR NOTLOWER
+
+	A bid was submitted that was higher than previous bid.
+
+	Possibly returned by: BID
+
+3.4. Not active
 
 	ERROR NOTACTIVE
 
@@ -409,13 +421,13 @@ Document Conventions
 	
 	Possibly returned by: MOVE, RESET, UNDO
 
-3.4. Not number
+3.5. Not number
 
 	ERROR NOTNUMBER
 
 	A non-numeric value was supplied where a number was required
 	
-3.5. Blocked
+3.6. Blocked
 
 	ERROR BLOCKED
 

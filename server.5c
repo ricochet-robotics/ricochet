@@ -33,14 +33,18 @@ namespace Server {
 
     mutex   server_mutex = Mutex::new ();
 
+    string	server_id = "RicochetServer";
+
+    public void set_server_id (string id) { server_id = id; }
+
     public bool lock () {
 	Mutex::acquire (server_mutex);
-	printf ("lock %v\n", Thread::current ());
+#	printf ("lock %v\n", Thread::current());
 	return true;
     }
 
     public bool unlock () {
-	printf ("unlock %v\n", Thread::current ());
+#	printf ("unlock %v\n", Thread::current());
 	Mutex::release (server_mutex);
 	return true;
     }
@@ -60,11 +64,18 @@ namespace Server {
 	&Game	game;
     } GameRef;
 
+    public typedef union {
+	void	none;
+	int	number;
+    } Bid;
+    
     public typedef struct {
 	file	    f;
 	User	    user;
 	GameRef	    game;
 	int	    score;
+	Bid	    bid;
+	bool	    playing;
     } Client;
 
     public typedef union {
@@ -79,12 +90,14 @@ namespace Server {
     
     public typedef struct {
 	string		name;
+	GameState	state;
 	(&Client)[*]	clients;
 	Target[*]	targets;
 	Board		board;
 	Time		time;
 	ClientRef	active;
 	ObjectLoc[*]    history;
+	int		timer_serial;
     } Game;
 
     public exception notreached ();

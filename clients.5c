@@ -22,6 +22,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
+autoload Array
+autoload RR
+autoload RR::Send
 autoload Server
 
 extend namespace Server {
@@ -29,11 +32,30 @@ extend namespace Server {
 	(&Client)[0]    clients = {};
 
 	public void iterate (void (&Client c) f) {
-	    for (int i = 0; i < dim (clients); i++)
-		f (&clients[i]);
+	    Array::iterate (&clients, f);
 	}
 
 	public exception no_such_client (file f);
+
+	public void client_send (&Client c, string fmt, poly args...) {
+	    RR::Send::send (c.f, fmt, args...);
+	    File::flush (c.f);
+	}
+
+	public void server_send (string fmt, poly args...) {
+	    void	message_client (&Client o) {
+		client_send (&o, fmt, args...);
+	    }
+	    Clients::iterate (message_client);
+	}
+
+	public void game_send (&Game g, string fmt, poly args...) {
+	    void	message_client (&Client o) {
+		if (o.game == (GameRef.game) (&g))
+		    client_send (&o, fmt, args...);
+	    }
+	    Clients::iterate (message_client);
+	}
 
 	public &Client select (file f) {
 	    exception found (&Client c);
@@ -64,27 +86,18 @@ extend namespace Server {
 	}
 	
 	public &Client new (file f) {
-	    clients = ((&Client)[dim(clients)+1]) { 
-		[i] = i < dim(clients) ? 
-		&clients[i] : 
-		reference ((Client) { 
-		    f = f, 
-		    user = User.none, 
-		    game = GameRef.none,
-		    score = 0,
-		})
-	    };
+	    return Array::append (&clients, 
+				  reference ((Client) { 
+				    f = f, 
+				    user = User.none, 
+				    game = GameRef.none,
+				    score = 0,
+				  }));
 	    return &clients[dim(clients)-1];
 	}
 
 	public void dispose (&Client c) {
-	    bool found = false;
-
-	    clients = ((&Client)[dim(clients)-1]) { 
-		[i] = found ? &clients[i+1] : (&clients[i] == &c ? 
-					      (found=true, &clients[i+1]) :
-					      &clients[i])
-	    };
+	    Array::remove (&clients, &c);
 	}
 
 	public void print (&Client c) {
