@@ -105,8 +105,8 @@ namespace RR {
 	void	REVOKE;
 	void	ABANDON;
 	struct {
-	    Color	color;
-	    Direction   direction;
+	    Color	    color;
+	    Direction[*]    directions;
 	}	MOVE;
 	void    UNDO;
 	void    RESET;
@@ -117,6 +117,9 @@ namespace RR {
 	}	MESSAGE;
 	void	PART;
 	void	QUIT;
+	struct {
+	    string	text;
+	}	HELP;
     } Request;
 
     public typedef union {

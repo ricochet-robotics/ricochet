@@ -32,7 +32,225 @@ autoload Server::Games
 
 extend namespace Server {
     public namespace Dispatch {
-	
+
+
+	typedef struct {
+	    string  command;
+	    string  usage;
+	    string  describe;
+	} Help;
+
+	Help[] cmd_help = {
+	    {	
+		command = "HELO", 
+		usage = "HELO <username>",
+		describe = 
+		"Sets the session username.  Must be used before\n"+
+		"any other command (aside from QUIT)\n"
+	    },
+	    {
+		command = "WHO",
+		usage = "WHO",
+		describe =
+		"List connected users and the number of games they've won.\n"
+	    },
+	    {
+		command = "GAMES",
+		usage = "GAMES",
+		describe =
+		"List available games.\n"
+	    },
+	    {
+		command = "PLAYERS",
+		usage = "PLAYERS <game>",
+		describe =
+		"List players in the indicated game and their current score.\n"
+	    },
+	    {
+		command = "WATCHERS",
+		usage = "WATCHERS <game>",
+		describe =
+		"List users watching the indicated game.\n"
+	    },
+	    {
+		command = "GAMEINFO",
+		usage = "GAMEINFO <game>",
+		describe =
+		"GAMEINFO <turn> <color> <shape> <state> <time> <bid> <active>\n"+
+		"\n"+
+		"<turn> is a number from 1 to 17 indicating the current turn\n"+
+		"<color> <shape> indicate the active piece\n"+
+		"<state> is one of:\n"+
+		"       new     Turn just started, no bids yet\n"+
+		"       bid     Bidding opened.  <time> indicates time remaining,\n"+
+		"               <bid> indicates the minimum bid\n"+
+		"       show    Bidding closed and solution being demonstrated\n"+
+		"               <active> indicates the person demonstrating\n"+
+		"       solved  Solution succesfully demonstrated that\n"+
+		"               is less than the active users bid. <active>\n"+
+		"               indicates the winner.\n"+
+		"<time> is valid only in BID state, else it's 0\n"+
+		"<bid> is valid in all but NEW state where it's 0\n"+
+		"<active> is valid in SHOW and SOLVED states, else it's \"\".\n"
+	    },
+	    {
+		command = "USERINFO",
+		usage = "USERINFO <username>",
+		describe =
+		"USERINFO <game> <playing> <score> <bid>\n"+
+		"\n"+
+		"<game> is any currently associated game, else \"\".  If the user\n"+
+		"is not associated with any game, the remaining fields are\n"+
+		"false 0 0.\n"+
+		"\n"+
+		"<playing> is true if the user is playing and false if watching.\n"+
+		"\n"+
+		"<score> is a number from 0 to 17 indicating this players score\n"+
+		"\n"+
+		"<bid> is either \"0\" indicating no bid or a number indicating\n"+
+		"the users minimum bid.\n"
+	    },
+	    {
+		command = "NEW",
+		usage = "NEW <game-suggestion>",
+		describe =
+		"Create new game.  <game-suggestion> will be used to construct\n"+
+		"the game name.\n"
+	    },
+	    {
+		command = "JOIN",
+		usage = "JOIN <game>",
+		describe =
+		"Join an existing game.\n"
+	    },
+	    {
+		command = "WATCH",
+		usage = "WATCH <game>",
+		describe =
+		"Watch an existing game.\n"
+	    },
+	    {
+		command = "SHOW",
+		usage = "SHOW",
+		describe =
+		"<game-board> is a quoted multi-line string containing an\n"+
+		"diagram of the game contents, (an array of cells). A single\n"+
+		"cell and its surrounding are indicated as:\n"+
+		"\n"+
+		" HHH \n"+
+		"VrcsV\n"+
+		" HHH\n"+
+		"\n"+
+		"H = ' ' or '='\n"+
+		"V = ' ' or '|'\n"+
+		"r = '.' or <robot-color>  (one of 'r', 'g', 'b', or 'y')\n"+
+		"c = '.' or <target-color> (one of 'r', 'g', 'b', or 'y')\n"+
+		"s = '.' or <target-shape> (one of 'c', 's', 'o', or 't')\n"+
+		"\n"+
+		"The goal robot and target (color and shape) are indicated with\n"+
+		"capital letters.\n"+
+		"\n"+
+		"For example:\n"+
+		"\n"+
+		"SHOW \"\n"+
+		" ===\n"+
+		"|R.. ... .gs\n"+
+		"\n"+
+		" byc|... .RT|\n"+
+		" ===    ===\"\n"+
+		"\n"+
+		"R.. = 	Red robot (goal robot)\n"+
+		".gs = 	Green square target\n"+
+		"byc = 	Blue robot on yellow circle target\n"+
+		".RT =	Red triangle (goal target)\n"
+	    },
+	    {
+		command = "BID",
+		usage = "BID <number>",
+		describe =
+		"Make a bid on the current turn.\n"
+	    },
+	    {
+		command = "REVOKE",
+		usage = "REVOKE",
+		describe =
+		"Revoke the current bid.  This makes it appear as if the user has\n"+
+		"never bid.\n"
+	    },
+	    {
+		command = "ABANDON",
+		usage = "ABANDON",
+		describe =
+		"Give up trying to solve the current turn.  When all users\n"+
+		"ABANDON, TURN can be used to move to the next turn.\n"
+	    },
+	    {
+		command = "MOVE",
+		usage = "MOVE <color> <dir1> <dir2> ...",
+		describe =
+		"Move the robot indicated by <color> in the indicated\n"+
+		"sequence of directions.\n"
+	    },
+	    {
+		command = "UNDO",
+		usage = "UNDO",
+		describe =
+		"Undo the last move.\n"
+	    },
+	    {
+		command = "RESET",
+		usage = "RESET",
+		describe =
+		"Reset all robots back to their positions at the\n"+
+		"start of the turn.\n"
+	    },
+	    {
+		command = "TURN",
+		usage = "TURN",
+		describe =
+		"Advance the game to the next turn, (which will have a new\n"+
+		"target square). The robots will start in their final positions\n"+
+		"at the end of the first successfully demonstrated solution.\n"+
+		"\n"+
+		"TURN succeeds if one of the following is true:\n"+
+		"\n"+
+		"       + a solution has been demonstrated\n"+
+		"       + all players have passed\n"+
+		"       + all players have abandoned the turn\n"
+	    },
+	    {
+		command = "PASS",
+		usage = "PASS",
+		describe =
+		"Give up attempting to demonstrate a solution.  Control passes\n"+
+		"to the next lowest bidder.  When all users have passed, TURN\n"+
+		"can be used to move to the next turn.\n"
+	    },
+	    {
+		command = "MESSAGE",
+		usage = "MESSAGE <text>",
+		describe =
+		"Broadcast <text> to all users.\n"
+	    },
+	    {
+		command = "PART",
+		usage = "PART",
+		describe =
+		"Depart from the current game, but remain connected to the server.\n"
+	    },
+	    {
+		command = "QUIT",
+		usage = "QUIT",
+		describe =
+		"Disconnect from the server.\n"
+	    },
+	    {
+		command = "HELP",
+		usage = "HELP <command>",
+		describe =
+		"Provide help for <command>.\n"
+	    }
+	};
 	void client_locked (file f, &Client c) {
 	    
 	    exception	notactive ();
@@ -224,11 +442,14 @@ extend namespace Server {
 		respond ("ABANDON\n");
 	    }
 
-	    void	move (Color color, Direction direction) {
+	    void	move (Color color, &Direction[*] directions) {
 		assert_user ();
 		assert_game ();
-		Games::move (&c.game.game, &c, color, direction);
-		respond ("MOVE %d\n", Games::count (&c.game.game));
+		for (int i = 0; i < dim(directions); i++)
+		{
+		    Games::move (&c.game.game, &c, color, directions[i]);
+		    respond ("MOVE %d\n", Games::count (&c.game.game));
+		}
 	    }
 
 	    void	undo () {
@@ -278,7 +499,39 @@ extend namespace Server {
 		respond ("QUIT\n");
 		raise Readreq::request_closed();
 	    }
+	    void	help (string command) {
 
+		void	print_help (&Help h, bool describe)
+		{
+		    File::fprintf (c.f, "%-12.12s %s\n", h.command, h.usage);
+		    if (describe)
+		    {
+			int len = String::length (h.describe);
+			bool newline = true;
+			for (int i = 0; i < len; i++) 
+			{
+			    if (newline)
+			    {
+				for (int j = 0; j < 13; j++)
+				    File::putc (' ', c.f);
+				newline = false;
+			    }
+			    int ch = h.describe[i];
+			    File::putc (ch, c.f);
+			    if (ch == '\n') newline = true;
+			}
+		    }
+		}
+		for (int i = 0; i < dim(cmd_help); i++)
+		    if (command == cmd_help[i].command)
+		    {
+			print_help (&cmd_help[i], true);
+			return;
+		    }
+    		for (int i = 0; i < dim(cmd_help); i++)
+		    print_help (&cmd_help[i], false);
+	    }
+	    
 	    printf ("New client\n");
 
 	    for (;;) {
@@ -330,7 +583,7 @@ extend namespace Server {
 			abandon ();
 			break;
 		    case MOVE m:
-			move (m.color, m.direction);
+			move (m.color, &m.directions);
 			break;
 		    case UNDO:
 			undo ();
@@ -352,6 +605,9 @@ extend namespace Server {
 			break;
 		    case QUIT:
 			quit ();
+			break;
+		    case HELP h:
+			help (h.text);
 			break;
 		    }
 		} catch error (Error e) {

@@ -230,7 +230,7 @@ Document Conventions
 
 1.13. Move
 
-	MOVE <color> <dir>
+	MOVE <color> <dir1> <dir2> ...
 
 	->
 
@@ -324,6 +324,14 @@ Document Conventions
 	->
 
 	QUIT
+
+1.21. Help
+
+	HELP { <command> }
+
+	Displays help.  If <command> is provided, displays more detailed
+	help on a specific command, otherwise displays an overview of
+	all commands.
 
 2. Asynchronous notification.  
 

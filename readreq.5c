@@ -24,6 +24,7 @@
 
 autoload RR::Lex
 autoload Ctype
+autoload Array
 autoload Server
 
 extend namespace Server {
@@ -62,8 +63,15 @@ extend namespace Server {
 	    void direction_ (&struct { Direction direction; } packet) {
 		packet.direction = direction (f);
 	    }
+	    void directions_ (&struct { Direction[*] directions; } packet) {
+		while (!eol (f))
+		    Array::push (&packet.directions, direction(f));
+	    }
 	    void text_ (&struct { string text; } packet) {
 		packet.text = word (f);
+	    }
+	    void upper_ (&struct { string text; } packet) {
+		packet.text = upper (word (f));
 	    }
 	    Request req;
 	    switch (string w = upper (firstword (f))) {
@@ -128,9 +136,12 @@ extend namespace Server {
 		req = Request.ABANDON;
 		break;
 	    case "MOVE":
-		packet = (struct { Color color; Direction direction; }) {};
+		packet = (struct { 
+		    Color color; 
+		    Direction[*] directions; 
+		}) { directions = {} };
 		color_ (&packet);
-		direction_ (&packet);
+		directions_ (&packet);
 		req = (Request.MOVE) packet;
 		break;
 	    case "UNDO":
@@ -155,6 +166,12 @@ extend namespace Server {
 		break;
 	    case "QUIT":
 		req = Request.QUIT;
+		break;
+	    case "HELP":
+		packet = (struct { string text; }) { text = "" };
+		if (!eol (f))
+		    upper_ (&packet);
+		req = (Request.HELP) packet;
 		break;
 	    case "":
 		raise request_closed ();
