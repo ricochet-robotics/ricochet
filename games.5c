@@ -436,7 +436,7 @@ extend namespace Server {
 	    g.clients = ((&Client)[*]) {};
 	    g.expire_interval = 60;
 	    init (&g);
-	    Clients::server_send ("NOTICE NEW %s\n", g.name);
+	    Clients::server_send ("NOTICE GAME %s\n", g.name);
 	    return &g;
 	}
 
