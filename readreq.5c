@@ -50,9 +50,13 @@ extend namespace Server {
 	}
 
 	public string[] read (file f) {
-	    twixt (unlock (); lock ())
-		twixt (true; skipline (f))
-		    return read_unlocked (f);
+	    try {
+		twixt (unlock (); lock ())
+		    twixt (true; skipline (f))
+			return read_unlocked (f);
+	    } catch syntax () {
+		raise rr_error (Error.SYNTAX);
+	    }
 	    raise notreached ();
 	}
     }

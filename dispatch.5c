@@ -584,6 +584,8 @@ extend namespace Server {
 			}
 		    if (i == dim(commands))
 			raise rr_error (Error.COMMAND);
+		} catch Games::no_such_game (string name) {
+		    raise rr_error (Error.NOGAME);
 		} catch rr_error (Error e) {
 		    respond ("ERROR %E\n", e);
 		} catch closed () {
