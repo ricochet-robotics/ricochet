@@ -108,22 +108,43 @@ Document Conventions
 
 	->
 
-	SHOW "\n
-	 ==
-	|.. .. ..
-	|RR .. gg
-	
-	 gs|.. RT|
-	 ..|.. ..|
-	 ==    =="
-	
-	RT =	Red triangle (goal target)
-	gs = 	Green square (non-goal target)
-	RR = 	Red robot (goal robot)
-	gg = 	Green robot (non-goal target)
+	SHOW <game-board>
 
+	<game-board> is a quoted multi-line string containing an
+	diagram of the game contents, (an array of cells). A single
+	cell and its surrounding are indicated as:
+
+	 HH 
+	VcsV
+	VrrV
+	 HH
+
+	H = ' ' or '='
+	V = ' ' or '|'
+	c = '.' or <target-color> (one of 'r', 'g', 'b', or 'y')
+	s = '.' or <target-shape> (one of 'c', 's', 'o', or 't')
+	r = '.' or <robot-color>  (one of 'r', 'g', 'b', or 'y')
+
+	The goal robot and target (color and shape) are indicated with
+	capital letters.
+
+	For example:
+
+	SHOW "
+	 ==
+	|.. .. gs
+	|RR .. ..
 	
-	Possible errors: NOGAME
+	 ..|.. RT|
+	 gg|.. ..|
+	 ==    =="
+
+	RR = 	Red robot (goal robot)
+	gs = 	Green square (non-goal target)
+	gg = 	Green robot (non-goal target)
+	RT =	Red triangle (goal target)
+
+	Possible errors: NOTINGAME
 
 1.9. Bid
 
@@ -133,7 +154,7 @@ Document Conventions
 
 	BID <number>
 
-	Possible errors: TIMEOUT
+	Possible errors: NOTINGAME, TIMEOUT
 
 1.10. Move
 
@@ -146,7 +167,7 @@ Document Conventions
 	<color> is one of 'R', 'Y', 'G' or 'B', <dir> is one of 'N', 'E',
 	'S' or 'W'.
 
-	Possible errors: NOTACTIVE
+	Possible errors: NOTINGAME, NOTACTIVE
 
 1.12. Undo
 
@@ -158,7 +179,7 @@ Document Conventions
 
 	Undoes the last move
 
-	Possible errors: NOTACTIVE
+	Possible errors: NOTINGAME, NOTACTIVE
 
 1.13. Reset
 
@@ -170,7 +191,7 @@ Document Conventions
 
 	Resets robot positions to that at the start of the turn.
 
-	Possible errors: NOTACTIVE
+	Possible errors: NOTINGAME, NOTACTIVE
 
 1.14. Next turn
 
@@ -190,6 +211,8 @@ Document Conventions
 	TURN request from each active user before it will ABANDON the
 	current turn.
 
+	Possible errors: NOTINGAME
+
 1.15. Pass the bid to the next lowest bidder
 
 	PASS
@@ -198,6 +221,8 @@ Document Conventions
 
 	PASS
 
+	Possible errors: NOTINGAME
+
 1.16. Message
 
 	MESSAGE <text>
@@ -205,6 +230,8 @@ Document Conventions
 	->
 	
 	MESSAGE
+
+	Possible errors: NOTINGAME
 
 2. Asynchronous notification.  
 
@@ -272,7 +299,7 @@ Document Conventions
 	NOTICE ABANDON <username>
 
 	<username> has requested that the current turn be abandoned
-	(i.e. TURN requested without a solution demonstrated>
+	(i.e. TURN requested without a solution demonstrated)
 	If all active users in the current game make a TURN
 	request, then the turn is abandoned and the next turn
 	selected with the robots reset to their position before the
@@ -286,9 +313,17 @@ Document Conventions
 
 	ERROR NOGAME
 
-	A game number was requested but no such game exists.
+	A game name was provided that does not exist.
 
-	Possibly returned by: JOIN, WATCH
+3.1. Not in game
+
+	ERROR NOTINGAME
+
+	A game playing command was made, but the user is not a
+	particpant of any game.
+
+	Possibly returned by: SHOW, MOVE, RESET, UNDO, TURN, PASS,
+	MESSAGE.
 
 3.2. Time out
 
@@ -307,25 +342,8 @@ Document Conventions
 	
 	Possibly returned by: MOVE, RESET, UNDO
 
-Some comments (still need to be incorporated into the specification)
---------------------------------------------------------------------
-
-New proposal for ASCII board art:
-
-	 ==
-	|.. .. ..
-	|RR .. gg
-	
-	 gs|.. RT|
-	 ..|.. ..|
-	 ==    ==
-	
-	RT =	Red triangle (goal target)
-	gs = 	Green square (non-goal target)
-	RR = 	Red robot (goal robot)
-	gg = 	Green robot (non-goal target)
-
---
+Some comments/questions
+-----------------------
 
 >> Hmmm... looks like a user can only be in a single game (would need to
 >> fix SHOW, BID, MOVE, RESET, TURN, NOTICE, etc.)
@@ -340,15 +358,6 @@ Or is the idea that I connect as cworth1, cworth2, etc.? (ugh)
 
 --
 
->> And does the server know the rules/keep score?
-
-> I think it might as well; the C code I've got already manages that part.
-
-We'll need to provide scores. I've added a score field to the result
-from USERS. Do we want anything more?
-
---
-
 The server manages ACTIVE based on bids, scores, and PASS
 requests. Once a turn is over, (solution demonstrated or all bidding
 users PASS), it would be nice to allow others to show alternate
@@ -356,10 +365,3 @@ solutions, failed attempts, etc. Shall we provide a way for the ACTIVE
 user to pass control to another, (only when a turn is over)? Or maybe
 since the turn is over we just let any user move the pieces?
 
---
-
-With the new ABANDON semantics, (and the possible free-for-all moving
-of pieces mentioned above), a new TURN may jump several robots back to
-previous positions. I think the TURN notice should include the current
-board diagram. (The diagram contains the new target, so it won't need
-to be provided externally)
