@@ -308,7 +308,7 @@ Document Conventions
 2.12. Next turn
 
 	NOTICE
-	TURN <color><shape>
+	TURN <color>, <shape>
 	DONE
 
 	<color><shape> will be 'ww' for the whirlpool.

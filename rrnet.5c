@@ -1,0 +1,78 @@
+/*
+ * $Id$
+ *
+ * Copyright © 2003 Keith Packard
+ *
+ * Permission to use, copy, modify, distribute, and sell this software and its
+ * documentation for any purpose is hereby granted without fee, provided that
+ * the above copyright notice appear in all copies and that both that
+ * copyright notice and this permission notice appear in supporting
+ * documentation, and that the name of Keith Packard not be used in
+ * advertising or publicity pertaining to distribution of the software without
+ * specific, written prior permission.  Keith Packard makes no
+ * representations about the suitability of this software for any purpose.  It
+ * is provided "as is" without express or implied warranty.
+ *
+ * KEITH PACKARD DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * EVENT SHALL KEITH PACKARD BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+ * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
+ * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+namespace RRNet {
+    public file	create (int port) {
+	file	f = Sockets::create (Sockets::SOCK_STREAM);
+	Sockets::bind (f, "255.255.255.255", sprintf ("%d", port));
+	Sockets::listen (f, 5);
+	return f;
+    }
+    
+    public void listen (void (file f) accept, file f) {
+	for (;;)
+	    accept (Sockets::accept (f));
+    }
+
+    public void client (file f) {
+	&Client	c = Connection::new (f);
+	void	helo (string username) {
+	    c.user.username = username;
+	    File::fprintf (f, "OK\n");
+	    File::fprintf (f, "WELCOME foobar\n");
+	    File::fprintf (f, "DONE\n");
+	    File::flush (f);
+	}
+
+	void	who () {
+	    File::fprintf (f, "OK\n");
+	    Connection::iterate (void func(&Client c) {
+		union switch (c.user) {
+		case none:
+		    break;
+		case username u:
+		    File::fprintf (f, "USER %s\n", u);
+		    break;
+		}
+	    });
+	    File::fprintf (f, "DONE\n");
+	    File::flush (f);
+	}
+	
+	for (;;) {
+	    RRRequest	r = Request::read (f);
+	    union switch (r) {
+	    case HELO h:    
+		helo (h.username);
+		break;
+	    case WHO:
+		who ();
+		break;
+	    default:
+		break;
+	    }
+	}
+    }
+
+}
