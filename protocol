@@ -91,11 +91,12 @@ Document Conventions
 
 1.5. Creating a new game
 
-	NEW <board>
+	NEW
 
 	->
 
 	OK
+	BOARD <board>
 	DONE
 
 1.6. Joining an existing game
@@ -109,6 +110,8 @@ Document Conventions
 	USER <username2>
 	...
 	DONE
+
+	Possible errors: NOGAME
 
 1.7. Watching an existing game
 
@@ -124,6 +127,8 @@ Document Conventions
 
 	The client will monitor the game, but not be listed in the
 	userlist nor be allowed to make moves.
+
+	Possible errors: NOGAME
 
 1.8. Get the board contents
 
@@ -143,14 +148,18 @@ Document Conventions
 	
 	<color> is 'R', 'Y', 'G' or 'B', shape is 't', 's', 'o', 'c'
 
-1.9. Bet
+	Possible errors: NOGAME
 
-	BET <number>
+1.9. Bid
+
+	BID <number>
 
 	->
 
 	OK
 	DONE
+
+	Possible errors: TIMEOUT
 
 1.10. Move
 
@@ -185,44 +194,52 @@ Document Conventions
 
 2. Asynchronous notification.  
 
-	The server will send notices when additional people join or new
-	games are started to every connected client.  These are of the form:
+	The server will send notices to each user in a game whenever
+        there is a move. It will also send notices to every connected
+        client when additional people join or new games are
+        started. These are of the form:
 
 	NOTICE
 	<notice-code> <args>
 	DONE
 
-2.1. New users
+2.1. Move notice
+
+	NOTICE
+	MOVE <color>, <dir>
+	DONE
+
+2.2. New users
 
 	NOTICE
 	USER <username>
 	DONE
 
-2.2. Disconnected user
+2.3. Disconnected user
 
 	NOTICE
 	PART <username>
 	DONE
 
-2.3. New games
+2.4. New games
 
 	NOTICE
 	BOARD <board>
 	DONE
 
-2.4. Terminated games
+2.5. Terminated games
 
 	NOTICE
 	TERMINATE <board>
 	DONE
 
-2.5. Bets
+2.6. Bids
 
 	NOTICE
-	BET <bet>, <username>
+	BID <number>, <username>
 	DONE
 
-2.6. Timer
+2.7. Timer
 
 	NOTICE
 	TIME <seconds>
@@ -230,11 +247,55 @@ Document Conventions
 
 	Timer ticks are sent every 10 seconds
 
-2.7. Next turn
+2.8. Next turn
 
 	NOTICE
 	TURN <color><shape>
 	DONE
 
 	<color><shape> will be 'ww' for the whirlpool.
+
+3. Errors
+
+	The following error codes may be returned.
+
+3.1. No such game
+
+	ERROR NOGAME
+
+	A game number was requested but no such game exists.
+
+	Possibly returned by: JOIN, WATCH
+
+3.2. Time out
+
+	ERROR TIMEOUT
+
+	A bid was submitted after the timer expired.
+
+	Possibly returned by: BID
+
+Some comments from Carl Worth
+-----------------------------
+I don't understand the board contents. What is '_'?  How are robot and
+target colors indicated for the same space?
+
+Can we replace "BOARD" with "GAME" in the protocol?
+
+Shall we require a quorum for TURN? Perhaps no quorum requirement
+after the timer has run out and a correct solution has been
+demonstrated?
+
+What are the semantics of RESET? Quorum?
+
+Hmmm... looks like a user can only be in a single game (would need to
+fix SHOW, BID, MOVE, RESET, TURN, NOTICE, etc.)
+
+I wonder if this server should just support one game at a time,
+(available servers/users for other games can be negotiated
+externally).
+
+And does the server know the rules/keep score?
+
+Do we allow broadcast and private messages?
 
