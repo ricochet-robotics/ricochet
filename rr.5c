@@ -103,6 +103,7 @@ namespace RR {
 	    int	number;
 	}	BID;
 	void	REVOKE;
+	void	ABANDON;
 	struct {
 	    Color	color;
 	    Direction   direction;
@@ -204,6 +205,7 @@ namespace RR {
 	NOTLOWER,
 	NOBID,
 	NOTACTIVE,
+	NOTFINISHED,
 	NOTNUMBER,
 	BLOCKED,
 	COMMAND,

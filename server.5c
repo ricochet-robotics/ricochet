@@ -78,6 +78,7 @@ namespace Server {
 	int	    score;
 	Bid	    bid;
 	bool	    playing;
+	bool	    abandon;
     } Client;
 
     public typedef union {

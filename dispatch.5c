@@ -159,6 +159,13 @@ extend namespace Server {
 		respond ("REVOKE\n");
 	    }
 
+	    void	abandon () {
+		assert_user ();
+		assert_game ();
+		Games::abandon (&c.game.game, &c);
+		respond ("ABANDON\n");
+	    }
+
 	    void	move (Color color, Direction direction) {
 		assert_user ();
 		assert_game ();
@@ -183,14 +190,15 @@ extend namespace Server {
 	    void	turn () {
 		assert_user ();
 		assert_game ();
-		if (Games::solved (&c.game.game))
-		    Games::next_turn (&c.game.game);
+		Games::next_turn (&c.game.game);
 		respond ("TURN\n");
 	    }
 
 	    void	pass () {
 		assert_user ();
 		assert_game ();
+		Games::pass (&c.game.game, &c);
+		respond ("PASS\n");
 	    }
 
 	    void	message (string text) {
@@ -259,6 +267,9 @@ extend namespace Server {
 			break;
 		    case REVOKE:
 			revoke ();
+			break;
+		    case ABANDON:
+			abandon ();
 			break;
 		    case MOVE m:
 			move (m.color, m.direction);

@@ -101,6 +101,16 @@ extend namespace Server {
 	    return any;
 	}
 
+	bool all_abandon (&Game g) {
+	    bool    all = true;
+	    void abandon_set (&Client c) {
+		if (!c.abandon)
+		    all = false;
+	    }
+	    iterate_client (&g, abandon_set, true, false);
+	    return all;
+	}
+	
 	ClientRef lowest_bidder (&Game g) {
 	    Bid		min = Bid.none;
 	    ClientRef	min_client = ClientRef.none;
@@ -184,14 +194,29 @@ extend namespace Server {
 		break;
 	    case GameState.Showing:
 		set_active (&g);
-		if (g.active == ClientRef.none)
-		    set_state (&g, GameState.New);
 		break;
 	    case GameState.Solved:
 		break;
 	    }
 	}
 
+	void undo_move (&Game g)
+	{
+	    ObjectLoc ol = Array::pop (&g.history);
+	    Boards::position_robot (&g.board, ol.object.robot.robot.color,
+				    ol.x, ol.y);
+	}
+
+	void reset_move (&Game g)
+	{
+	    if (dim (g.history) > 0)
+	    {
+		while (dim (g.history) > 0)
+		    undo_move (&g);
+		game_send (&g, "NOTICE RESET\n");
+	    }
+	}
+	
 	/* add a client to a game */
 	public &Client add_client (&Game g, &Client c, bool playing) {
 	    remove_client (&c);
@@ -199,6 +224,7 @@ extend namespace Server {
 	    c.playing = playing;
 	    c.score = 0;
 	    c.bid = Bid.none;
+	    c.abandon = false;
 	    Array::append (&g.clients, &c);
 	    game_send (&g, "NOTICE %s %s\n", 
 		       playing ? "JOIN" : "WATCH",
@@ -217,12 +243,27 @@ extend namespace Server {
 
 	    void reset_client (&Client c) {
 		c.bid = Bid.none;
+		c.abandon = false;
 	    }
 	    iterate_client (&g, reset_client, true, false);
 	    game_send (&g, "NOTICE TURN %C %S\n", t.color, t.shape);
 	}
 
 	public void next_turn (&Game g) {
+	    switch (g.state) {
+	    case GameState.New:
+	    case GameState.Bidding:
+		if (!all_abandon (&g))
+		    raise error (Error.NOTFINISHED);
+		break;
+	    case GameState.Showing:
+		if (any_bids (&g))
+		    raise error (Error.NOTFINISHED);
+		reset_move (&g);
+		break;
+	    case GameState.Solved:
+		break;
+	    }
 	    next_target (&g);
 	}
 
@@ -276,11 +317,17 @@ extend namespace Server {
 		raise error (Error.NOTACTIVE);
 	}
 	
-	void undo_move (&Game g)
-	{
-	    ObjectLoc ol = Array::pop (&g.history);
-	    Boards::position_robot (&g.board, ol.object.robot.robot.color,
-				    ol.x, ol.y);
+	void assert_bidding (&Game g) {
+	    switch (g.state) {
+	    case GameState.New:
+	    case GameState.Bidding:
+		break;
+	    case GameState.Showing:
+	    case GameState.Solved:
+		raise error (Error.NOTBIDDING);
+		break;
+	    }
+	    
 	}
 	
 	public void undo (&Game g, &Client c) {
@@ -294,22 +341,20 @@ extend namespace Server {
 
 	public void reset (&Game g, &Client c) {
 	    assert_active (&g, &c);
-	    while (dim (g.history) > 0)
-		undo (&g, &c);
-	    game_send (&g, "NOTICE RESET\n");
+	    reset_move (&g);
 	}
 
+	public void pass (&Game g, &Client c) {
+	    assert_active (&g, &c);
+	    reset (&g, &c);
+	    c.bid = Bid.none;
+	    set_active (&g);
+	}
+	
 	public void bid (&Game g, &Client c, int number) {
-	    switch (g.state) {
-	    case GameState.New:
+	    assert_bidding (&g);
+	    if (g.state == GameState.New)
 		set_state (&g, GameState.Bidding);
-	    case GameState.Bidding:
-		break;
-	    case GameState.Showing:
-	    case GameState.Solved:
-		raise error (Error.NOTBIDDING);
-		break;
-	    }
 	    /*
 	    if (c.bid != Bid.none && c.bid.number <= number)
 		raise error (Error.NOTLOWER);
@@ -319,11 +364,23 @@ extend namespace Server {
 	}
 
 	public void revoke (&Game g, &Client c) {
+	    assert_bidding (&g);
 	    if (c.bid == Bid.none)
 		raise error (Error.NOBID);
 	    c.bid = Bid.none;
+	    game_send (&g, "NOTICE REVOKE %s\n", c.user.username);
 	    if (!any_bids(&g))
 		set_state (&g, GameState.New);
+	}
+
+	public void abandon (&Game g, &Client c) {
+	    assert_bidding (&g);
+	    if (!c.abandon) {
+		c.abandon = true;
+		game_send (&g, "NOTICE ABANDON %s\n", c.user.username);
+		if (c.bid != Bid.none)
+		    revoke (&g, &c);
+	    }
 	}
 	
 	public int count (&Game g) {

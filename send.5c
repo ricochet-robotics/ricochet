@@ -106,6 +106,7 @@ extend namespace RR {
 		case Error.NOTLOWER:	File::fprintf (f, "NOTLOWER"); break;
 		case Error.NOBID:	File::fprintf (f, "NOBID"); break;
 		case Error.NOTACTIVE:	File::fprintf (f, "NOTACTIVE"); break;
+		case Error.NOTFINISHED:	File::fprintf (f, "NOTFINISHED"); break;
 		case Error.NOTNUMBER:	File::fprintf (f, "NOTNUMBER"); break;
 		case Error.BLOCKED:	File::fprintf (f, "BLOCKED"); break;
 		case Error.COMMAND:	File::fprintf (f, "COMMAND"); break;

@@ -213,6 +213,19 @@ Document Conventions
 
 	Possible errors: NOTINGAME, NOTBIDDING, NOBID
 
+1.13. Abandon
+
+	ABANDON
+
+	->
+
+	ABANDON
+
+	Possible errors: NOTINGAME, NOTBIDDING
+
+	Mark this user as having abandoned this turn.  If all users
+	abandon, then 'TURN' can be used to move to the next turn.
+
 1.13. Move
 
 	MOVE <color> <dir>
@@ -264,13 +277,13 @@ Document Conventions
 	target square). The robots will start in their final positions
 	at the end of the first successfully demonstrated solution.
 
-	If a solution has been demonstrated, or if all users with
-	active bids have issued PASS then a TURN request from a single
-	user has immediate effect. Otherwise, the server requires a
-	TURN request from each active user before it will ABANDON the
-	current turn.
+	TURN succeeds if one of the following is true:
 
-	Possible errors: NOTINGAME
+		+ a solution has been demonstrated
+		+ all players have passed
+		+ all players have abandoned the turn
+		
+	Possible errors: NOTINGAME, NOTFINISHED
 
 1.17. Pass the bid to the next lowest bidder
 
@@ -485,6 +498,17 @@ Document Conventions
 
 	Possibly returned by: MOVE
 
+3.8. Not finished
+
+	ERROR NOTFINISHED
+
+	TURN was requested and one of:
+
+		+ bidding and not all abandoned
+		+ showing and not all passed
+
+	is true
+	
 3.8. Command
 
 	ERROR COMMAND

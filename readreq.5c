@@ -124,6 +124,9 @@ extend namespace Server {
 	    case "REVOKE":
 		req = Request.REVOKE;
 		break;
+	    case "ABANDON":
+		req = Request.ABANDON;
+		break;
 	    case "MOVE":
 		packet = (struct { Color color; Direction direction; }) {};
 		color_ (&packet);
