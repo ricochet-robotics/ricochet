@@ -37,6 +37,21 @@ namespace Array {
 	return v;
     }
 
+    public poly push (&poly[*] a, poly v) {
+	a = (poly[dim(a)+1]) { [i] = i < dim(a) ? a[i] : v };
+	return v;
+    }
+	
+    public exception	empty (&poly[*] a);
+    
+    public poly pop (&poly[*] a) {
+	if (dim(a) == 0)
+	    raise empty (a);
+	poly v = a[dim(a)-1];
+	a = (poly[dim(a)-1]) { [i] = a[i] };
+	return v;
+    }
+
     public void iterate (&poly[*] a, void (poly v) f) {
 	for (int i = 0; i < dim (a); i++)
 	    f(a[i]);

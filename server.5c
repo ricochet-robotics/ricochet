@@ -46,16 +46,11 @@ namespace Server {
 	&Game	game;
     } GameRef;
 
-    public typedef union {
-	void	none;
-	thread	t;
-    } UserThread;
-
     public typedef struct {
-	file	f;
-	User	user;
-	GameRef	game;
-	UserThread	t;
+	file	    f;
+	User	    user;
+	GameRef	    game;
+	int	    score;
     } Client;
 
     public typedef union {

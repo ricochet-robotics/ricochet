@@ -390,7 +390,6 @@ extend namespace Server {
 			target = TargetOrNone.none,
 			robot = RobotOrNone.none,
 			walls = walls (W.below, W.right) }};
-		printf ("placing %v\n", TransformLoc (l, transforms[i]));
 		PlaceObject (&b, l, transforms[i]);
 	    }
 
@@ -454,7 +453,7 @@ extend namespace Server {
 	    return ol;
 	}
 
-	public ObjectLoc[*] find_robot (&Board b, Color color)
+	public ObjectLoc[*] find_robots (&Board b, Color color)
 	{
 	    bool match (Object o) {
 		union switch (o.robot) {
@@ -468,6 +467,15 @@ extend namespace Server {
 	    return find (&b, match);
 	}
 
+	public exception invalid_robot (Color color);
+
+	public ObjectLoc find_robot (&Board b, Color color) {
+	    ObjectLoc[*] ol = find_robots (&b, color);
+	    if (dim (ol) != 1)
+		raise invalid_robot (color);
+	    return ol[0];
+	}
+	
 	public ObjectLoc[*] find_active_robot (&Board b)
 	{
 	    bool match (Object o) {
@@ -482,7 +490,7 @@ extend namespace Server {
 	    return find (&b, match);
 	}
 
-	public ObjectLoc[*] find_target (&Board b, Color color, Shape shape)
+	public ObjectLoc[*] find_targets (&Board b, Color color, Shape shape)
 	{
 	    bool match (Object o) {
 		union switch (o.target) {
@@ -496,8 +504,7 @@ extend namespace Server {
 	    return find (&b, match);
 	}
 
-	public ObjectLoc[*] find_active_target (&Board b)
-	{
+	public ObjectLoc[*] find_active_target (&Board b) {
 	    bool match (Object o) {
 		union switch (o.target) {
 		case target t: 
@@ -510,8 +517,7 @@ extend namespace Server {
 	    return find (&b, match);
 	}
 
-	public void set_target (&Board b, Color color, Shape shape)
-	{
+	public void set_target (&Board b, Color color, Shape shape) {
 	    void    set_robot_active (ObjectLoc[*] ol, bool active) {
 		for (int o = 0; o < dim (ol); o++)
 		    b[ol[o].x, ol[o].y].robot.robot.active = active;
@@ -523,8 +529,76 @@ extend namespace Server {
 	    set_robot_active (find_active_robot (&b), false);
 	    set_target_active (find_active_target (&b), false);
 	    
-	    set_robot_active (find_robot (&b, color), true);
-	    set_target_active (find_target (&b, color, shape), true);
+	    set_robot_active (find_robots (&b, color), true);
+	    set_target_active (find_targets (&b, color, shape), true);
+	}
+
+	public void position_robot (&Board b, Color color, int x, int y) {
+	    ObjectLoc ol = find_robot (&b, color);
+	    b[ol.x, ol.y].robot = RobotOrNone.none;
+	    b[x, y].robot = ol.object.robot;
+	}
+
+	typedef struct {
+	    int	dx;
+	    int dy;
+	} Delta;
+
+	bool blocked_wall (Direction direction, Walls walls) {
+	    switch (direction) {
+	    case Direction.North: return walls.above;
+	    case Direction.East:  return walls.right;
+	    case Direction.South: return walls.below;
+	    case Direction.West:  return walls.left;
+	    }
+	    return false;
+	}
+
+	bool blocked_robot (&Board b, int x, int y) {
+	    if (x < 0 || Width <= x) return true;
+	    if (y < 0 || Height <= y) return true;
+	    return b[x,y].robot != RobotOrNone.none;
+	}
+
+	Delta delta (Direction direction) {
+	    switch (direction) {
+	    case Direction.North: return (Delta) { dx =  0, dy = -1 };
+	    case Direction.East:  return (Delta) { dx =  1, dy =  0 };
+	    case Direction.South: return (Delta) { dx =  0, dy =  1 };
+	    case Direction.West:
+	    default:
+	    }
+	    return (Delta) { dx = -1, dy =  0 };
+	}
+
+	ObjectLoc find_dst (&Board b, int x, int y, Direction direction) {
+	    Delta   d = delta (direction);
+	    while (!blocked_wall (direction, b[x,y].walls) &&
+		   !blocked_robot (&b, x + d.dx, y + d.dy))
+	    {
+		x += d.dx;
+		y += d.dy;
+	    }
+	    return (ObjectLoc) { x = x, y = y, object = b[x,y] };
+	}
+	    
+	public ObjectLoc move_robot (&Board b, Color color, Direction direction) {
+	    ObjectLoc	src = find_robot (&b, color);
+	    ObjectLoc	dst = find_dst (&b, src.x, src.y, direction);
+	    return dst;
+	}
+
+	public bool solved (&Board b) {
+	    ObjectLoc[*]    target = find_active_target (&b);
+
+	    if (dim(target) != 1)
+		return false;
+	    union switch (target[0].object.robot) {
+	    case robot r:
+		return r.active;
+	    default:
+	    }
+	    return false;
 	}
     }
 }

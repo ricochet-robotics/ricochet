@@ -33,7 +33,7 @@ extend namespace Server {
 		File::fprintf (f, "   ");
 	}
 	
-	void show_color (Color c, bool active) {
+	void show_color (file f, Color c, bool active) {
 	    int	ch;
 	    switch (c) {
 	    case Color.Red:	ch = 'r'; break;
@@ -44,10 +44,10 @@ extend namespace Server {
 	    }
 	    if (active)
 		ch = Ctype::toupper (ch);
-	    printf ("%c", ch);
+	    File::fprintf (f, "%c", ch);
 	}
 
-	void show_shape (Shape s, bool active) {
+	void show_shape (file f, Shape s, bool active) {
 	    int ch;
 	    switch (s) {
 	    case Shape.Triangle:    ch = 't'; break;
@@ -58,7 +58,7 @@ extend namespace Server {
 	    }
 	    if (active)
 		ch = Ctype::toupper (ch);
-	    printf ("%c", ch);
+	    File::fprintf (f, "%c", ch);
 	}
 	
 	void show_second_object (file f, &Object o) {
@@ -71,8 +71,8 @@ extend namespace Server {
 		File::fprintf (f, "..");
 		break;
 	    case robot r:
-		show_color (r.color, r.active);
-		show_color (r.color, r.active);
+		show_color (f, r.color, r.active);
+		show_color (f, r.color, r.active);
 		break;
 	    }
 	}
@@ -87,8 +87,8 @@ extend namespace Server {
 		File::fprintf (f, "..");
 		break;
 	    case target t:
-		show_color (t.color, t.active);
-		show_shape (t.shape, t.active);
+		show_color (f, t.color, t.active);
+		show_shape (f, t.shape, t.active);
 		break;
 	    }
 	}
@@ -125,9 +125,9 @@ extend namespace Server {
 	    for (int col = 0; col < Width; col++)
 	    {
 		if (b[col,Height-1].walls.below)
-		    printf (" ==");
+		    File::fprintf (f, " ==");
 		else
-		    printf ("   ");
+		    File::fprintf (f, "   ");
 	    }
 	}
 

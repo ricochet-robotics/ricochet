@@ -95,6 +95,8 @@ extend namespace Server {
 	public void next_target (&Game g) {
 	    Target  t = g.targets[0];
 	    g.targets = (Target[dim(g.targets)-1]) { [i] = g.targets[i+1] };
+	    g.history = (ObjectLoc[*]) {};
+	    g.time = Time.none;
 	    Boards::set_target (&g.board, t.color, t.shape);
 	}
 
@@ -110,23 +112,67 @@ extend namespace Server {
 	    g.clients = ((&Client)[*]) {};
 	    g.board = Boards::random_board ();
 	    g.targets = random_targets ();
-	    g.time = Time.none;
 	    g.active = ClientRef.none;
-	    g.history = (ObjectLoc[*]) {};
 	    next_target (&g);
 	    return &g;
 	}
 
-	public &Client add_client (&Game g, &Client c) {
-	    return Array::append (&g.clients, &c);
-	}
-
 	public void remove_client (&Game g, &Client c) {
 	    Array::remove (&g.clients, &c);
+	    c.score = 0;
+	}
+
+	public &Client add_client (&Game g, &Client c) {
+	    if (c.game != GameRef.none)
+		remove_client (&c.game.game, &c);
+	    c.game = (GameRef.game) (&g);
+	    if (g.active == ClientRef.none)
+		g.active = (ClientRef.client) (&c);
+	    return Array::append (&g.clients, &c);
 	}
 
 	public void iterate_client (&Game g, void (&Client c) f) {
 	    Array::iterate (&g.clients, f);
+	}
+
+	public ClientRef active_client (&Game g) {
+	    return g.active;
+	}
+
+	public exception notactive (&Game g, &Client c);
+	
+	public bool undo (&Game g, &Client c) {
+	    try {
+		ObjectLoc ol = Array::pop (&g.history);
+		Boards::position_robot (&g.board, ol.object.robot.robot.color,
+					ol.x, ol.y);
+	    } catch Array::empty (&ObjectLoc[*] a) {
+		return false;
+	    }
+	    return true;
+	}
+
+	public void reset (&Game g, &Client c) {
+	    if (g.active != (ClientRef.client) (&c))
+		raise notactive (&g, &c);
+	    while (dim (g.history) > 0)
+		undo (&g, &c);
+	}
+
+	public bool move (&Game g, &Client c, Color color, Direction dir) {
+	    if (g.active != (ClientRef.client) (&c))
+		raise notactive (&g, &c);
+	    ObjectLoc	src = Boards::find_robot (&g.board, color);
+	    ObjectLoc	dst = Boards::move_robot (&g.board, color, dir);
+	    if (src == dst)
+		return false;
+	    Array::push (&g.history, src);
+	    Boards::position_robot (&g.board, color, dst.x, dst.y);
+	    return true;
+	}
+
+	public bool solved (&Game g) {
+	    return Boards::solved (&g.board);
 	}
     }
 }

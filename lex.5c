@@ -91,7 +91,6 @@ extend namespace RR {
 		}
 		s = s + String::new(c);
 	    }
-	    printf ("word: %s\n", s);
 	    return s;
 	}
 

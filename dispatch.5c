@@ -27,6 +27,7 @@ autoload Server
 autoload Server::Connect
 autoload Server::Readreq
 autoload Server::Show
+autoload Server::Games
 
 extend namespace Server {
     public namespace Dispatch {
@@ -42,18 +43,64 @@ extend namespace Server {
 		File::fprintf (f, "HELO \"%s\"\n", server_id);
 	    }
 
+	    void print_client (&Client c) {
+		union switch (c.user) {
+		case none:
+		    break;
+		case username u:
+		    File::fprintf (f, " \"%s\"", u);
+		    break;
+		}
+	    }
+	    
+	    void print_client_score (&Client c) {
+		union switch (c.user) {
+		case none:
+		    break;
+		case username u:
+		    File::fprintf (f, " \"%s\" %d", u, c.score);
+		    break;
+		}
+	    }
+	    
 	    void	who () {
 		File::fprintf (f, "WHO");
-		Connect::iterate (void func(&Client c) {
-		    union switch (c.user) {
-		    case none:
-			break;
-		    case username u:
-			File::fprintf (f, " \"%s\"", u);
-			break;
-		    }
+		Connect::iterate (print_client);
+		File::fprintf (f, "\n");
+	    }
+
+	    void	games() {
+		File::fprintf (f, "GAMES");
+		Games::iterate (void func(&Game g) {
+		    File::fprintf (f, " \"%s\"", g.name);
 		});
 		File::fprintf (f, "\n");
+	    }
+
+	    void	users(string game) {
+		try {
+		    &Game	g = Games::find (game);
+		    File::fprintf (f, "USERS");
+		    Games::iterate_client (&g, print_client_score);
+		    File::fprintf (f, "\n");
+		} catch Games::no_such_game (string name) {
+		    File::fprintf (f, "ERROR NOGAME\n");
+		}
+	    }
+
+	    void	join (string game) {
+		try {
+		    &Game g = Games::find (game);
+		    Games::add_client (&g, &c);
+		} catch Games::no_such_game (string game) {
+		    File::fprintf (f, "ERROR NOGAME\n");
+		}
+	    }
+	    
+	    void	new(string game) {
+		&Game g = Games::new (game);
+		join (g.name);
+		File::fprintf (f, "NEW \"%s\"\n", g.name);
 	    }
 
 	    void	show () {
@@ -67,6 +114,82 @@ extend namespace Server {
 		    File::fprintf (f, "\"\n");
 		    break;
 		}
+	    }
+
+	    void	bid (int number) {
+		File::fprintf (f, "BID\n");
+	    }
+
+	    void	move (Color color, Direction direction) {
+		union switch (c.game) {
+		case none:
+		    File::fprintf (f, "ERROR NOTINGAME\n");
+		    break;
+		case game g:
+		    try {
+			Games::move (&g, &c, color, direction);
+			File::fprintf (f, "MOVE\n");
+		    } catch Games::notactive (&Game g, &Client c) {
+			File::fprintf (f, "ERROR NOTACTIVE\n");
+		    }
+		    break;
+		}
+	    }
+
+	    void	undo () {
+		union switch (c.game) {
+		case none:
+		    File::fprintf (f, "ERROR NOTINGAME\n");
+		    break;
+		case game g:
+		    try {
+			Games::undo (&g, &c);
+			File::fprintf (f, "UNDO\n");
+		    } catch Games::notactive (&Game g, &Client c) {
+			File::fprintf (f, "ERROR NOTACTIVE\n");
+		    }
+		    break;
+		}
+	    }
+
+	    void	reset () {
+		union switch (c.game) {
+		case none:
+		    File::fprintf (f, "ERROR NOTINGAME\n");
+		    break;
+		case game g:
+		    try {
+			Games::reset (&g, &c);
+			File::fprintf (f, "RESET\n");
+		    } catch Games::notactive (&Game g, &Client c) {
+			File::fprintf (f, "ERROR NOTACTIVE\n");
+		    }
+		    break;
+		}
+	    }
+
+	    void	turn () {
+		union switch (c.game) {
+		case none:
+		    File::fprintf (f, "ERROR NOTINGAME\n");
+		    break;
+		case game g:
+		    if (Games::solved (&g))
+			Games::next_target (&g);
+		    File::fprintf (f, "TURN\n");
+		    break;
+		}
+	    }
+
+	    void	pass () {
+	    }
+
+	    void	message (string text) {
+		Connect::iterate (void func (&Client c) {
+		    File::fprintf (c.f, "NOTICE MESSAGE \"%s\"\n", text);
+		    File::flush (c.f);
+		});
+		File::fprintf (f, "MESSAGE\n");
 	    }
 
 	    void	quit () {
@@ -87,14 +210,47 @@ extend namespace Server {
 		    case WHO:
 			who ();
 			break;
+		    case GAMES:
+			games ();
+			break;
+		    case USERS u:
+			users (u.game);
+			break;
+		    case NEW n:
+			new (n.game);
+			break;
+		    case JOIN j:
+			join (j.game);
+			break;
+		    case WATCH w:
+#			watch (w.game);
+			break;
 		    case SHOW:
 			show ();
 			break;
+		    case BID b:
+			bid (b.number);
+			break;
+		    case MOVE m:
+			move (m.color, m.direction);
+			break;
+		    case UNDO:
+			undo ();
+			break;
+		    case RESET:
+			reset ();
+			break;
+		    case TURN:
+			turn ();
+			break;
+		    case PASS:
+			pass ();
+			break;
+		    case MESSAGE m:
+			message (m.text);
+			break;
 		    case QUIT:
 			quit ();
-			break;
-		    default:
-			printf ("not done yet %v\n", r);
 			break;
 		    }
 		} catch Readreq::invalid_request (string w) {
