@@ -1,0 +1,240 @@
+		Ricochet Robots Game Protocol (RRGP)
+		        Keith Packard
+		      keithp@keithp.com
+		         Carl Worth
+		        cworth@isi.edu
+			   2003-5-27
+		$RCSId: $
+
+Introduction
+
+RRGP is a network protocol for playing the ricochet robots game.  It permits
+a single server to host multiple games with named participants.  The
+protocol is designed so that people can play using only telnet, but it is
+expected that graphical interfaces will be able to drive the protocol as
+well.
+
+RRGP borrows ideas from other network protocols like SMTP using a
+synchronous command interface.
+
+Document Conventions
+
+	All commands include a response (yeah, synchronous protocols are
+	bad.  tough)
+
+	<command> <args> 
+
+	->
+
+	<success-code>
+	<response> <data>
+
+	<success-code> is one of:
+
+	OK
+	ERROR <message>
+
+	If <success-code> is "OK", then the reply data will follow and be
+	terminated by "DONE"
+
+1. Requests
+
+1.1 Connection setup
+
+	The RRGP server has no well defined port; agreement on which port to
+	use must be done through some external mechanism.  Once connected,
+	the client must identify itself:
+	
+	HELO <username>
+	
+	->
+	
+	OK
+	WELCOME <servername>
+	DONE
+
+1.2. Listing available users
+
+	WHO
+
+	->
+
+	OK
+	USER <username1>
+	USER <username2>
+	...
+	DONE
+
+1.3. Listing available games
+
+	GAMES
+
+	->
+
+	OK
+	BOARD <board1>
+	BOARD <board2>
+	...
+	DONE
+
+1.4. Listing users in a game
+
+	USERS <board>
+
+	->
+
+	OK
+	USER <username1>
+	USER <username2>
+	...
+	DONE
+
+1.5. Creating a new game
+
+	NEW <board>
+
+	->
+
+	OK
+	DONE
+
+1.6. Joining an existing game
+
+	JOIN <board>
+
+	->
+
+	OK
+	USER <username1>
+	USER <username2>
+	...
+	DONE
+
+1.7. Watching an existing game
+
+	WATCH <board>
+
+	->
+
+	OK
+	USER <username1>
+	USER <username2>
+	...
+	DONE
+
+	The client will monitor the game, but not be listed in the
+	userlist nor be allowed to make moves.
+
+1.8. Get the board contents
+
+	SHOW
+
+	->
+
+	OK
+	SPC <spc-data>
+	ROW <row-data>
+	...
+	DONE
+
+	"<spc-data>" is either '   ', ' | ' or '---'.  "<row-data>" is
+	either ' . ', ' | ', ' <color><shape>', '_<color><shape>',
+	' ww', '_ww', ' <color> ' or '_<color>_'.
+	
+	<color> is 'R', 'Y', 'G' or 'B', shape is 't', 's', 'o', 'c'
+
+1.9. Bet
+
+	BET <number>
+
+	->
+
+	OK
+	DONE
+
+1.10. Move
+
+	MOVE <color>, <dir>
+
+	->
+
+	OK
+	DONE
+
+	<color> is one of 'R', 'Y', 'G' or 'B', <dir> is one of 'N', 'E',
+	'S' or 'W'.
+
+
+1.11. Reset
+
+	RESET
+
+	->
+
+	OK
+	DONE
+
+1.12. Next turn
+
+	TURN
+
+	->
+
+	OK
+	DONE
+
+2. Asynchronous notification.  
+
+	The server will send notices when additional people join or new
+	games are started to every connected client.  These are of the form:
+
+	NOTICE
+	<notice-code> <args>
+	DONE
+
+2.1. New users
+
+	NOTICE
+	USER <username>
+	DONE
+
+2.2. Disconnected user
+
+	NOTICE
+	PART <username>
+	DONE
+
+2.3. New games
+
+	NOTICE
+	BOARD <board>
+	DONE
+
+2.4. Terminated games
+
+	NOTICE
+	TERMINATE <board>
+	DONE
+
+2.5. Bets
+
+	NOTICE
+	BET <bet>, <username>
+	DONE
+
+2.6. Timer
+
+	NOTICE
+	TIME <seconds>
+	DONE
+
+	Timer ticks are sent every 10 seconds
+
+2.7. Next turn
+
+	NOTICE
+	TURN <color><shape>
+	DONE
+
+	<color><shape> will be 'ww' for the whirlpool.
+
