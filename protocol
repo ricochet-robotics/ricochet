@@ -432,35 +432,42 @@ Document Conventions
 
     2.2.1. Global game notices
 
-	2.2.1.1 Game state change
+	2.2.1.1. Board layout change
+
+	    NOTICE BOARD <game-board>
+
+	    The layout of the game board has changed. <game-board> is
+	    formatted as in the reply to the SHOW request.
+	
+	2.2.1.2. Game state change
 	
 	    NOTICE GAMESTATE <state>
 
 	    Game state has changed to <state>.  <state> is one
 	    of "NEW", "BID", "SHOW" or "DONE".
 
-	2.2.1.2. Next turn (game)
+	2.2.1.3. Next turn (game)
 
 	    NOTICE TURN <color> <shape>
 
 	    Note that the game state is implicitly changed to New
 
-	2.2.1.3. Next game (game)
+	2.2.1.4. Next game (game)
 
 	    NOTICE GAMEOVER
 
-	2.2.1.4. Join game (game)
+	2.2.1.5. Join game (game)
 	
 	    NOTICE JOIN <username>
 	
-	2.2.1.5. Watch game (game)
+	2.2.1.6. Watch game (game)
 	
 	    NOTICE WATCH <username>
 	
-	2.2.1.6. User departed game (game)
+	2.2.1.7. User departed game (game)
 	
 	    NOTICE PART <username>
-	
+
     2.2.2. Bid notices
 
 	Notices sent duing the bidding phase of a turn
