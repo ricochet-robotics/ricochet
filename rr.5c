@@ -98,6 +98,9 @@ namespace RR {
 	struct {
 	    string	game;
 	}	WATCH;
+	struct {
+	    string	game;
+	}	DISPOSE;
 	void    SHOW;
 	struct {
 	    int	number;
@@ -212,6 +215,7 @@ namespace RR {
 	NOTFINISHED,
 	NOTNUMBER,
 	BLOCKED,
+	NOTEMPTY,
 	COMMAND,
 	SYNTAX,
 	NOTCOLOR,

@@ -126,6 +126,11 @@ extend namespace Server {
 		game_ (&packet);
 		req = (Request.WATCH) packet;
 		break;
+	    case "DISPOSE":
+		packet = (struct { string game; }) {};
+		game_ (&packet);
+		req = (Request.DISPOSE) packet;
+		break;
 	    case "SHOW":
 		req = Request.SHOW;
 		break;

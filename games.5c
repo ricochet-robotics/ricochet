@@ -340,6 +340,15 @@ extend namespace Server {
 	    return &g;
 	}
 
+	public void dispose (&Game g) {
+	    void bail (&Client c) {
+		raise error (Error.NOTEMPTY);
+	    }
+	    iterate_client (&g, bail, true, false);
+	    remove (&g);
+	    Clients::server_send ("NOTICE DISPOSE %s\n", g.name);
+	}
+
 	void next_game (&Game g) {
 	    ClientRef	winner = ClientRef.none;
 	    void find_winner (&Client c) {

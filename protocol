@@ -154,6 +154,18 @@ Document Conventions
 
 	Possible errors: NOGAME
 
+1.10. Dispose an empty game
+
+	DISPOSE <game>
+
+	->
+
+	DISPOSE
+
+	Disposes <game> unless it still has players associated.
+
+	Possible errors: NOGAME NOTEMPTY
+
 1.10. Get the game contents
 
 	SHOW
@@ -528,7 +540,13 @@ Document Conventions
 		+ showing and not all passed
 
 	is true
-	
+
+3.9. Not empty
+
+	ERROR NOTEMPTY
+
+	DISPOSE was requested for a game with active players
+
 3.8. Command
 
 	ERROR COMMAND

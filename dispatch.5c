@@ -412,6 +412,13 @@ extend namespace Server {
 		Games::add_client (&g, &c, false);
 		respond ("WATCH\n");
 	    }
+
+	    void	dispose (string game) {
+		assert_user ();
+		&Game g = Games::find (game);
+		Games::dispose (&g);
+		respond ("DISPOSE\n");
+	    }
 	    
 	    void	show () {
 		assert_user ();
@@ -567,6 +574,9 @@ extend namespace Server {
 			break;
 		    case WATCH w:
 			watch (w.game);
+			break;
+		    case DISPOSE d:
+			dispose (d.game);
 			break;
 		    case SHOW:
 			show ();
