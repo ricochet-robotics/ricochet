@@ -186,7 +186,7 @@ extend namespace Server {
 			int	    bid = 0;
 			union switch (Games::lowest_bidder (&g)) {
 			case none: break;
-			case client c: bid = c.bid.number; break;
+			case client c: bid = c.bid.bid.number; break;
 			}
 
 			string	    active = "";
@@ -241,7 +241,7 @@ extend namespace Server {
 				{
 				    score = c.score;
 				    if (c.bid != Bid.none)
-					bid = c.bid.number;
+					bid = c.bid.bid.number;
 				}
 			    }
 			    respond ("USERINFO %s %b %d %d\n",

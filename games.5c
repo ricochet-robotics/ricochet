@@ -206,10 +206,13 @@ extend namespace Server {
 		union switch (c.bid) {
 		case none:
 		    break;
-		case number n:
-		    if (min == Bid.none || min.number > n)
+		case bid b:
+		    if (min == Bid.none || 
+			min.bid.number > b.number ||
+			(min.bid.number == b.number && 
+			 min.bid.sequence > b.sequence))
 		    {
-			min = (Bid.number) n;
+			min = (Bid.bid) b;
 			min_client = (ClientRef.client) (&c);
 		    }
 		    break;
@@ -219,6 +222,8 @@ extend namespace Server {
 	    return min_client;
 	}
 
+	void set_state (&Game g, GameState state);
+	    
 	void set_active (&Game g) {
 	    ClientRef	active = lowest_bidder (&g);
 
@@ -226,10 +231,11 @@ extend namespace Server {
 		g.active = active;
 		union switch (active) {
 		case none:
+		    set_state (&g, GameState.DONE);
 		    break;
 		case client c:
 		    game_send (&g, "NOTICE ACTIVE %s %d\n",
-			       c.user.username, c.bid.number);
+			       c.user.username, c.bid.bid.number);
 		    break;
 		}
 	    }
@@ -322,6 +328,7 @@ extend namespace Server {
 	    g.history = (ObjectLoc[*]) {};
 	    g.expire_time = 0;
 	    g.state = GameState.NEW;
+	    g.bid_sequence = 0;
 	    Boards::set_target (&g.board, g.target.color, g.target.shape);
 
 	    void reset_client (&Client c) {
@@ -475,10 +482,13 @@ extend namespace Server {
 	    if (g.state == GameState.NEW)
 		set_state (&g, GameState.BID);
 	    /*
-	    if (c.bid != Bid.none && c.bid.number <= number)
+	    if (c.bid != Bid.none && c.bid.bid.number <= number)
 		raise rr_error (Error.NOTLOWER);
 	     */
-	    c.bid = (Bid.number) number;
+	    c.bid = (Bid.bid) (BidValue) { 
+		number = number, 
+		sequence = g.bid_sequence++
+	    };
 	    game_send (&g, "NOTICE BID %s %d\n", c.user.username, number);
 	}
 
@@ -548,15 +558,13 @@ extend namespace Server {
 	    reset (&g, &c);
 	    c.bid = Bid.none;
 	    set_active (&g);
-	    if (g.active == ClientRef.none)
-		set_state (&g, GameState.DONE);
 	}
 	
 	public void move (&Game g, &Client c, Color color, Direction dir) {
 	    assert_playing (&g, &c);
 	    assert_active_or_done (&g, &c);
 	    if (g.state == GameState.SHOW &&
-		count (&g) >= c.bid.number)
+		count (&g) >= c.bid.bid.number)
 		raise rr_error (Error.TOOMANYMOVES);
 	    Track::Loc  loc = Track::new();
 	    make_move (&g, &loc, color, dir);
