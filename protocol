@@ -300,7 +300,7 @@ Document Conventions
 
 2.13. Message
 
-	NOTICE MESSAGE <text>
+	NOTICE MESSAGE <username> <text>
 
 2.14. Abandon request
 
