@@ -267,8 +267,10 @@ extend namespace Server {
 		raise notbidding (&g);
 		break;
 	    }
+	    /*
 	    if (c.bid != Bid.none && c.bid.number <= number)
 		raise notlower (&g, &c, number);
+	     */
 	    c.bid = (Bid.number) number;
 	    Clients::game_send (&g, "NOTICE BID %s %d\n", c.user.username, number);
 	}
