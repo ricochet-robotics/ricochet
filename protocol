@@ -167,7 +167,7 @@ Document Conventions
 	<color> is one of 'R', 'Y', 'G' or 'B', <dir> is one of 'N', 'E',
 	'S' or 'W'.
 
-	Possible errors: NOTINGAME, NOTACTIVE
+	Possible errors: NOTINGAME, NOTACTIVE, BLOCKED
 
 1.12. Undo
 
@@ -356,6 +356,14 @@ Document Conventions
 
 	A non-numeric value was supplied where a number was required
 	
+3.5. Blocked
+
+	ERROR BLOCKED
+
+	The robot cannot move the requested direction.
+
+	Possibly returned by: MOVE
+
 Some comments/questions
 -----------------------
 
