@@ -25,7 +25,7 @@
 autoload Server
 
 extend namespace Server {
-    public namespace Connect {
+    public namespace Clients {
 	(&Client)[0]    clients = {};
 
 	public void iterate (void (&Client c) f) {
@@ -49,6 +49,20 @@ extend namespace Server {
 	    raise no_such_client (f);
 	}
 
+	public ClientRef find (string name) {
+	    exception found (&Client c);
+	    try {
+		void pick (&Client c) {
+		    if (c.user == (User.username) name)
+			raise found (&c);
+		}
+		iterate (pick);
+	    } catch found (&Client c) {
+		return (ClientRef.client) (&c);
+	    }
+	    return ClientRef.none;
+	}
+	
 	public &Client new (file f) {
 	    clients = ((&Client)[dim(clients)+1]) { 
 		[i] = i < dim(clients) ? 
@@ -57,7 +71,7 @@ extend namespace Server {
 		    f = f, 
 		    user = User.none, 
 		    game = GameRef.none,
-		    score = 0
+		    score = 0,
 		})
 	    };
 	    return &clients[dim(clients)-1];

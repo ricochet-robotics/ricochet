@@ -24,6 +24,7 @@
 
 autoload RR::Lex
 autoload Ctype
+autoload Server
 
 extend namespace Server {
     public namespace Readreq {
@@ -41,7 +42,7 @@ extend namespace Server {
 	    return r;
 	}
 
-	public Request read (file f) {
+	Request read_unlocked (file f) {
 	    struct {} packet;
 	    void username_ (&struct { string username; } packet) {
 		packet.username = word (f); 
@@ -64,62 +65,88 @@ extend namespace Server {
 	    void text_ (&struct { string text; } packet) {
 		packet.text = word (f);
 	    }
+	    Request req;
 	    switch (string w = upper (firstword (f))) {
 	    case "HELO":
 		packet = (struct { string username; }) {};
 		username_ (&packet);
-		return (Request.HELO) packet;
+		req = (Request.HELO) packet;
+		break;
 	    case "WHO":
-		return Request.WHO;
+		req = Request.WHO;
+		break;
 	    case "GAMES":
-		return Request.GAMES;
+		req = Request.GAMES;
+		break;
 	    case "USERS":
 		packet = (struct { string game; }) {};
 		game_ (&packet);
-		return (Request.USERS) packet;
+		req = (Request.USERS) packet;
+		break;
 	    case "NEW":
 		packet = (struct { string game; }) {};
 		game_ (&packet);
-		return (Request.NEW) packet;
+		req = (Request.NEW) packet;
+		break;
 	    case "JOIN":
 		packet = (struct { string game; }) {};
 		game_ (&packet);
-		return (Request.JOIN) packet;
+		req = (Request.JOIN) packet;
+		break;
 	    case "WATCH":
 		packet = (struct { string game; }) {};
 		game_ (&packet);
-		return (Request.WATCH) packet;
+		req = (Request.WATCH) packet;
+		break;
 	    case "SHOW":
-		return Request.SHOW;
+		req = Request.SHOW;
+		break;
 	    case "BID":
 		packet = (struct { int number; }) {};
 		number_ (&packet);
-		return (Request.BID) packet;
+		req = (Request.BID) packet;
+		break;
 	    case "MOVE":
 		packet = (struct { Color color; Direction direction; }) {};
 		color_ (&packet);
 		direction_ (&packet);
-		return (Request.MOVE) packet;
+		req = (Request.MOVE) packet;
+		break;
 	    case "UNDO":
-		return Request.UNDO;
+		req = Request.UNDO;
+		break;
 	    case "RESET":
-		return Request.RESET;
+		req = Request.RESET;
+		break;
 	    case "TURN":
-		return Request.TURN;
+		req = Request.TURN;
+		break;
 	    case "PASS":
-		return Request.PASS;
+		req = Request.PASS;
+		break;
 	    case "MESSAGE":
 		packet = (struct { string text; }) {};
 		text_ (&packet);
-		return (Request.MESSAGE) packet;
+		req = (Request.MESSAGE) packet;
+		break;
 	    case "QUIT":
-		return Request.QUIT;
+		req = Request.QUIT;
+		break;
 	    case "":
 		raise request_closed ();
 	    default:
-		skipline (f);
 		raise invalid_request (w);
 	    }
+	    if (!eol (f))
+		raise syntax ();
+	    return req;
+	}
+
+	public Request read (file f) {
+	    twixt (unlock (); lock ())
+		twixt (true; skipline (f))
+		    return read_unlocked (f);
+	    raise notreached ();
 	}
     }
 }

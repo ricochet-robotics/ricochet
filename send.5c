@@ -1,0 +1,183 @@
+/*
+ * $Id$
+ *
+ * Copyright © 2003 Keith Packard
+ *
+ * Permission to use, copy, modify, distribute, and sell this software and its
+ * documentation for any purpose is hereby granted without fee, provided that
+ * the above copyright notice appear in all copies and that both that
+ * copyright notice and this permission notice appear in supporting
+ * documentation, and that the name of Keith Packard not be used in
+ * advertising or publicity pertaining to distribution of the software without
+ * specific, written prior permission.  Keith Packard makes no
+ * representations about the suitability of this software for any purpose.  It
+ * is provided "as is" without express or implied warranty.
+ *
+ * KEITH PACKARD DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * EVENT SHALL KEITH PACKARD BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+ * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
+ * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+autoload RR
+
+extend namespace RR {
+    public namespace Send {
+	bool needsquote (string s) {
+	    for (int i = 0; i < String::length (s); i++)
+		if (Ctype::isblank (s[i]) || s[i] == '"' || s[i] == '\\')
+		    return true;
+	    return false;
+	}
+	
+	public exception too_few_arguments (string format, poly[] args);
+
+	public exception too_many_arguments (string format, poly[] args);
+	
+	public void send (file f, string format, poly args...)
+	{
+	    void put_string (string s) {
+		void quote (string s) {
+		    int i;
+		    File::putc ('"', f);
+		    for (i = 0; i < String::length (s); i++)
+		    {
+			if (s[i] == '"' || s[i] == '\\')
+			    File::putc ('\\', f);
+			File::putc (s[i], f);
+		    }
+		    File::putc ('"', f);
+		}
+		if (needsquote (s))
+		    quote (s);
+		else
+		    File::fprintf (f, "%s", s);
+	    }
+
+	    void put_color (Color c) {
+		switch (c) {
+		case Color.Red:	    File::fprintf (f, "red"); break;
+		case Color.Yellow:  File::fprintf (f, "yellow"); break;
+		case Color.Green:   File::fprintf (f, "green"); break;
+		case Color.Blue:    File::fprintf (f, "blue"); break;
+		case Color.Whirl:   File::fprintf (f, "whirl"); break;
+		}
+	    }
+	    
+	    void put_shape (Shape c) {
+		switch (c) {
+		case Shape.Triangle:	File::fprintf (f, "triangle"); break;
+		case Shape.Square:	File::fprintf (f, "square"); break;
+		case Shape.Octagon:	File::fprintf (f, "octagon"); break;
+		case Shape.Circle:	File::fprintf (f, "circle"); break;
+		case Shape.Whirl:	File::fprintf (f, "whirl"); break;
+		}
+	    }
+
+	    void put_direction (Direction d) {
+		switch (d) {
+		case Direction.North:	File::fprintf (f, "north"); break;
+		case Direction.East:	File::fprintf (f, "east"); break;
+		case Direction.South:	File::fprintf (f, "south"); break;
+		case Direction.West:	File::fprintf (f, "west"); break;
+		}
+	    }
+
+	    void put_number (int n) {
+		File::fprintf (f, "%d", n);
+	    }
+	    
+	    /*
+	     * A private namespace to walk the format string 
+	     */
+	    namespace fmt {
+		int	i = 0;
+		int len = String::length(format);
+
+		/*
+		 * Return whether the end of the string has been reached
+		 */
+		public bool done () { 
+		    return i >= len; 
+		}
+
+		/*
+		 * Return current character, raising an exception if
+		 * the end of the string has been reached
+		 */
+		public int c() { 
+		    if (done())
+			raise invalid_argument ("invalid format", 1, format);
+		    return format[i]; 
+		}
+
+		/*
+		 * Step to next character
+		 */
+		public void step () {
+		    ++i; 
+		}
+
+		/*
+		 * Return true and step if current character matches 'm'
+		 */
+		public bool match(int m) {
+		    if (c() == m) 
+		    {
+			step();
+			return true;
+		    }
+		    return false;
+		}
+
+		/*
+		 * Return a number from the format string
+		 */
+		public int number () {
+		    int	n = 0;
+		    while ('0' <= c() && c() <= '9')
+		    {
+			n = n * 10 + c() - '0';
+			step();
+		    }
+		    return n;
+		}
+	    }
+
+	    namespace arg {
+		int	n = 0;
+
+		public poly next () {
+		    if (n == dim(args))
+			raise too_few_arguments (format, args);
+		    return args[n++];
+		}
+
+		public void done () {
+		    if (n != dim(args))
+			raise too_many_arguments (format, args);
+		}
+	    }
+
+	    while (!fmt::done () && !File::error (f)) {
+		if (fmt::match ('%') && fmt::c() != '%')
+		{
+		    poly    a = arg::next ();
+		    switch (fmt::c()) {
+		    case 's':	put_string (a); break;
+		    case 'd':	put_number (a); break;
+		    case 'C':	put_color (a); break;
+		    case 'D':	put_direction (a); break;
+		    case 'S':	put_shape (a); break;
+		    }
+		}
+		else
+		    File::putc (fmt::c(), f);
+		fmt::step ();
+	    }
+	}
+    }
+}

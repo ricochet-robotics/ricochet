@@ -44,15 +44,18 @@ extend namespace RR {
 	    return -1;
 	}
 
-	void skipwhite (file f) {
+	bool skipwhite (file f, bool allow_newline) {
 	    while ((int c = lexc (f)) != -1) {
-		if (c == '\n')
-		    raise syntax ();
+		if (c == '\n' && !allow_newline) {
+		    File::ungetc (c, f);
+		    return true;
+		}
 		if (!Ctype::isspace(c)) {
 		    File::ungetc (c, f);
-		    break;
+		    return false;
 		}
 	    }
+	    return true;
 	}
 
 	public void skipline (file f) {
@@ -94,24 +97,8 @@ extend namespace RR {
 	    return s;
 	}
 
-	public string word (file f) {
-	    skipwhite (f);
-	    return next_word (f);
-	}
-
-	public string firstword (file f) {
-	    for (;;) {
-		try {
-		    skipwhite (f);
-		    return next_word (f);
-		} catch syntax () {
-		    ;
-		}
-	    }
-	}
-
 	public bool eol (file f) {
-	    skipwhite (f);
+	    skipwhite (f, false);
 	    int c = lexc (f);
 	    if (c == -1)
 		return true;
@@ -119,6 +106,17 @@ extend namespace RR {
 	    if (c == '\n')
 		return true;
 	    return false;
+	}
+
+	public string word (file f) {
+	    if (skipwhite (f, false))
+		raise syntax ();
+	    return next_word (f);
+	}
+
+	public string firstword (file f) {
+    	    skipwhite (f, true);
+    	    return next_word (f);
 	}
 
 	public int number (file f) {

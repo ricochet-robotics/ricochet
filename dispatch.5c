@@ -23,8 +23,9 @@
  */
 
 autoload RR
+autoload RR::Send
 autoload Server
-autoload Server::Connect
+autoload Server::Clients
 autoload Server::Readreq
 autoload Server::Show
 autoload Server::Games
@@ -35,20 +36,40 @@ extend namespace Server {
 
 	public void set_server_id (string id) { server_id = id; }
 
-	public void client (file f) {
-	    &Client	c = Connect::new (f);
+	void client_locked (file f) {
+	    &Client	c = Clients::new (f);
 	    
-	    void	helo (string username) {
-		c.user.username = username;
-		File::fprintf (f, "HELO \"%s\"\n", server_id);
+	    exception	notactive ();
+	    exception	notingame ();
+	    exception	invalidname ();
+	    exception	nonameset ();
+
+	    void	broadcast (string fmt, poly args...) {
+		RR::Send::send (stdout, "broadcast: ");
+		RR::Send::send (stdout, fmt, args...);
+		void	message_client (&Client o) {
+		    if (&o != &c)
+		    {
+			RR::Send::send (o.f, fmt, args...);
+			File::flush (o.f);
+		    }
+		}
+		Clients::iterate (message_client);
+		RR::Send::send (stdout, "done\n");
 	    }
 
-	    void print_client (&Client c) {
-		union switch (c.user) {
+	    void	respond (string fmt, poly args...) {
+		RR::Send::send (stdout, "respond: ");
+		RR::Send::send (stdout, fmt, args...);
+		RR::Send::send (f, fmt, args...);
+	    }
+
+	    void print_client (&Client o) {
+		union switch (o.user) {
 		case none:
 		    break;
 		case username u:
-		    File::fprintf (f, " \"%s\"", u);
+		    respond (" %s", u);
 		    break;
 		}
 	    }
@@ -58,55 +79,58 @@ extend namespace Server {
 		case none:
 		    break;
 		case username u:
-		    File::fprintf (f, " \"%s\" %d", u, c.score);
+		    respond (" %s %d", u, c.score);
 		    break;
 		}
 	    }
 	    
+	    void	helo (string username) {
+		if (Clients::find (username) != ClientRef.none)
+		    raise invalidname ();
+		c.user.username = username;
+		respond ("HELO %s\n", server_id);
+		broadcast ("NOTICE USER %s\n", username);
+	    }
+
 	    void	who () {
-		File::fprintf (f, "WHO");
-		Connect::iterate (print_client);
-		File::fprintf (f, "\n");
+		respond ("WHO");
+		Clients::iterate (print_client);
+		respond ("\n");
 	    }
 
 	    void	games() {
-		File::fprintf (f, "GAMES");
+		respond ("GAMES");
 		Games::iterate (void func(&Game g) {
-		    File::fprintf (f, " \"%s\"", g.name);
+		    respond (" %s", g.name);
 		});
-		File::fprintf (f, "\n");
+		respond ("\n");
 	    }
 
 	    void	users(string game) {
-		try {
-		    &Game	g = Games::find (game);
-		    File::fprintf (f, "USERS");
-		    Games::iterate_client (&g, print_client_score);
-		    File::fprintf (f, "\n");
-		} catch Games::no_such_game (string name) {
-		    File::fprintf (f, "ERROR NOGAME\n");
-		}
+		&Game	g = Games::find (game);
+		respond ("USERS");
+		Games::iterate_client (&g, print_client_score);
+		respond ("\n");
 	    }
 
 	    void	join (string game) {
-		try {
-		    &Game g = Games::find (game);
-		    Games::add_client (&g, &c);
-		} catch Games::no_such_game (string game) {
-		    File::fprintf (f, "ERROR NOGAME\n");
-		}
+		&Game g = Games::find (game);
+		Games::add_client (&g, &c);
+		respond ("JOIN\n");
+		broadcast ("NOTICE JOIN %s %s\n", g.name, c.user.username);
 	    }
 	    
 	    void	new(string game) {
-		&Game g = Games::new (game);
-		join (g.name);
-		File::fprintf (f, "NEW \"%s\"\n", g.name);
+		&Game g =Games::new (game);
+		Games::add_client (&g, &c);
+		respond ("NEW %s\n", g.name);
+		broadcast ("NOTICE NEW %s\n", g.name);
 	    }
 
 	    void	show () {
 		union switch (c.game) {
 		case none:
-		    File::fprintf (f, "ERROR NOTINGAME\n");
+		    raise notingame ();
 		    break;
 		case game g:
 		    File::fprintf (f, "SHOW \"\n");
@@ -117,86 +141,73 @@ extend namespace Server {
 	    }
 
 	    void	bid (int number) {
-		File::fprintf (f, "BID\n");
+		respond ("BID\n");
+		broadcast ("BID %s %d\n", c.user.username, number);
 	    }
 
 	    void	move (Color color, Direction direction) {
 		union switch (c.game) {
 		case none:
-		    File::fprintf (f, "ERROR NOTINGAME\n");
-		    break;
+		    raise notingame ();
 		case game g:
-		    try {
-			Games::move (&g, &c, color, direction);
-			File::fprintf (f, "MOVE\n");
-		    } catch Games::notactive (&Game g, &Client c) {
-			File::fprintf (f, "ERROR NOTACTIVE\n");
-		    }
+		    Games::move (&g, &c, color, direction);
+		    respond ("MOVE\n");
 		    break;
 		}
+		broadcast ("NOTICE MOVE %C %D\n", color, direction);
 	    }
 
 	    void	undo () {
 		union switch (c.game) {
 		case none:
-		    File::fprintf (f, "ERROR NOTINGAME\n");
+		    raise notingame ();
 		    break;
 		case game g:
-		    try {
-			Games::undo (&g, &c);
-			File::fprintf (f, "UNDO\n");
-		    } catch Games::notactive (&Game g, &Client c) {
-			File::fprintf (f, "ERROR NOTACTIVE\n");
-		    }
+		    Games::undo (&g, &c);
+		    respond ("UNDO\n");
 		    break;
 		}
+		broadcast ("NOTICE UNDO\n");
 	    }
 
 	    void	reset () {
 		union switch (c.game) {
 		case none:
-		    File::fprintf (f, "ERROR NOTINGAME\n");
+		    raise notingame ();
 		    break;
 		case game g:
-		    try {
-			Games::reset (&g, &c);
-			File::fprintf (f, "RESET\n");
-		    } catch Games::notactive (&Game g, &Client c) {
-			File::fprintf (f, "ERROR NOTACTIVE\n");
-		    }
+		    Games::reset (&g, &c);
+		    respond ("RESET\n");
 		    break;
 		}
+		broadcast ("NOTICE RESET\n");
 	    }
 
 	    void	turn () {
 		union switch (c.game) {
 		case none:
-		    File::fprintf (f, "ERROR NOTINGAME\n");
-		    break;
+		    raise notingame ();
 		case game g:
 		    if (Games::solved (&g))
-			Games::next_target (&g);
-		    File::fprintf (f, "TURN\n");
+			Games::next_turn (&g);
+		    respond ("TURN\n");
 		    break;
 		}
+		broadcast ("NOTICE TURN\n");
 	    }
 
 	    void	pass () {
 	    }
 
 	    void	message (string text) {
-		File::fprintf (f, "MESSAGE\n");
-		Connect::iterate (void func (&Client o) {
-		    string u = c.user == User.none ? "anonymous" :
-		    c.user.username;
-		    File::fprintf (o.f, "NOTICE MESSAGE \"%s\" \"%s\"\n",
-				   u, text);
-		    File::flush (o.f);
-		});
+		respond ("MESSAGE\n");
+		string u = (c.user == User.none ? "anonymous" :
+			    c.user.username);
+		broadcast ("NOTICE MESSAGE %s %s\n", u, text);
 	    }
 
 	    void	quit () {
-		File::fprintf (f, "QUIT\n");
+		respond ("QUIT\n");
 		raise Readreq::request_closed();
 	    }
 
@@ -206,6 +217,15 @@ extend namespace Server {
 		try {
 		    File::flush (f);
 		    Request	r = Readreq::read (f);
+		    union switch (r) {
+		    case HELO:
+		    case QUIT:
+			 break;
+		    default:
+			if (c.user == User.none)
+			    raise nonameset ();
+			break;
+		    }
 		    union switch (r) {
 		    case HELO h:    
 			helo (h.username);
@@ -257,26 +277,41 @@ extend namespace Server {
 			break;
 		    }
 		} catch Readreq::invalid_request (string w) {
-		    File::fprintf (f, "ERROR COMMAND %s\n", w);
-		} catch Readreq::request_closed () {
-		    printf ("Client closed\n");
-		    Connect::dispose (&c);
-		    File::close (f);
-		    return;
+		    respond ("ERROR COMMAND %s\n", w);
 		} catch RR::Lex::syntax() {
-		    File::fprintf (f, "ERROR SYNTAX\n");
-		    RR::Lex::skipline (f);
+		    respond ("ERROR SYNTAX\n");
 		} catch RR::Lex::invalid_color (string color) {
-		    File::fprintf (f, "ERROR NOTCOLOR %s\n", color);
-		    RR::Lex::skipline (f);
+		    respond ("ERROR NOTCOLOR %s\n", color);
 		} catch RR::Lex::invalid_shape (string shape) {
-		    File::fprintf (f, "ERROR NOTSHAPE %s\n", shape);
-		    RR::Lex::skipline (f);
+		    respond ("ERROR NOTSHAPE %s\n", shape);
 		} catch RR::Lex::invalid_direction (string direction) {
-		    File::fprintf (f, "ERROR NOTDIRECTION %s\n", direction);
-		    RR::Lex::skipline (f);
+		    respond ("ERROR NOTDIRECTION %s\n", direction);
+		} catch Games::notactive (&Game g, &Client c) {
+		    respond ("ERROR NOTACTIVE\n");
+		} catch notingame () {
+		    respond ("ERROR NOTINGAME\n");
+		} catch Games::no_such_game (string name) {
+		    respond ("ERROR NOGAME\n");
+		} catch nonameset () {
+		    respond ("ERROR NONAMESET\n");
+		} catch invalidname () {
+		    respond ("ERROR INVALIDNAME\n");
+		} catch Readreq::request_closed () {
+		    User user = c.user;
+		    printf ("Client closed %v\n", c.user);
+		    Clients::dispose (&c);
+		    File::close (f);
+		    if (c.user != User.none)
+			broadcast ("NOTICE PART %s\n", c.user.username);
+		    return;
 		}
 	    }
+	}
+
+	public void client (file f)
+	{
+	    twixt (lock (); unlock ())
+		client_locked (f);
 	}
     }
 }

@@ -31,6 +31,20 @@ namespace Server {
     public typedef Client;
     public typedef Game;
 
+    mutex   server_mutex = Mutex::new ();
+
+    public bool lock () {
+	Mutex::acquire (server_mutex);
+	printf ("lock %v\n", Thread::current ());
+	return true;
+    }
+
+    public bool unlock () {
+	printf ("unlock %v\n", Thread::current ());
+	Mutex::release (server_mutex);
+	return true;
+    }
+
     public typedef struct {
 	int	x, y;
 	Object	object;
@@ -72,4 +86,6 @@ namespace Server {
 	ClientRef	active;
 	ObjectLoc[*]    history;
     } Game;
+
+    public exception notreached ();
 }

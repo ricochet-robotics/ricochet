@@ -23,7 +23,6 @@
  */
  
 autoload RR
-autoload Server::Connect
 autoload Server::Readreq
 
 extend namespace Server {
