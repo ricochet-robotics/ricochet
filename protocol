@@ -114,16 +114,15 @@ Document Conventions
 	diagram of the game contents, (an array of cells). A single
 	cell and its surrounding are indicated as:
 
-	 HH 
-	VcsV
-	VrrV
-	 HH
+	 HHH 
+	VrcsV
+	 HHH
 
 	H = ' ' or '='
 	V = ' ' or '|'
+	r = '.' or <robot-color>  (one of 'r', 'g', 'b', or 'y')
 	c = '.' or <target-color> (one of 'r', 'g', 'b', or 'y')
 	s = '.' or <target-shape> (one of 'c', 's', 'o', or 't')
-	r = '.' or <robot-color>  (one of 'r', 'g', 'b', or 'y')
 
 	The goal robot and target (color and shape) are indicated with
 	capital letters.
@@ -131,18 +130,16 @@ Document Conventions
 	For example:
 
 	SHOW "
-	 ==
-	|.. .. gs
-	|RR .. ..
+	 ===
+	|R.. ... .gs
 	
-	 ..|.. RT|
-	 gg|.. ..|
-	 ==    =="
+	 byc|... .RT|
+	 ===    ==="
 
-	RR = 	Red robot (goal robot)
-	gs = 	Green square (non-goal target)
-	gg = 	Green robot (non-goal target)
-	RT =	Red triangle (goal target)
+	R.. = 	Red robot (goal robot)
+	.gs = 	Green square target
+	byc = 	Blue robot on yellow circle target
+	.RT =	Red triangle (goal target)
 
 	Possible errors: NOTINGAME
 
@@ -180,6 +177,8 @@ Document Conventions
 	Undoes the last move
 
 	Possible errors: NOTINGAME, NOTACTIVE
+
+	XXX: Do we add another error code for no further undo?
 
 1.13. Reset
 
@@ -386,4 +385,9 @@ users PASS), it would be nice to allow others to show alternate
 solutions, failed attempts, etc. Shall we provide a way for the ACTIVE
 user to pass control to another, (only when a turn is over)? Or maybe
 since the turn is over we just let any user move the pieces?
+
+--
+
+We should add PART and UNWATCH commands to leave the current game,
+(while still staying connected to perhaps join other games).
 

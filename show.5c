@@ -28,9 +28,9 @@ extend namespace Server {
     public namespace Show {
 	void show_first_object (file f, &Object o) {
 	    if (o.walls.above)
-		File::fprintf (f, " ==");
+		File::fprintf (f, " ===");
 	    else
-		File::fprintf (f, "   ");
+		File::fprintf (f, "    ");
 	}
 	
 	void show_color (file f, Color c, bool active) {
@@ -68,20 +68,12 @@ extend namespace Server {
 		File::fprintf (f, " ");
 	    union switch (o.robot) {
 	    case none:
-		File::fprintf (f, "..");
+		File::fprintf (f, ".");
 		break;
 	    case robot r:
 		show_color (f, r.color, r.active);
-		show_color (f, r.color, r.active);
 		break;
 	    }
-	}
-	
-	void show_third_object (file f, &Object o) {
-	    if (o.walls.left)
-		File::fprintf (f, "|");
-	    else
-		File::fprintf (f, " ");
 	    union switch (o.target) {
 	    case none:
 		File::fprintf (f, "..");
@@ -92,7 +84,7 @@ extend namespace Server {
 		break;
 	    }
 	}
-
+	
 	void show_last_col (file f, &Object o) {
 	    if (o.walls.right)
 		File::fprintf (f, "|");
@@ -111,23 +103,17 @@ extend namespace Server {
 		show_second_object (f, &b[col,row]);
 	    show_last_col (f, &b[Width-1,row]);
 	}
-	void show_third_row (file f, &Board b, int row) {
-	    for (int col = 0; col < Width; col++)
-		show_third_object (f, &b[col,row]);
-	    show_last_col (f, &b[Width-1,row]);
-	}
 	void show_row (file f, &Board b, int row) {
 	    show_first_row (f, &b, row);
 	    show_second_row (f, &b, row);
-	    show_third_row (f, &b, row);
 	}
 	void show_last_row (file f, &Board b) {
 	    for (int col = 0; col < Width; col++)
 	    {
 		if (b[col,Height-1].walls.below)
-		    File::fprintf (f, " ==");
+		    File::fprintf (f, " ===");
 		else
-		    File::fprintf (f, "   ");
+		    File::fprintf (f, "    ");
 	    }
 	}
 
