@@ -91,6 +91,19 @@ extend namespace Server {
 	    iterate_client (&g, message_client, true, true);
 	}
 
+	public void game_send_client_scores (&Game g, string fmt, poly args...) {
+	    void	message_client (&Client c) {
+		Clients::client_send (&c, fmt, args...);
+
+		void	print_client_score (&Client o) {
+		    Clients::print_client_score (&c, &o);
+		}
+		iterate_client (&g, print_client_score, true, false);
+		Clients::client_send (&c, "\n");
+	    }
+	    iterate_client (&g, message_client, true, true);
+	}
+
 	bool any_bids (&Game g) {
 	    bool    any = false;
 	    void bid_set (&Client c) {
@@ -232,8 +245,17 @@ extend namespace Server {
 	    return &c;
 	}
 
+    	void next_game (&Game g);
+
 	/* select the next target */
 	void next_target (&Game g) {
+
+	    if (dim(g.targets) == 0)
+	    {
+		next_game (&g);
+		return;
+	    }
+
 	    Target  t = g.targets[0];
 	    g.targets = (Target[dim(g.targets)-1]) { [i] = g.targets[i+1] };
 	    g.history = (ObjectLoc[*]) {};
@@ -289,6 +311,14 @@ extend namespace Server {
 	    return t;
 	}
 	    
+	void init (&Game g) {
+	    g.board = Boards::random_board ();
+	    g.targets = random_targets ();
+	    g.active = ClientRef.none;
+	    g.timer_serial = 0;
+	    next_target (&g);
+	}
+	
 	public &Game new (string suggestion) {
 	    string name;
 	    for (int n = 0; 
@@ -299,15 +329,26 @@ extend namespace Server {
 	    &Game g = insert ();
 	    g.name = name;
 	    g.clients = ((&Client)[*]) {};
-	    g.board = Boards::random_board ();
-	    g.targets = random_targets ();
-	    g.active = ClientRef.none;
-	    g.timer_serial = 0;
-	    next_target (&g);
+	    init (&g);
 	    Clients::server_send ("NOTICE NEW %s\n", g.name);
 	    return &g;
 	}
 
+	void next_game (&Game g) {
+	    ClientRef	winner = ClientRef.none;
+	    void find_winner (&Client c) {
+		if (c.score > 0 &&
+		    (winner == ClientRef.none || c.score >
+		    winner.client.score))
+		    winner = (ClientRef.client) (&c);
+	    }
+	    iterate_client (&g, find_winner, true, false);
+	    if (winner != ClientRef.none)
+		winner.client.games++;
+	    game_send_client_scores (&g, "NOTICE GAMEOVER");
+	    init (&g);
+	}
+	
 	public ClientRef active_client (&Game g) {
 	    return g.active;
 	}

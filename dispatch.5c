@@ -44,26 +44,6 @@ extend namespace Server {
 		Clients::client_send (&c, fmt, args...);
 	    }
 
-	    void print_client (&Client o) {
-		union switch (o.user) {
-		case none:
-		    break;
-		case username u:
-		    respond (" %s", u);
-		    break;
-		}
-	    }
-	    
-	    void print_client_score (&Client c) {
-		union switch (c.user) {
-		case none:
-		    break;
-		case username u:
-		    respond (" %s %d", u, c.score);
-		    break;
-		}
-	    }
-	    
 	    void assert_user ()
 	    {
 		if (c.user == User.none)
@@ -76,6 +56,18 @@ extend namespace Server {
 		    raise error (Error.NOTINGAME);
 	    }
 		
+	    void print_client_score (&Client o) {
+		Clients::print_client_score (&c, &o);
+	    }
+
+	    void print_client_games (&Client o) {
+		Clients::print_client_games (&c, &o);
+	    }
+
+	    void print_client (&Client o) {
+		Clients::print_client (&c, &o);
+	    }
+
 	    void	helo (string username) {
 		if (Clients::find (username) != ClientRef.none)
 		    raise error (Error.INVALIDNAME);
@@ -87,7 +79,7 @@ extend namespace Server {
 	    void	who () {
 		assert_user ();
 		respond ("WHO");
-		Clients::iterate (print_client);
+		Clients::iterate (print_client_games);
 		respond ("\n");
 	    }
 
@@ -112,10 +104,18 @@ extend namespace Server {
 		assert_user ();
 		&Game	g = Games::find (game);
 		respond ("WATCHERS");
-		Games::iterate_client (&g, print_client_score, false, true);
+		Games::iterate_client (&g, print_client, false, true);
 		respond ("\n");
 	    }
 
+	    void	gameinfo (string game) {
+		&Game	g = Games::find (game);
+		
+	    }
+
+	    void	userinfo (string username) {
+	    }
+	    
 	    void	new(string game) {
 		assert_user ();
 		&Game g = Games::new (game);
@@ -245,10 +245,10 @@ extend namespace Server {
 			watchers (w.game);
 			break;
 		    case GAMEINFO g:
-#			gameinfo (g.game);
+			gameinfo (g.game);
 			break;
 		    case USERINFO u:
-#			userinfo (u.username);
+			userinfo (u.username);
 			break;
 		    case NEW n:
 			new (n.game);

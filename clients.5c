@@ -83,9 +83,7 @@ extend namespace Server {
 				    f = f, 
 				    user = User.none, 
 				    game = GameRef.none,
-				    score = 0,
-				    bid = Bid.none,
-				    playing = false
+				    games = 0
 				  }));
 	    return &clients[dim(clients)-1];
 	}
@@ -101,5 +99,36 @@ extend namespace Server {
 	public void print (&Client c) {
 	    printf ("%v\n", c);
 	}
+	
+	public void print_client (&Client c, &Client o) {
+	    union switch (o.user) {
+	    case none:
+		break;
+	    case username u:
+		client_send (&c, " %s", u);
+		break;
+	    }
+	}
+
+	public void print_client_score (&Client c, &Client o) {
+	    union switch (o.user) {
+	    case none:
+		break;
+	    case username u:
+		client_send (&c, " %s %d", u, o.score);
+		break;
+	    }
+	}
+
+	public void print_client_games (&Client c, &Client o) {
+	    union switch (o.user) {
+	    case none:
+		break;
+	    case username u:
+		client_send (&c, " %s %d", u, o.games);
+		break;
+	    }
+	}
+
     }
 }

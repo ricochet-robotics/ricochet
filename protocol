@@ -53,7 +53,9 @@ Document Conventions
 
 	->
 
-	WHO <username1> <username2> ...
+	WHO <username1> <games1> <username2> <games2> ...
+
+	lists connected users and the number of games they've won.
 
 1.3. Listing available games
 
@@ -395,6 +397,10 @@ Document Conventions
 2.13. Next turn (game)
 
 	NOTICE TURN <color> <shape>
+
+2.14. Next game (game)
+
+	NOTICE GAME
 
 2.14. Message (all)
 

@@ -76,6 +76,7 @@ namespace Server {
 	User	    user;
 	GameRef	    game;
 	int	    score;
+	int	    games;
 	Bid	    bid;
 	bool	    playing;
 	bool	    abandon;
