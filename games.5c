@@ -33,9 +33,6 @@ extend namespace Server {
 	/* array of all games */
 	public (&Game)[0]	games = {};
 
-	/* raised when attempting to find a nonexistant game */
-	public exception no_such_game (string name);
-	
 	&Game insert () {
 	    return Array::append (&games, reference ((Game) {}));
 	}
@@ -85,7 +82,7 @@ extend namespace Server {
 	    } catch found (&Game g) {
 		return &g;
 	    }
-	    raise no_such_game (name);
+	    raise rr_error (Error.NOGAME);
 	}
 
 	/* list clients associated with a game */
