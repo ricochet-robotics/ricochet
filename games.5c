@@ -379,8 +379,8 @@ extend namespace Server {
 		c.nobid = false;
 	    }
 	    iterate_client (&g, reset_client, true, false);
-	    game_send (&g, "NOTICE TURN %C %S\n", g.target.color, g.target.shape);
 	    game_send_loc (&g, &loc);
+	    game_send (&g, "NOTICE TURN %C %S\n", g.target.color, g.target.shape);
 	}
 
 	Target[*] random_targets () {
