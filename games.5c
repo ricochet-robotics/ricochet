@@ -385,6 +385,7 @@ extend namespace Server {
 		return;
 	    &Game g = &c.game.game;
 	    Array::remove (&g.clients, &c);
+	    c.game = GameRef.none;
 	    game_send (&g, "NOTICE PART %s\n", c.user.username);
 	    /* correct the state if necessary */
 	    switch (g.state) {
