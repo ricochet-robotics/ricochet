@@ -28,17 +28,32 @@ autoload Server::Dispatch
 
 extend namespace Server {
     public namespace Main {
+	void usage () {
+	    File::fprintf (stderr, "usage: %s" +
+			   " [--logfile <logfile>]" +
+			   " [--port <port>]\n", argv[0]);
+	    exit (1);
+	}
 	public void main () {
 	    PRNG::dev_srandom (32);
-	    for (int i = 0; i < dim (argv); i++)
+	    int port = RR::Port;
+	    for (int i = 1; i < dim (argv); i++)
 		switch (argv[i]) {
 		case "--logfile":
 		    File::reopen (argv[i+1], "a", stderr);
+		    i++;
+		    break;
+		case "--port":
+		    port = atoi (argv[i+1]);
+		    i++;
+		    break;
+		default:
+		    usage ();
 		    break;
 		}
 	    File::setbuffer (stderr, 1);
-	    file    f = Net::create (RR::Port);
-	    File::fprintf (stderr, "RR server started on port %d.\n", RR::Port);
+	    file    f = Net::create (port);
+	    File::fprintf (stderr, "RR server started on port %d.\n", port);
     	    Net::listen (Dispatch::client, f);
 	}
     }

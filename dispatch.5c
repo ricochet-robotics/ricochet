@@ -198,7 +198,7 @@ extend namespace Server {
 		    "               indicates the winner.\n"+
 		    "<time> is valid only in BID state, else it's 0\n"+
 		    "<bid> is valid in all but NEW state where it's 0\n"+
-		    "<active> is valid in SHOW and SOLVED states, else it's	\"\".\n",
+		    "<active> is valid in SHOW and SOLVED states, else it's \"\".\n",
 		    f = void func (string[] w) {
 			string game = w[0];
 			assert_user ();
@@ -548,28 +548,15 @@ extend namespace Server {
 		    describe =
 		    "Provide help for <command>.\n",
 		    f = void func (string[] w) {
+		    	file	f = File::string_write ();
 			void	print_help (&Cmd cmd, bool describe)
 			{
-			    File::fprintf (c.f, "%-12.12s %s\n", cmd.command, cmd.usage);
+			    File::fprintf (f, "%-12.12s %s\n", cmd.command, cmd.usage);
 			    if (describe)
 			    {
-				int len = String::length (cmd.describe);
-				bool newline = true;
-				for (int i = 0; i < len; i++) 
-				{
-				    if (newline)
-				    {
-					for (int j = 0; j < 13; j++)
-					    File::putc (' ', c.f);
-					newline = false;
-				    }
-				    int ch = cmd.describe[i];
-				    File::putc (ch, c.f);
-				    if (ch == '\n') newline = true;
-				}
+				File::fprintf (f, "\n%s\n", cmd.describe);
 			    }
 			}
-			File::fprintf (c.f, "HELP \"\n");
 			if (dim(w) > 0)
 			{
 			    for (int j = 0; j < dim(w); j++)
@@ -591,7 +578,7 @@ extend namespace Server {
 			    for (int i = 0; i < dim(commands); i++)
 				print_help (&commands[i], false);
 			}
-			File::fprintf (c.f, "\"\n");
+			respond ("HELP %s\n", File::string_string(f));
 		    }
 		},
 		{
