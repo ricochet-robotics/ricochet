@@ -253,6 +253,21 @@ extend namespace Server {
 	    }
 	}
 
+	void check_solved (&Game g) {
+	    if (g.state != GameState.DONE && Boards::solved (&g.board))
+	    {
+		if (g.active != ClientRef.none)
+		{
+		    /* score */
+		    g.active.client.score++;
+		    game_send (&g, "NOTICE SCORE %s %d\n",
+			       g.active.client.user.username,
+			       g.active.client.score);
+		}
+		set_state (&g, GameState.DONE);
+	    }
+	}
+	
 	void set_state (&Game g, GameState state) {
 	    if (g.state == state)
 		return;
@@ -284,6 +299,7 @@ extend namespace Server {
 	    case GameState.SHOW:
 		g.active = ClientRef.none;
 		set_active (&g);
+		check_solved (&g);
 		break;
 	    case GameState.DONE:
 		g.active = ClientRef.none;
@@ -475,6 +491,8 @@ extend namespace Server {
 	    case GameState.BID:
 		if (!any_bids (&g))
 		    set_state (&g, GameState.NEW);
+		else if (all_nobid (&g))
+		    set_state (&g, GameState.SHOW);
 		break;
 	    case GameState.SHOW:
 		set_active (&g);
@@ -598,18 +616,7 @@ extend namespace Server {
 	    make_move (&g, &loc, color, dir);
 	    game_send (&g, "NOTICE MOVE %d %C %D\n", count (&g), color, dir);
 	    game_send_loc (&g, &loc);
-	    if (g.state != GameState.DONE && Boards::solved (&g.board))
-	    {
-		if (g.active != ClientRef.none)
-		{
-		    /* score */
-		    g.active.client.score++;
-		    game_send (&g, "NOTICE SCORE %s %d\n",
-			       g.active.client.user.username,
-			       g.active.client.score);
-		}
-		set_state (&g, GameState.DONE);
-	    }
+	    check_solved (&g);
 	}
 
 	/*

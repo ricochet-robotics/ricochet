@@ -635,7 +635,14 @@ extend namespace Server {
 			raise rr_error (Error.COMMAND);
 		} catch rr_error (Error e) {
 		    respond ("ERROR %E\n", e);
+		} catch File::io_error (string msg, 
+					File::error_type error,
+					file f) {
+		    File::fprintf (stderr, "%v: %s\n",
+				   c.user, msg);
+		    return;
 		} catch closed () {
+		    File::fprintf (stderr, "%v: closed\n", c.user);
 		    return;
 		}
 	    }
