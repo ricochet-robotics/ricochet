@@ -185,11 +185,11 @@ extend namespace Server {
 	    }
 
 	    void	message (string text) {
+		File::fprintf (f, "MESSAGE\n");
 		Connect::iterate (void func (&Client c) {
 		    File::fprintf (c.f, "NOTICE MESSAGE \"%s\"\n", text);
 		    File::flush (c.f);
 		});
-		File::fprintf (f, "MESSAGE\n");
 	    }
 
 	    void	quit () {
