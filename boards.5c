@@ -447,7 +447,7 @@ extend namespace Server {
 	 */
 	
 	ObjectLoc[*] find (&Board b, bool (Object) match) {
-	    ObjectLoc[*]    ol = {};
+	    ObjectLoc[...]  ol = {};
 	    int		    i = 0;
 	    for (int y = 0; y < Height; y++)
 		for (int x = 0; x < Width; x++)
