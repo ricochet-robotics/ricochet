@@ -584,7 +584,7 @@ extend namespace Server {
 	    if (!c.nobid) {
 		c.nobid = true;
 		game_send (&g, "NOTICE NOBID %s\n", c.user.username);
-		if (all_nobid (&g))
+		if (any_bids (&g) && all_nobid (&g))
 		    set_state (&g, GameState.SHOW);
 	    }
 	}
