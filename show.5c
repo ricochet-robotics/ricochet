@@ -1,0 +1,140 @@
+/*
+ * $Id$
+ *
+ * Copyright © 2003 Keith Packard
+ *
+ * Permission to use, copy, modify, distribute, and sell this software and its
+ * documentation for any purpose is hereby granted without fee, provided that
+ * the above copyright notice appear in all copies and that both that
+ * copyright notice and this permission notice appear in supporting
+ * documentation, and that the name of Keith Packard not be used in
+ * advertising or publicity pertaining to distribution of the software without
+ * specific, written prior permission.  Keith Packard makes no
+ * representations about the suitability of this software for any purpose.  It
+ * is provided "as is" without express or implied warranty.
+ *
+ * KEITH PACKARD DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * EVENT SHALL KEITH PACKARD BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+ * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
+ * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+autoload Server
+
+extend namespace Server {
+    public namespace Show {
+	void show_first_object (file f, &Object o) {
+	    if (o.walls.above)
+		File::fprintf (f, " ==");
+	    else
+		File::fprintf (f, "   ");
+	}
+	
+	void show_color (Color c, bool active) {
+	    int	ch;
+	    switch (c) {
+	    case Color.Red:	ch = 'r'; break;
+	    case Color.Yellow:	ch = 'y'; break;
+	    case Color.Green:	ch = 'g'; break;
+	    case Color.Blue:	ch = 'b'; break;
+	    case Color.Whirl:	ch = 'w'; break;
+	    }
+	    if (active)
+		ch = Ctype::toupper (ch);
+	    printf ("%c", ch);
+	}
+
+	void show_shape (Shape s, bool active) {
+	    int ch;
+	    switch (s) {
+	    case Shape.Triangle:    ch = 't'; break;
+	    case Shape.Square:	    ch = 's'; break;
+	    case Shape.Octagon:	    ch = 'o'; break;
+	    case Shape.Circle:	    ch = 'c'; break;
+	    case Shape.Whirl:	    ch = 'w'; break;
+	    }
+	    if (active)
+		ch = Ctype::toupper (ch);
+	    printf ("%c", ch);
+	}
+	
+	void show_second_object (file f, &Object o) {
+	    if (o.walls.left)
+		File::fprintf (f, "|");
+	    else
+		File::fprintf (f, " ");
+	    union switch (o.robot) {
+	    case none:
+		File::fprintf (f, "..");
+		break;
+	    case robot r:
+		show_color (r.color, r.active);
+		show_color (r.color, r.active);
+		break;
+	    }
+	}
+	
+	void show_third_object (file f, &Object o) {
+	    if (o.walls.left)
+		File::fprintf (f, "|");
+	    else
+		File::fprintf (f, " ");
+	    union switch (o.target) {
+	    case none:
+		File::fprintf (f, "..");
+		break;
+	    case target t:
+		show_color (t.color, t.active);
+		show_shape (t.shape, t.active);
+		break;
+	    }
+	}
+
+	void show_last_col (file f, &Object o) {
+	    if (o.walls.right)
+		File::fprintf (f, "|");
+	    else
+		File::fprintf (f, " ");
+	    File::fprintf (f, "\n");
+	}
+	
+	void show_first_row (file f, &Board b, int row) {
+	    for (int col = 0; col < Width; col++)
+		show_first_object (f, &b[col,row]);
+	    File::fprintf (f, " \n");
+	}
+	void show_second_row (file f, &Board b, int row) {
+	    for (int col = 0; col < Width; col++)
+		show_second_object (f, &b[col,row]);
+	    show_last_col (f, &b[Width-1,row]);
+	}
+	void show_third_row (file f, &Board b, int row) {
+	    for (int col = 0; col < Width; col++)
+		show_third_object (f, &b[col,row]);
+	    show_last_col (f, &b[Width-1,row]);
+	}
+	void show_row (file f, &Board b, int row) {
+	    show_first_row (f, &b, row);
+	    show_second_row (f, &b, row);
+	    show_third_row (f, &b, row);
+	}
+	void show_last_row (file f, &Board b) {
+	    for (int col = 0; col < Width; col++)
+	    {
+		if (b[col,Height-1].walls.below)
+		    printf (" ==");
+		else
+		    printf ("   ");
+	    }
+	}
+
+	public void show (file f, &Board b) {
+	    for (int row = 0; row < Height; row++)
+		show_row (f, &b, row);
+	    show_last_row (f, &b);
+	}
+    }
+}

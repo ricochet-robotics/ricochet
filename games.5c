@@ -1,0 +1,132 @@
+/*
+ * $Id$
+ *
+ * Copyright © 2003 Keith Packard
+ *
+ * Permission to use, copy, modify, distribute, and sell this software and its
+ * documentation for any purpose is hereby granted without fee, provided that
+ * the above copyright notice appear in all copies and that both that
+ * copyright notice and this permission notice appear in supporting
+ * documentation, and that the name of Keith Packard not be used in
+ * advertising or publicity pertaining to distribution of the software without
+ * specific, written prior permission.  Keith Packard makes no
+ * representations about the suitability of this software for any purpose.  It
+ * is provided "as is" without express or implied warranty.
+ *
+ * KEITH PACKARD DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * EVENT SHALL KEITH PACKARD BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+ * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
+ * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+autoload Server
+autoload Array
+autoload Server::Boards
+
+extend namespace Server {
+    public namespace Games {
+	public (&Game)[0]	games = {};
+
+	&Game insert () {
+	    return Array::append (&games, reference ((Game) {}));
+	}
+
+	void remove (&Game g) {
+	    Array::remove (&games, &g);
+	}
+
+	public void iterate (void (&Game g) f) {
+	    Array::iterate (&games, f);
+	}
+    
+	public exception no_such_game (string name);
+    
+	public &Game find (string name) {
+	    exception	found (&Game g);
+	    try {
+		iterate (void func (&Game g) {
+		    if (g.name == name)
+			raise found (&g);
+		});
+	    } catch found (&Game g) {
+		return &g;
+	    }
+	    raise no_such_game (name);
+	}
+
+	bool exists (string name) {
+	    exception	found (&Game g);
+	    try {
+		iterate (void func (&Game g) {
+		    if (g.name == name)
+			raise found (&g);
+		});
+	    } catch found (&Game g) {
+		return true;
+	    }
+	    return false;
+	}
+
+	Target[*] random_targets () {
+	    static Color[4]    colors = {
+		Color.Red, Color.Yellow, Color.Green, Color.Blue
+	    };
+	    static Shape[4]    shapes = {
+		Shape.Triangle, Shape.Square, Shape.Octagon, Shape.Circle
+	    };
+	    Target[17] t = { [i] = i < 16 ? 
+		(Target) { 
+		    color = colors[i // 4], 
+		    shape = shapes[i % 4],
+		    active = false
+		} :
+		(Target) {
+		    color = Color.Whirl,
+		    shape = Shape.Whirl,
+		    active = false
+		} };
+	    Shuffle::shuffle (&t);
+	    return t;
+	}
+	    
+	public void next_target (&Game g) {
+	    Target  t = g.targets[0];
+	    g.targets = (Target[dim(g.targets)-1]) { [i] = g.targets[i+1] };
+	    Boards::set_target (&g.board, t.color, t.shape);
+	}
+
+	public &Game new (string suggestion) {
+	    string name;
+	    for (int n = 0; 
+		 exists (name = (n != 0) ? 
+			 sprintf ("%s-%d", suggestion, n) : suggestion);
+		 n++)
+		 ;
+	    &Game g = insert ();
+	    g.name = name;
+	    g.clients = ((&Client)[*]) {};
+	    g.board = Boards::random_board ();
+	    g.targets = random_targets ();
+	    g.time = Time.none;
+	    g.active = ClientRef.none;
+	    g.history = (ObjectLoc[*]) {};
+	    next_target (&g);
+	    return &g;
+	}
+
+	public &Client add_client (&Game g, &Client c) {
+	    return Array::append (&g.clients, &c);
+	}
+
+	public void remove_client (&Game g, &Client c) {
+	    Array::remove (&g.clients, &c);
+	}
+
+	public void iterate_client (&Game g, void (&Client c) f) {
+	    Array::iterate (&g.clients, f);
+	}
+    }
+}

@@ -1,0 +1,190 @@
+/*
+ * $Id$
+ *
+ * Copyright © 2003 Keith Packard
+ *
+ * Permission to use, copy, modify, distribute, and sell this software and its
+ * documentation for any purpose is hereby granted without fee, provided that
+ * the above copyright notice appear in all copies and that both that
+ * copyright notice and this permission notice appear in supporting
+ * documentation, and that the name of Keith Packard not be used in
+ * advertising or publicity pertaining to distribution of the software without
+ * specific, written prior permission.  Keith Packard makes no
+ * representations about the suitability of this software for any purpose.  It
+ * is provided "as is" without express or implied warranty.
+ *
+ * KEITH PACKARD DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * EVENT SHALL KEITH PACKARD BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+ * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
+ * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+namespace RR {
+    public typedef enum { Red, Yellow, Green, Blue, Whirl } Color;
+    public typedef enum { Triangle, Square, Octagon, Circle, Whirl } Shape;
+    public typedef enum { North, East, South, West } Direction;
+
+    public const int	Width = 16;
+    public const int	Height = 16;
+    public const int	Port = 5252;
+
+    public typedef struct {
+        Color   color;
+        bool    active;
+    } Robot;
+    
+    public typedef union {
+	void	none;
+	Robot	robot;
+    } RobotOrNone;
+
+    public typedef struct {
+	Color   color;
+	Shape   shape;
+	bool    active;
+    } Target;
+    
+    public typedef union {
+	void	none;
+	Target	target;
+    } TargetOrNone;
+	
+    public typedef struct {
+        bool    left, right, below, above;
+    } Walls;
+
+    public typedef struct {
+	RobotOrNone	robot;
+	TargetOrNone	target;
+	Walls		walls;
+    } Object;
+
+    public typedef Object[Width,Height]	Board;
+
+    public typedef union {
+	struct {
+	    string	username;
+	}	    HELO;
+	void    WHO;
+	void    GAMES;
+	struct {
+	    string	game;
+	}	    USERS;
+	struct {
+	    string	game;
+	}	    NEW;
+	struct {
+	    string	game;
+	}	    JOIN;
+	struct {
+	    string	game;
+	}	    WATCH;
+	void    SHOW;
+	struct {
+	    int	number;
+	}	    BID;
+	struct {
+	    Color	color;
+	    Direction   direction;
+	}	    MOVE;
+	void    UNDO;
+	void    RESET;
+	void    TURN;
+	void    PASS;
+	struct {
+	    string	text;
+	}	    MESSAGE;
+	void	QUIT;
+    } Request;
+
+    public typedef union {
+	struct {
+	    string	servername;
+	}	    HELO;
+	struct {
+	    string[]    users;
+	}	    WHO;
+	struct {
+	    string[]    games;
+	}	    GAMES;
+	struct {
+	    string[]    users;
+	}	    USERS;
+	struct {
+	    string	    game;
+	}	    NEW;
+	struct {
+	    string[]    users;
+	}	    JOIN;
+	struct {
+	    string[]    users;
+	}	    WATCH;
+	struct {
+	    Board	    board;
+	}	    SHOW;
+	void    BID;
+	void    MOVE;
+	void    UNDO;
+	void    RESET;
+	void    TURN;
+	void    PASS;
+	void    MESSAGE;
+    } Reply;
+
+    public typedef struct {
+	struct {
+	    Color	color;
+	    Direction   direction;
+	}	MOVE;
+	struct {
+	    string	username;
+	}	USER;
+	struct {
+	    string	username;
+	}	PART;
+	struct {
+	    string	game;
+	}	GAME;
+	struct {
+	    string	game;
+	}	TERMINATE;
+	struct {
+	    int	number;
+	    string	username;
+	}	BID;
+	struct {
+	    int	seconds;
+	}	TIME;
+	struct {
+	    string	username;
+	}	    ACTIVE;
+	void    UNDO;
+	void    RESET;
+	struct {
+	    Color	color;
+	    Shape	shape;
+	}	TURN;
+	struct {
+	    string	text;
+	    string	username;
+	}	MESSAGE;
+	struct {
+	    string	username;
+	}	ABANDON;
+    } Notice;
+
+    public typedef union {
+	void    NOGAME;
+	void    TIMEOUT;
+	void    NOTACTIVE;
+    } Error;
+
+    public typedef union {
+	Reply	reply;
+	Notice	notice;
+	Error	error;
+    } Response;
+}

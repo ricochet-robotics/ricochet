@@ -21,58 +21,30 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
+ 
+autoload RR
+autoload Server::Connect
+autoload Server::Readreq
 
-namespace RRNet {
-    public file	create (int port) {
-	file	f = Sockets::create (Sockets::SOCK_STREAM);
-	Sockets::bind (f, "255.255.255.255", sprintf ("%d", port));
-	Sockets::listen (f, 5);
-	return f;
-    }
-    
-    public void listen (void (file f) accept, file f) {
-	for (;;)
-	    accept (Sockets::accept (f));
-    }
+extend namespace Server {
 
-    public void client (file f) {
-	&Client	c = Connection::new (f);
-	void	helo (string username) {
-	    c.user.username = username;
-	    File::fprintf (f, "OK\n");
-	    File::fprintf (f, "WELCOME foobar\n");
-	    File::fprintf (f, "DONE\n");
-	    File::flush (f);
+    public namespace Net {
+
+	public file	create (int port) {
+	    file	f = Sockets::create (Sockets::SOCK_STREAM);
+	    Sockets::bind (f, Sockets::INADDR_ANY, sprintf ("%d", port));
+	    Sockets::listen (f, 5);
+	    return f;
 	}
 
-	void	who () {
-	    File::fprintf (f, "OK\n");
-	    Connection::iterate (void func(&Client c) {
-		union switch (c.user) {
-		case none:
-		    break;
-		case username u:
-		    File::fprintf (f, "USER %s\n", u);
-		    break;
-		}
-	    });
-	    File::fprintf (f, "DONE\n");
-	    File::flush (f);
-	}
-	
-	for (;;) {
-	    RRRequest	r = Request::read (f);
-	    union switch (r) {
-	    case HELO h:    
-		helo (h.username);
-		break;
-	    case WHO:
-		who ();
-		break;
-	    default:
-		break;
+	public void listen (void (file f) accept, file f) {
+	    for (;;)
+	    {
+		file	a = Sockets::accept (f);
+		printf ("accept succeeds\n");
+		fork accept (a);
 	    }
 	}
-    }
 
+    }
 }

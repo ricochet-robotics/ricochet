@@ -22,48 +22,32 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-typedef Client;
-typedef Game;
+namespace Array {
+    public bool contains (&poly[*] a, poly v) {
+	for (int i = 0; i < dim(a); i++)
+	    if (a[i] == v)
+		return true;
+	return false;
+    }
 
-typedef struct {
-    int		x, y;
-    RRObject	object;
-} ObjectLoc;
+    public poly append (&poly[*] a, poly v) {
+	if (contains(&a, v))
+	    return v;
+	a = (poly[dim(a)+1]) { [i] = i < dim(a) ? a[i] : v };
+	return v;
+    }
 
-typedef union {
-    void	none;
-    string	username;
-} User;
-
-typedef union {
-    void	none;
-    &Game	game;
-} GameRef;
-
-typedef union {
-    void	none;
-    thread	t;
-} UserThread;
-
-typedef struct {
-    file	f;
-    User	user;
-    GameRef	game;
-    UserThread	t;
-} Client;
-
-typedef struct {
-    string	game;
-    Client[*]	clients;
-    RRBoard	board;
-    union {
-	void	none;
-	int	seconds;
-    }		time;
-    union {
-	&Client	client;
-	void	none;
-    }		active;
-    ObjectLoc[*]    history;
-} Game;
-
+    public void iterate (&poly[*] a, void (poly v) f) {
+	for (int i = 0; i < dim (a); i++)
+	    f(a[i]);
+    }
+    
+    public void remove (&poly[*] a, poly v) {
+	if (!contains (&a, v))
+	    return;
+	bool found = false;
+	a = (poly[dim(a)-1]) { [i] = found ? a[i+1] :
+	    a[i] == v ? (found=true, a[i+1]) : a[i] };
+    }
+	
+}

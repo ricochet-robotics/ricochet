@@ -1,0 +1,530 @@
+/*
+ * $Id$
+ *
+ * Copyright © 2003 Keith Packard
+ *
+ * Permission to use, copy, modify, distribute, and sell this software and its
+ * documentation for any purpose is hereby granted without fee, provided that
+ * the above copyright notice appear in all copies and that both that
+ * copyright notice and this permission notice appear in supporting
+ * documentation, and that the name of Keith Packard not be used in
+ * advertising or publicity pertaining to distribution of the software without
+ * specific, written prior permission.  Keith Packard makes no
+ * representations about the suitability of this software for any purpose.  It
+ * is provided "as is" without express or implied warranty.
+ *
+ * KEITH PACKARD DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * EVENT SHALL KEITH PACKARD BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+ * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
+ * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+autoload RR
+autoload Server
+autoload Shuffle
+autoload Array
+
+extend namespace Server {
+    public namespace Boards {
+	/*
+	 * Board layout; each section is named by the color of the triangle,
+	 * each section has two sides.  These are all layed out
+	 * in the "lower right" position with the center of the board at the
+	 * top left (0,0) coordinate.
+	 */
+
+	TargetOrNone target (Shape s, Color c) {
+	    return (TargetOrNone.target) (Target) {
+		color = c, shape = s, active = false
+	    };
+	}
+
+	RobotOrNone robot (Color c) {
+	    return (RobotOrNone.robot) (Robot) {
+		color = c, active = false
+	    };
+	}
+	
+	typedef enum { left, right, above, below } W;
+
+	Walls walls (W w...) {
+	    Walls   
+	    walls = { 
+		left = false, right = false, above = false, below = false
+	    };
+	    for (int i = 0; i < dim (w); i++)
+		switch (w[i]) {
+		case W.left: 
+		    walls.left = true; break;
+		case W.right: 
+		    walls.right = true; break;
+		case W.above: 
+		    walls.above = true; break;
+		case W.below: 
+		    walls.below = true; break;
+		}
+	    return 
+	    walls;
+	}
+
+	ObjectLoc[*]    red_tri1 = {
+	    { x = 0, y = 2, object = { robot = RobotOrNone.none,
+		target = target (Shape.Square, Color.Yellow),
+		walls = walls (W.right, W.below) }},
+	    { x = 1, y = 5, object = { robot = RobotOrNone.none,
+		target = target (Shape.Circle, Color.Green),
+		walls = walls (W.left, W.below) }},
+	    { x = 4, y = 7, object = { robot = RobotOrNone.none,
+		target = TargetOrNone.none,
+		walls = walls (W.left) }},
+	    { x = 5, y = 3, object = { robot = RobotOrNone.none,
+		target = target (Shape.Octagon, Color.Blue),
+		walls = walls (W.left, W.above) }},
+	    { x = 6, y = 6, object = { robot = RobotOrNone.none,
+		target = target (Shape.Triangle, Color.Red),
+		walls = walls (W.right, W.above) }},
+	    { x = 7, y = 2, object = { robot = RobotOrNone.none,
+		target = TargetOrNone.none,
+		walls = walls (W.above) }}
+	};
+	ObjectLoc[*]    red_tri2 = {
+	    { x = 0, y = 2, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Triangle, Color.Red), 
+		walls = walls (W.above, W.right ) }},
+	    { x = 2, y = 5, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Octagon, Color.Blue), 
+		walls = walls (W.above, W.left  ) }},
+	    { x = 4, y = 7, object = { robot = RobotOrNone.none, 
+		target = TargetOrNone.none, 
+		walls = walls (W.left  ) }},
+	    { x = 5, y = 2, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Circle, Color.Green), 
+		walls = walls (W.left, W.below ) }},
+	    { x = 6, y = 0, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Square, Color.Yellow), 
+		walls = walls (W.below, W.right ) }},
+	    { x = 7, y = 2, object = { robot = RobotOrNone.none, 
+		target = TargetOrNone.none, 
+		walls = walls (W.above ) }},
+	};
+
+	ObjectLoc[*]    yellow_tri1 = {
+	    { x = 0, y = 2, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Whirl, Color.Whirl), 
+		walls = walls (W.left, W.above ) }},
+	    { x = 1, y = 6, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Circle, Color.Blue), 
+		walls = walls (W.above, W.right ) }},
+	    { x = 2, y = 3, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Square, Color.Green), 
+		walls = walls (W.below, W.right ) }},
+	    { x = 4, y = 7, object = { robot = RobotOrNone.none, 
+		target = TargetOrNone.none, 
+		walls = walls (W.left  ) }},
+	    { x = 5, y = 2, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Octagon, Color.Red), 
+		walls = walls (W.left, W.above ) }},
+	    { x = 6, y = 4, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Triangle, Color.Yellow), 
+		walls = walls (W.left, W.below ) }},
+	    { x = 7, y = 1, object = { robot = RobotOrNone.none, 
+		target = TargetOrNone.none, 
+		walls = walls (W.above ) }},
+	};
+
+	ObjectLoc[*]    yellow_tri2 = {
+	    { x = 1, y = 3, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Triangle, Color.Yellow), 
+		walls = walls (W.below, W.right ) }},
+	    { x = 2, y = 1, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Circle, Color.Blue), 
+		walls = walls (W.left, W.below ) }},
+	    { x = 3, y = 7, object = { robot = RobotOrNone.none, 
+		target = TargetOrNone.none, 
+		walls = walls (W.left  ) }},
+	    { x = 4, y = 0, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Whirl, Color.Whirl), 
+		walls = walls (W.above, W.left  ) }},
+	    { x = 5, y = 6, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Octagon, Color.Red), 
+		walls = walls (W.above, W.left  ) }},
+	    { x = 6, y = 4, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Square, Color.Green), 
+		walls = walls (W.above, W.right ) }},
+	    { x = 7, y = 3, object = { robot = RobotOrNone.none, 
+		target = TargetOrNone.none, 
+		walls = walls (W.above ) }},
+	};
+
+	ObjectLoc[*]    green_tri1 = {
+	    { x = 1, y = 2, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Square, Color.Blue), 
+		walls = walls (W.left, W.below ) }},
+	    { x = 1, y = 6, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Octagon, Color.Yellow), 
+		walls = walls (W.above, W.left  ) }},
+	    { x = 3, y = 7, object = { robot = RobotOrNone.none, 
+		target = TargetOrNone.none, 
+		walls = walls (W.left  ) }},
+	    { x = 4, y = 1, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Circle, Color.Red), 
+		walls = walls (W.above, W.right ) }},
+	    { x = 6, y = 5, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Triangle, Color.Green), 
+		walls = walls (W.below, W.right ) }},
+	    { x = 7, y = 2, object = { robot = RobotOrNone.none, 
+		target = TargetOrNone.none, 
+		walls = walls (W.above ) }},
+	};
+
+	ObjectLoc[*]    green_tri2 = {
+	    { x = 1, y = 4, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Octagon, Color.Yellow), 
+		walls = walls (W.left, W.above ) }},
+	    { x = 3, y = 6, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Circle, Color.Red), 
+		walls = walls (W.below, W.right ) }},
+	    { x = 4, y = 1, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Square, Color.Blue), 
+		walls = walls (W.above, W.right ) }},
+	    { x = 6, y = 5, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Triangle, Color.Green), 
+		walls = walls (W.left, W.below ) }},
+	    { x = 6, y = 7, object = { robot = RobotOrNone.none, 
+		target = TargetOrNone.none, 
+		walls = walls (W.left  ) }},
+	    { x = 7, y = 2, object = { robot = RobotOrNone.none, 
+		target = TargetOrNone.none, 
+		walls = walls (W.above ) }},
+	};
+
+	ObjectLoc[*]    blue_tri1 = {
+	    { x = 1, y = 3, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Circle, Color.Yellow), 
+		walls = walls (W.left, W.above ) }},
+	    { x = 2, y = 6, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Triangle, Color.Blue), 
+		walls = walls (W.left, W.below ) }},
+	    { x = 4, y = 7, object = { robot = RobotOrNone.none, 
+		target = TargetOrNone.none, 
+		walls = walls (W.left  ) }},
+	    { x = 5, y = 1, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Octagon, Color.Green), 
+		walls = walls (W.left, W.above ) }},
+	    { x = 6, y = 5, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Square, Color.Red), 
+		walls = walls (W.above, W.right ) }},
+	    { x = 7, y = 4, object = { robot = RobotOrNone.none, 
+		target = TargetOrNone.none, 
+		walls = walls (W.above ) }},
+	};
+
+	ObjectLoc[*]    blue_tri2 = {
+	    { x = 1, y = 3, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Circle, Color.Yellow), 
+		walls = walls (W.right, W.below ) }},
+	    { x = 2, y = 6, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Octagon, Color.Green), 
+		walls = walls (W.above, W.left  ) }},
+	    { x = 4, y = 7, object = { robot = RobotOrNone.none, 
+		target = TargetOrNone.none, 
+		walls = walls (W.left  ) }},
+	    { x = 5, y = 1, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Triangle, Color.Blue), 
+		walls = walls (W.left, W.below ) }},
+	    { x = 6, y = 5, object = { robot = RobotOrNone.none, 
+		target = target (Shape.Square, Color.Red), 
+		walls = walls (W.above, W.right ) }},
+	    { x = 7, y = 4, object = { robot = RobotOrNone.none, 
+		target = TargetOrNone.none, 
+		walls = walls (W.above ) }},
+	};
+
+	(&ObjectLoc[*])[4,2] Locations = {
+	    { &red_tri1, &red_tri2 },
+	    { &yellow_tri1, &yellow_tri2 },
+	    { &green_tri1, &green_tri2 },
+	    { &blue_tri1, &blue_tri2 },
+	};
+	/*
+	 * Rotate the one square 90 degrees counter clockwise,
+	 * all this really has to do is deal with the walls and
+	 * the position
+	 */
+
+	ObjectLoc RotateLoc (ObjectLoc a, int rot)
+	{
+	    while (rot-- > 0)
+	    {
+		ObjectLoc   t;
+
+		t.x = a.y;
+		t.y = 7 - a.x;
+		t.object.target = a.object.target;
+		t.object.robot = a.object.robot;
+		t.object.walls.below = a.object.walls.left;
+		t.object.walls.above = a.object.walls.right;
+		t.object.walls.left = a.object.walls.above;
+		t.object.walls.right = a.object.walls.below;
+		a = t;
+	    }
+	    return a;
+	}
+
+	typedef struct {
+	    int	    rot, dx, dy;
+	} Transform;
+
+	ObjectLoc TransformLoc (ObjectLoc l, Transform t) {
+	    l = RotateLoc (l, t.rot);
+	    l.x += t.dx;
+	    l.y += t.dy;
+	    return l;
+	}
+	/*
+	 * Given the description of one square,
+	 * place it on the board.  Also, place the
+	 * "other" walls on adjacent squares as needed.
+	 * This duplicates all of the wall information,
+	 * but makes it easier to search for collisions
+	 */
+	
+	void
+	PlaceObject (&Board	    b,
+		     ObjectLoc	    l,
+		     Transform	    t)
+	{
+	    l = TransformLoc (l, t);
+	    
+	    if (l.object.robot != RobotOrNone.none)
+		b[l.x,l.y].robot = l.object.robot;
+	    if (l.object.target != TargetOrNone.none)
+		b[l.x,l.y].target = l.object.target;
+	    
+	    if (l.object.walls.left) {
+		b[l.x, l.y].walls.left = true;
+		if (l.x > 0)
+		    b[l.x-1, l.y].walls.right = true;
+	    }
+	    if (l.object.walls.right) {
+		b[l.x, l.y].walls.right = true;
+		if (l.x < Width - 1)
+		    b[l.x+1, l.y].walls.left = true;
+	    }
+	    if (l.object.walls.above) {
+		b[l.x, l.y].walls.above = true;
+		if (l.y > 0)
+		    b[l.x,  l.y - 1].walls.below = true;
+	    }
+	    if (l.object.walls.below) {
+		b[l.x, l.y].walls.below = true;
+		if (l.y < Height - 1)
+		    b[l.x, l.y + 1].walls.above = true;
+	    }
+	}
+
+	void
+	PlaceObjects (&Board	    b,
+		      &ObjectLoc[*] o,
+		      Transform	    t)
+	{
+	    int		i;
+
+	    for (i = 0; i < dim(o); i++)
+		PlaceObject (&b, o[i], t);
+	}
+
+	/*
+	 * Each quarter of the board is rotated and positioned
+	 * from the data structure above, here are the constants
+	 * used for that
+	 */
+
+	Transform[4]  transforms = {
+	    { rot = 2, dx = 0, dy = 0 },
+	    { rot = 1, dx = 8, dy = 0 },
+	    { rot = 3, dx = 0, dy = 8 },
+	    { rot = 0, dx = 8, dy = 8 },
+	};
+
+	/*
+	 * Generate a random board and random robot locations
+	 */
+
+	public Board
+	random_board ()
+	{
+	    Board   b;
+	    int	    i, j;
+
+	    /* empty the board */
+	    for (j = 0; j < Height; j++)
+		for (i = 0; i < Width; i++)
+		    b[i, j] = (Object) { 
+			robot = RobotOrNone.none,
+			target = TargetOrNone.none,
+			walls = walls () };
+	    
+	    /*
+	     * Shuffle the board sections
+	     */
+	    int[4] board_order = { [i] = i };
+	    Shuffle::shuffle (&board_order);
+	    for (i = 0; i < 4; i++)
+	    {
+
+		/* pick which side to use for this section */
+		j = PRNG::randint (2);
+		/* 
+		 * Place all of the objects on this side on the board
+		 */
+		PlaceObjects (&b, Locations[board_order[i], j], transforms[i]);
+		/*
+		 * Add the center walls
+		 */
+		ObjectLoc   l = { 
+		    x = 0, y = 0, object = {
+			target = TargetOrNone.none,
+			robot = RobotOrNone.none,
+			walls = walls (W.below, W.right) }};
+		printf ("placing %v\n", TransformLoc (l, transforms[i]));
+		PlaceObject (&b, l, transforms[i]);
+	    }
+
+	    /*
+	     * Pick which quadrant each robot appears in
+	     */
+	    Object[4]  robot_order = {
+		{   robot = robot (Color.Red), 
+		    target = TargetOrNone.none, 
+		    walls = walls ()
+		},
+		{   robot = robot (Color.Yellow), 
+		    target = TargetOrNone.none, 
+		    walls = walls ()
+		},
+		{   robot = robot (Color.Green), 
+		    target = TargetOrNone.none, 
+		    walls = walls ()
+		},
+		{   robot = robot (Color.Blue), 
+		    target = TargetOrNone.none, 
+		    walls = walls ()
+		},
+	    };
+	    Shuffle::shuffle (&robot_order);
+	    for (i = 0; i < 4; i++)
+	    {
+		ObjectLoc   l;
+		int	    loc;
+
+		l.object = robot_order[i];
+		/* avoid spot zero which is in the center */
+		loc = PRNG::randint(63) + 1;
+		l.x = loc % 8;
+		l.y = loc // 8;
+		PlaceObject (&b, l, transforms[i]);
+	    }
+
+	    /*
+	     * Now add walls all the way around the board
+	     */
+	    for (i = 0; i < Width; i++)
+	    {
+		b[i, 0].walls.above = true;
+		b[i, Height-1].walls.below = true;
+		b[0, i].walls.left = true;
+		b[Width-1, i].walls.right = true;
+	    }
+	    return b;
+	}
+
+	ObjectLoc[*] find (&Board b, bool (Object) match) {
+	    ObjectLoc[*]    ol = {};
+	    for (int y = 0; y < Height; y++)
+		for (int x = 0; x < Width; x++)
+		    if (match (b[x,y]))
+			Array::append (&ol, 
+				       (ObjectLoc) { 
+					x = x, y = y, object = b[x,y] 
+				       });
+	    return ol;
+	}
+
+	public ObjectLoc[*] find_robot (&Board b, Color color)
+	{
+	    bool match (Object o) {
+		union switch (o.robot) {
+		case robot r: 
+		    if (r.color == color || color == Color.Whirl) 
+			return true;
+		default:
+		}
+		return false;
+	    }
+	    return find (&b, match);
+	}
+
+	public ObjectLoc[*] find_active_robot (&Board b)
+	{
+	    bool match (Object o) {
+		union switch (o.robot) {
+		case robot r: 
+		    if (r.active)
+			return true;
+		default:
+		}
+		return false;
+	    }
+	    return find (&b, match);
+	}
+
+	public ObjectLoc[*] find_target (&Board b, Color color, Shape shape)
+	{
+	    bool match (Object o) {
+		union switch (o.target) {
+		case target t: 
+		    if (t.color == color && t.shape == shape) 
+			return true;
+		default:
+		}
+		return false;
+	    }
+	    return find (&b, match);
+	}
+
+	public ObjectLoc[*] find_active_target (&Board b)
+	{
+	    bool match (Object o) {
+		union switch (o.target) {
+		case target t: 
+		    if (t.active)
+			return true;
+		default:
+		}
+		return false;
+	    }
+	    return find (&b, match);
+	}
+
+	public void set_target (&Board b, Color color, Shape shape)
+	{
+	    void    set_robot_active (ObjectLoc[*] ol, bool active) {
+		for (int o = 0; o < dim (ol); o++)
+		    b[ol[o].x, ol[o].y].robot.robot.active = active;
+	    }
+	    void    set_target_active (ObjectLoc[*] ol, bool active) {
+		for (int o = 0; o < dim (ol); o++)
+		    b[ol[o].x, ol[o].y].target.target.active = active;
+	    }
+	    set_robot_active (find_active_robot (&b), false);
+	    set_target_active (find_active_target (&b), false);
+	    
+	    set_robot_active (find_robot (&b, color), true);
+	    set_target_active (find_target (&b, color, shape), true);
+	}
+    }
+}

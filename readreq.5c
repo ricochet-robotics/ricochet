@@ -22,73 +22,104 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-namespace Connection {
-    Client[0]    clients;
+autoload RR::Lex
+autoload Ctype
 
-    public void iterate (void (&Client c) f) {
-	for (int i = 0; i < dim (clients); i++)
-	    f (&clients[i]);
-    }
+extend namespace Server {
+    public namespace Readreq {
+	public exception invalid_request (string w);
+	public exception request_closed ();
 
-    public exception no_such_client (file f);
-    
-    public &Client select (file f) {
-	exception found (&Client c);
-	try {
-	    void pick (&Client c) {
-		if (c.f == f)
-		    raise found (&c);
-	    }
-	    iterate (pick);
-	} catch found (&Client c) {
-	    return &c;
+	import RR;
+	import Lex;
+
+	string function upper (string s)
+	{
+	    string  r = "";
+	    for (int i = 0; i < String::length (s); i++)
+		r = r + String::new (Ctype::toupper (s[i]));
+	    return r;
 	}
-        raise no_such_client (f);
-    }
 
-    public &Client new (file f) {
-	clients = (Client[dim(clients)+1]) { 
-	    [i] = i < dim(clients) ? 
-	    clients[i] : 
-	    (Client) { f = f, user = User.none, game = GameRef.none }
-	};
-	return &clients[dim(clients)-1];
-    }
-
-    public void dispose (&Client c) {
-	bool found = false;
-	
-	clients = (Client[dim(clients)-1]) { 
-	    [i] = found ? clients[i+1] : (&clients[i] == &c ? 
-					  (found=true, clients[i+1]) :
-					  clients[i])
-	};
-    }
-
-    public void print (&Client c) {
-	printf ("%v\n", c);
-    }
-
-}
-
-namespace Request {
-    public exception invalid_request (string w);
-    public RRRequest read (file f) {
-	switch (string w = RRLex::word (f)) {
-	case "HELO":
-	    return (RRRequest.HELO) (struct { string username; }) {
-		username = RRLex::rest (f)
-	    };
-	case "WHO":
-	    return RRRequest.WHO;
-	case "GAMES":
-	    return RRRequest.GAMES;
-	case "USERS":
-	    return (RRRequest.USERS) (struct { string game; }) {
-		game = RRLex::rest (f)
-	    };
-	default:
-	    raise invalid_request (w);
+	public Request read (file f) {
+	    struct {} packet;
+	    void username_ (&struct { string username; } packet) {
+		packet.username = word (f); 
+	    }
+	    void game_ (&struct { string game; } packet) {
+		packet.game = word (f); 
+	    }
+	    void number_ (&struct { int number; } packet) {
+		packet.number = number (f);
+	    }
+	    void color_ (&struct { Color color; } packet) {
+		packet.color = color (f);
+	    }
+	    void shape_ (&struct { Shape shape; } packet) {
+		packet.shape = shape (f);
+	    }
+	    void direction_ (&struct { Direction direction; } packet) {
+		packet.direction = direction (f);
+	    }
+	    void text_ (&struct { string text; } packet) {
+		packet.text = word (f);
+	    }
+	    switch (string w = upper (firstword (f))) {
+	    case "HELO":
+		packet = (struct { string username; }) {};
+		username_ (&packet);
+		return (Request.HELO) packet;
+	    case "WHO":
+		return Request.WHO;
+	    case "GAMES":
+		return Request.GAMES;
+	    case "USERS":
+		packet = (struct { string game; }) {};
+		game_ (&packet);
+		return (Request.USERS) packet;
+	    case "NEW":
+		packet = (struct { string game; }) {};
+		game_ (&packet);
+		return (Request.NEW) packet;
+	    case "JOIN":
+		packet = (struct { string game; }) {};
+		game_ (&packet);
+		return (Request.JOIN) packet;
+	    case "WATCH":
+		packet = (struct { string game; }) {};
+		game_ (&packet);
+		return (Request.WATCH) packet;
+	    case "SHOW":
+		return Request.SHOW;
+	    case "BID":
+		packet = (struct { int number; }) {};
+		number_ (&packet);
+		return (Request.BID) packet;
+	    case "MOVE":
+		packet = (struct { Color color; Direction direction; }) {};
+		color_ (&packet);
+		direction_ (&packet);
+		return (Request.MOVE) packet;
+	    case "UNDO":
+		return Request.UNDO;
+	    case "RESET":
+		return Request.RESET;
+	    case "TURN":
+		return Request.TURN;
+	    case "PASS":
+		return Request.PASS;
+	    case "MESSAGE":
+		packet = (struct { string text; }) {};
+		text_ (&packet);
+		return (Request.MESSAGE) packet;
+	    case "QUIT":
+		return Request.QUIT;
+	    case "":
+		raise request_closed ();
+	    default:
+		skipline (f);
+		raise invalid_request (w);
+	    }
 	}
     }
 }

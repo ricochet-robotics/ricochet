@@ -1,0 +1,80 @@
+/*
+ * $Id$
+ *
+ * Copyright © 2003 Keith Packard
+ *
+ * Permission to use, copy, modify, distribute, and sell this software and its
+ * documentation for any purpose is hereby granted without fee, provided that
+ * the above copyright notice appear in all copies and that both that
+ * copyright notice and this permission notice appear in supporting
+ * documentation, and that the name of Keith Packard not be used in
+ * advertising or publicity pertaining to distribution of the software without
+ * specific, written prior permission.  Keith Packard makes no
+ * representations about the suitability of this software for any purpose.  It
+ * is provided "as is" without express or implied warranty.
+ *
+ * KEITH PACKARD DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * EVENT SHALL KEITH PACKARD BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+ * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
+ * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+autoload RR
+
+namespace Server {
+
+    import RR;
+
+    public typedef Client;
+    public typedef Game;
+
+    public typedef struct {
+	int	x, y;
+	Object	object;
+    } ObjectLoc;
+
+    public typedef union {
+	void	none;
+	string	username;
+    } User;
+
+    public typedef union {
+	void	none;
+	&Game	game;
+    } GameRef;
+
+    public typedef union {
+	void	none;
+	thread	t;
+    } UserThread;
+
+    public typedef struct {
+	file	f;
+	User	user;
+	GameRef	game;
+	UserThread	t;
+    } Client;
+
+    public typedef union {
+	void	none;
+	int	seconds;
+    } Time;
+
+    public typedef union {
+	void	none;
+	&Client	client;
+    } ClientRef;
+    
+    public typedef struct {
+	string		name;
+	(&Client)[*]	clients;
+	Target[*]	targets;
+	Board		board;
+	Time		time;
+	ClientRef	active;
+	ObjectLoc[*]    history;
+    } Game;
+}

@@ -1,0 +1,168 @@
+/*
+ * $Id$
+ *
+ * Copyright © 2003 Keith Packard
+ *
+ * Permission to use, copy, modify, distribute, and sell this software and its
+ * documentation for any purpose is hereby granted without fee, provided that
+ * the above copyright notice appear in all copies and that both that
+ * copyright notice and this permission notice appear in supporting
+ * documentation, and that the name of Keith Packard not be used in
+ * advertising or publicity pertaining to distribution of the software without
+ * specific, written prior permission.  Keith Packard makes no
+ * representations about the suitability of this software for any purpose.  It
+ * is provided "as is" without express or implied warranty.
+ *
+ * KEITH PACKARD DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * EVENT SHALL KEITH PACKARD BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+ * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
+ * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+autoload RR
+autoload Ctype
+
+extend namespace RR {
+    public namespace Lex {
+
+	public exception syntax ();
+	
+	int lexc (file f) {
+	    try {
+		return File::getc (f);
+	    } catch File::io_error (string reason, File::error_type error, file f) {
+		switch (error) {
+		case File::error_type.UTF8:
+		    return lexc (f);
+		default:
+		    raise File::io_error (reason, error, f);
+		}
+	    }
+	    return -1;
+	}
+
+	void skipwhite (file f) {
+	    while ((int c = lexc (f)) != -1) {
+		if (c == '\n')
+		    raise syntax ();
+		if (!Ctype::isspace(c)) {
+		    File::ungetc (c, f);
+		    break;
+		}
+	    }
+	}
+
+	public void skipline (file f) {
+	    while ((int c = lexc (f)) != -1)
+	    {
+		if (c == '\n')
+		    break;
+	    }
+	}
+
+	string next_word (file f) {
+	    string  s = "";
+	    bool quoted = false;
+	    bool escaped = false;
+	    while ((int c = lexc (f)) != -1) {
+		if (!escaped)
+		{
+		    if (c == '\\')
+		    {
+			escaped = true;
+			continue;
+		    }
+		    if (c == '"')
+		    {
+			quoted = !quoted;
+			continue;
+		    }
+		}
+		if (!quoted && !escaped)
+		{
+		    if (Ctype::isspace (c))
+		    {
+			File::ungetc (c, f);
+			break;
+		    }
+		}
+		s = s + String::new(c);
+	    }
+	    printf ("word: %s\n", s);
+	    return s;
+	}
+
+	public string word (file f) {
+	    skipwhite (f);
+	    return next_word (f);
+	}
+
+	public string firstword (file f) {
+	    for (;;) {
+		try {
+		    skipwhite (f);
+		    return next_word (f);
+		} catch syntax () {
+		    ;
+		}
+	    }
+	}
+
+	public bool eol (file f) {
+	    skipwhite (f);
+	    int c = lexc (f);
+	    if (c == -1)
+		return true;
+	    File::ungetc (c, f);
+	    if (c == '\n')
+		return true;
+	    return false;
+	}
+
+	public int number (file f) {
+	    string w = word (f);
+	    return string_to_integer (w);
+	}
+
+	public exception invalid_color (string s);
+
+	public Color color (file f) {
+	    switch ((string w = word(f))[0]) {
+	    case 'r': case 'R': return Color.Red;
+	    case 'y': case 'Y': return Color.Yellow;
+	    case 'g': case 'G': return Color.Green;
+	    case 'b': case 'B': return Color.Blue;
+	    case 'w': case 'W': return Color.Whirl;
+		default: raise invalid_color (w);
+	    }
+	}
+
+	public exception invalid_shape (string w);
+
+	public Shape shape (file f) {
+	    switch ((string w = word(f))[0]) {
+	    case 't': case 'T': return Shape.Triangle;
+	    case 's': case 'S': return Shape.Square;
+	    case 'o': case 'O': return Shape.Octagon;
+	    case 'c': case 'C': return Shape.Circle;
+	    case 'w': case 'W': return Shape.Whirl;
+		default: raise invalid_shape (w);
+	    }
+	}
+
+	public exception invalid_direction (string w);
+
+	public Direction direction (file f) {
+	    switch ((string w = word(f))[0]) {
+	    case 'n': case 'N': return Direction.North;
+	    case 'e': case 'E': return Direction.East;
+	    case 's': case 'S': return Direction.South;
+	    case 'w': case 'W': return Direction.West;
+		default: raise invalid_direction (w);
+	    }
+	}
+    }
+}
