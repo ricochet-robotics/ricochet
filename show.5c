@@ -115,6 +115,7 @@ extend namespace Server {
 		else
 		    File::fprintf (f, "    ");
 	    }
+	    File::fprintf (f, " ");
 	}
 
 	public void show (file f, &Board b) {
