@@ -339,7 +339,7 @@ extend namespace Server {
 		int	    turn = 17 - dim (g.targets);
 		
 		int	    remain = 0;
-		if (g.state == GameState.Bidding)
+		if (g.state == GameState.BID)
 		{
 		    remain = g.expire_time - time();
 		    if (remain < 0) remain = 0;
@@ -352,12 +352,8 @@ extend namespace Server {
 		}
 
 		string	    active = "";
-		switch (g.state) {
-		case GameState.Showing:
-		case GameState.Solved:
+		if (g.state == GameState.SHOW)
 		    active = g.active.client.user.username;
-		    break;
-		}
 
 		respond ("GAMEINFO %d %C %S %G %d %d %s\n",
 			 turn, 
@@ -480,7 +476,7 @@ extend namespace Server {
 	    void	turn () {
 		assert_user ();
 		assert_game ();
-		Games::next_turn (&c.game.game, &c);
+		Games::turn (&c.game.game, &c);
 		respond ("TURN\n");
 	    }
 

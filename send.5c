@@ -91,10 +91,10 @@ extend namespace RR {
 
 	    void put_gamestate (GameState s) {
 		switch (s) {
-		case GameState.New:	File::fprintf (f, "new"); break;
-		case GameState.Bidding:	File::fprintf (f, "bid"); break;
-		case GameState.Showing:	File::fprintf (f, "show"); break;
-		case GameState.Solved:	File::fprintf (f, "solved"); break;
+		case GameState.NEW:	File::fprintf (f, "NEW"); break;
+		case GameState.BID:	File::fprintf (f, "BID"); break;
+		case GameState.SHOW:	File::fprintf (f, "SHOW"); break;
+		case GameState.DONE:	File::fprintf (f, "DONE"); break;
 		}
 	    }
 
@@ -108,7 +108,7 @@ extend namespace RR {
 		case Error.NOTLOWER:	File::fprintf (f, "NOTLOWER"); break;
 		case Error.NOBID:	File::fprintf (f, "NOBID"); break;
 		case Error.NOTACTIVE:	File::fprintf (f, "NOTACTIVE"); break;
-		case Error.NOTFINISHED:	File::fprintf (f, "NOTFINISHED"); break;
+		case Error.NOTDONE:	File::fprintf (f, "NOTDONE"); break;
 		case Error.NOTNUMBER:	File::fprintf (f, "NOTNUMBER"); break;
 		case Error.BLOCKED:	File::fprintf (f, "BLOCKED"); break;
 		case Error.COMMAND:	File::fprintf (f, "COMMAND"); break;

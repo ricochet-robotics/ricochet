@@ -92,6 +92,11 @@ namespace Server {
 	&Client	client;
     } ClientRef;
     
+    public typedef union {
+	void	none;
+	Board	board;
+    } BoardOrNone;
+
     public typedef struct {
 	string		name;
 	GameState	state;
@@ -104,6 +109,7 @@ namespace Server {
 	ClientRef	active;
 	ObjectLoc[*]    history;
 	int		timer_serial;
+	BoardOrNone	next_board;
     } Game;
 
     public exception notreached ();

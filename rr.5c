@@ -63,10 +63,10 @@ namespace RR {
     } Object;
 
     public typedef enum {
-	New,	    /* no bids yet */
-	Bidding,    /* some bids, timer running */
-	Showing,    /* timer expired, waiting for solution */
-	Solved	    /* game solved */
+	NEW,	    /* no bids yet */
+	BID,	    /* some bids, timer running */
+	SHOW,	    /* timer expired, waiting for solution */
+	DONE	    /* turn done (solved, or bailed) */
     } GameState;
     
     public typedef Object[Width,Height]	Board;
@@ -213,7 +213,7 @@ namespace RR {
 	NOTLOWER,
 	NOBID,
 	NOTACTIVE,
-	NOTFINISHED,
+	NOTDONE,
 	NOTNUMBER,
 	BLOCKED,
 	NOTEMPTY,

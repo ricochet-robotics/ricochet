@@ -128,12 +128,12 @@ Document Conventions
 			<bid> indicates the minimum bid
 		show	Bidding closed and solution being demonstrated
 			<active> indicates the person demonstrating
-		solved 	Solution succesfully demonstrated that
-			is less than the active users bid. <active>
-			indicates the winner.
+		done 	Current turn is over.  Either a solution
+                        was demonstrated or the players have all
+			given up trying to find a solution.
 	<time> is valid only in BID state, else it's 0
 	<bid> is valid in all but NEW state where it's 0
-	<active> is valid in SHOW and SOLVED states, else it's ""
+	<active> is valid in SHOW state, else it's ""
 
 	Possible errors: NOGAME
 
@@ -255,16 +255,10 @@ Document Conventions
 	    TURN
     
 	    Advance the game to the next turn, (which will have a new
-	    target square). The robots will start in their final positions
-	    at the end of the first successfully demonstrated solution.
-    
-	    TURN succeeds if one of the following is true:
-    
-		+ a solution has been demonstrated
-		+ all players have passed
-		+ all players have abandoned the turn
+	    target square).  TURN is valid only when the game is in
+	    the DONE state
 		    
-	    Possible errors: NOTINGAME, NOTFINISHED
+	    Possible errors: NOTINGAME, NOTDONE
     
 	1.5.1.3. Part
     
@@ -604,16 +598,11 @@ Document Conventions
 	    A command was executed by a watching user that is
 	    permitted only to players
 
-	3.6.1.3. Not finished
+	3.6.1.3. Not done
     
-	    ERROR NOTFINISHED
+	    ERROR NOTDONE
     
-	    TURN was requested and one of:
-    
-		+ bidding and not all abandoned
-		+ showing and not all passed
-    
-	    is true
+	    TURN was requested and the game is not in DONE state.
     
     3.6.2. Bidding errors 
     

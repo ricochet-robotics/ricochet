@@ -30,8 +30,12 @@ autoload Server::Clients
 
 extend namespace Server {
     public namespace Games {
+	/* array of all games */
 	public (&Game)[0]	games = {};
 
+	/* raised when attempting to find a nonexistant game */
+	public exception no_such_game (string name);
+	
 	&Game insert () {
 	    return Array::append (&games, reference ((Game) {}));
 	}
@@ -45,16 +49,29 @@ extend namespace Server {
 	    Array::iterate (&games, f);
 	}
     
-	public exception no_such_game (string name);
-	
 	void assert_active (&Game g, &Client c) {
 	    if (g.active != (ClientRef.client) (&c))
 		raise error (Error.NOTACTIVE);
 	}
 
+	void assert_active_or_done (&Game g, &Client c) {
+	    if (g.state == GameState.DONE)
+		return;
+	    if (g.state == GameState.SHOW &&
+	        g.active == (ClientRef.client) (&c))
+		return;
+	    raise error (Error.NOTACTIVE);
+	}
+
 	void assert_playing (&Game c, &Client c) {
 	    if (!c.playing)
 		raise error (Error.NOTPLAYING);
+	}
+
+	void assert_done (&Game g) {
+	    if (g.state == GameState.DONE)
+		return;
+	    raise error (Error.NOTDONE);
 	}
 	
 	/* find a game by name */
@@ -71,6 +88,39 @@ extend namespace Server {
 	    raise no_such_game (name);
 	}
 
+	/* list clients associated with a game */
+	public void iterate_client (&Game g, void (&Client c) f, 
+				    bool playing, bool watching) {
+	    void pick (&Client c) {
+		if ((playing && c.playing) || (watching && !c.playing))
+		    f (&c);
+	    }
+	    Array::iterate (&g.clients, pick);
+	}
+
+	/* broadcast message to all game users */
+	void game_send (&Game g, string fmt, poly args...) {
+	    void	message_client (&Client o) {
+		Clients::client_send (&o, fmt, args...);
+	    }
+	    iterate_client (&g, message_client, true, true);
+	}
+
+	/* broadcast message including players and scores to all game users */
+	void game_send_client_scores (&Game g, string fmt, poly args...) {
+	    void	message_client (&Client c) {
+		Clients::client_send (&c, fmt, args...);
+
+		void	print_client_score (&Client o) {
+		    Clients::print_client_score (&c, &o);
+		}
+		iterate_client (&g, print_client_score, true, false);
+		Clients::client_send (&c, "\n");
+	    }
+	    iterate_client (&g, message_client, true, true);
+	}
+
+	/* does the given game exist? */
 	bool exists (string name) {
 	    exception	found (&Game g);
 	    try {
@@ -82,36 +132,6 @@ extend namespace Server {
 		return true;
 	    }
 	    return false;
-	}
-
-	/* list clients associated with a game */
-	public void iterate_client (&Game g, void (&Client c) f, 
-				    bool playing, bool watching) {
-	    void pick (&Client c) {
-		if ((playing && c.playing) || (watching && !c.playing))
-		    f (&c);
-	    }
-	    Array::iterate (&g.clients, pick);
-	}
-
-	public void game_send (&Game g, string fmt, poly args...) {
-	    void	message_client (&Client o) {
-		Clients::client_send (&o, fmt, args...);
-	    }
-	    iterate_client (&g, message_client, true, true);
-	}
-
-	public void game_send_client_scores (&Game g, string fmt, poly args...) {
-	    void	message_client (&Client c) {
-		Clients::client_send (&c, fmt, args...);
-
-		void	print_client_score (&Client o) {
-		    Clients::print_client_score (&c, &o);
-		}
-		iterate_client (&g, print_client_score, true, false);
-		Clients::client_send (&c, "\n");
-	    }
-	    iterate_client (&g, message_client, true, true);
 	}
 
 	bool any_bids (&Game g) {
@@ -176,11 +196,11 @@ extend namespace Server {
 	    g.state = state;
 	    game_send (&g, "NOTICE GAMESTATE %G\n", state);
 	    switch (state) {
-	    case GameState.Bidding:
+	    case GameState.BID:
 		int timer_serial = ++g.timer_serial;
 		
 		bool validate () {
-		    if (g.state != GameState.Bidding || 
+		    if (g.state != GameState.BID || 
 			g.timer_serial != timer_serial)
 			    return false;
 		    return true;
@@ -191,39 +211,20 @@ extend namespace Server {
 		}
 
 		void expire () {
-		    set_state (&g, GameState.Showing);
+		    set_state (&g, GameState.SHOW);
 		}
 
 		g.expire_time = Timer::start (g.expire_interval, 10, 
 					      lock, unlock, 
 					      validate, notify, expire);
 		break;
-	    case GameState.Showing:
+	    case GameState.SHOW:
 		g.active = ClientRef.none;
 		set_active (&g);
 		break;
-	    }
-	}
-
-	/* remove a client from any game */
-	public void remove_client (&Client c) {
-	    if (c.game == GameRef.none)
-		return;
-	    &Game g = &c.game.game;
-	    Array::remove (&g.clients, &c);
-	    game_send (&g, "NOTICE PART %s\n", c.user.username);
-	    /* correct the state if necessary */
-	    switch (g.state) {
-	    case GameState.New:
-		break;
-	    case GameState.Bidding:
-		if (!any_bids (&g))
-		    set_state (&g, GameState.New);
-		break;
-	    case GameState.Showing:
-		set_active (&g);
-		break;
-	    case GameState.Solved:
+	    case GameState.DONE:
+		g.active = ClientRef.none;
+		g.next_board = (BoardOrNone.board) g.board;
 		break;
 	    }
 	}
@@ -245,21 +246,6 @@ extend namespace Server {
 	    }
 	}
 	
-	/* add a client to a game */
-	public &Client add_client (&Game g, &Client c, bool playing) {
-	    remove_client (&c);
-	    c.game = (GameRef.game) (&g);
-	    c.playing = playing;
-	    c.score = 0;
-	    c.bid = Bid.none;
-	    c.abandon = false;
-	    Array::append (&g.clients, &c);
-	    game_send (&g, "NOTICE %s %s\n", 
-		       playing ? "JOIN" : "WATCH",
-		       c.user.username);
-	    return &c;
-	}
-
     	void next_game (&Game g);
 
 	/* select the next target */
@@ -271,11 +257,15 @@ extend namespace Server {
 		return;
 	    }
 
+	    union switch (g.next_board) {
+	    case none: break;
+	    case board b: g.board = b; break;
+	    }
 	    g.target = g.targets[0];
 	    g.targets = (Target[dim(g.targets)-1]) { [i] = g.targets[i+1] };
 	    g.history = (ObjectLoc[*]) {};
 	    g.expire_time = 0;
-	    g.state = GameState.New;
+	    g.state = GameState.NEW;
 	    Boards::set_target (&g.board, g.target.color, g.target.shape);
 
 	    void reset_client (&Client c) {
@@ -284,25 +274,6 @@ extend namespace Server {
 	    }
 	    iterate_client (&g, reset_client, true, false);
 	    game_send (&g, "NOTICE TURN %C %S\n", g.target.color, g.target.shape);
-	}
-
-	public void next_turn (&Game g, &Client c) {
-	    assert_playing (&g, &c);
-	    switch (g.state) {
-	    case GameState.New:
-	    case GameState.Bidding:
-		if (!all_abandon (&g))
-		    raise error (Error.NOTFINISHED);
-		break;
-	    case GameState.Showing:
-		if (any_bids (&g))
-		    raise error (Error.NOTFINISHED);
-		reset_move (&g);
-		break;
-	    case GameState.Solved:
-		break;
-	    }
-	    next_target (&g);
 	}
 
 	Target[*] random_targets () {
@@ -332,9 +303,46 @@ extend namespace Server {
 	    g.targets = random_targets ();
 	    g.active = ClientRef.none;
 	    g.timer_serial = 0;
+	    g.next_board = BoardOrNone.none;
 	    next_target (&g);
 	}
 	
+	void next_game (&Game g) {
+	    ClientRef	winner = ClientRef.none;
+	    void find_winner (&Client c) {
+		if (c.score > 0 &&
+		    (winner == ClientRef.none || c.score >
+		    winner.client.score))
+		    winner = (ClientRef.client) (&c);
+	    }
+	    iterate_client (&g, find_winner, true, false);
+	    if (winner != ClientRef.none)
+		winner.client.games++;
+	    game_send_client_scores (&g, "NOTICE GAMEOVER");
+	    init (&g);
+	}
+	
+	void assert_bidding (&Game g) {
+	    switch (g.state) {
+	    case GameState.NEW:
+	    case GameState.BID:
+		break;
+	    case GameState.SHOW:
+	    case GameState.DONE:
+		raise error (Error.NOTBIDDING);
+		break;
+	    }
+	    
+	}
+	
+	public int count (&Game g) {
+	    return dim (g.history);
+	}
+
+	/*
+	 * Game management commands
+	 */
+
 	public &Game new (string suggestion) {
 	    string name;
 	    for (int n = 0; 
@@ -360,67 +368,53 @@ extend namespace Server {
 	    Clients::server_send ("NOTICE DISPOSE %s\n", g.name);
 	}
 
-	void next_game (&Game g) {
-	    ClientRef	winner = ClientRef.none;
-	    void find_winner (&Client c) {
-		if (c.score > 0 &&
-		    (winner == ClientRef.none || c.score >
-		    winner.client.score))
-		    winner = (ClientRef.client) (&c);
-	    }
-	    iterate_client (&g, find_winner, true, false);
-	    if (winner != ClientRef.none)
-		winner.client.games++;
-	    game_send_client_scores (&g, "NOTICE GAMEOVER");
-	    init (&g);
-	}
-	
-	public ClientRef active_client (&Game g) {
-	    return g.active;
-	}
-
-	void assert_bidding (&Game g) {
+	/* remove a client from any game */
+	public void remove_client (&Client c) {
+	    if (c.game == GameRef.none)
+		return;
+	    &Game g = &c.game.game;
+	    Array::remove (&g.clients, &c);
+	    game_send (&g, "NOTICE PART %s\n", c.user.username);
+	    /* correct the state if necessary */
 	    switch (g.state) {
-	    case GameState.New:
-	    case GameState.Bidding:
+	    case GameState.NEW:
 		break;
-	    case GameState.Showing:
-	    case GameState.Solved:
-		raise error (Error.NOTBIDDING);
+	    case GameState.BID:
+		if (!any_bids (&g))
+		    set_state (&g, GameState.NEW);
 		break;
-	    }
-	    
-	}
-	
-	public void undo (&Game g, &Client c) {
-	    assert_playing (&g, &c);
-	    assert_active (&g, &c);
-	    if (dim (g.history) > 0)
-	    {
-		undo_move (&g);
-		game_send (&g, "NOTICE UNDO\n");
+	    case GameState.SHOW:
+		set_active (&g);
+		break;
+	    case GameState.DONE:
+		break;
 	    }
 	}
 
-	public void reset (&Game g, &Client c) {
-	    assert_playing (&g, &c);
-	    assert_active (&g, &c);
-	    reset_move (&g);
-	}
-
-	public void pass (&Game g, &Client c) {
-	    assert_playing (&g, &c);
-	    assert_active (&g, &c);
-	    reset (&g, &c);
+	/* add a client to a game */
+	public &Client add_client (&Game g, &Client c, bool playing) {
+	    remove_client (&c);
+	    c.game = (GameRef.game) (&g);
+	    c.playing = playing;
+	    c.score = 0;
 	    c.bid = Bid.none;
-	    set_active (&g);
+	    c.abandon = false;
+	    Array::append (&g.clients, &c);
+	    game_send (&g, "NOTICE %s %s\n", 
+		       playing ? "JOIN" : "WATCH",
+		       c.user.username);
+	    return &c;
 	}
+
+	/*
+	 * BID state commands
+	 */
 	
 	public void bid (&Game g, &Client c, int number) {
 	    assert_playing (&g, &c);
 	    assert_bidding (&g);
-	    if (g.state == GameState.New)
-		set_state (&g, GameState.Bidding);
+	    if (g.state == GameState.NEW)
+		set_state (&g, GameState.BID);
 	    /*
 	    if (c.bid != Bid.none && c.bid.number <= number)
 		raise error (Error.NOTLOWER);
@@ -437,7 +431,7 @@ extend namespace Server {
 	    c.bid = Bid.none;
 	    game_send (&g, "NOTICE REVOKE %s\n", c.user.username);
 	    if (!any_bids(&g))
-		set_state (&g, GameState.New);
+		set_state (&g, GameState.NEW);
 	}
 
 	public void abandon (&Game g, &Client c) {
@@ -448,17 +442,46 @@ extend namespace Server {
 		game_send (&g, "NOTICE ABANDON %s\n", c.user.username);
 		if (c.bid != Bid.none)
 		    revoke (&g, &c);
+		if (all_abandon (&g))
+		    set_state (&g, GameState.DONE);
 	    }
 	}
 	
-	public int count (&Game g) {
-	    return dim (g.history);
+	/*
+	 * MOVE state commands
+	 */
+	
+	public void undo (&Game g, &Client c) {
+	    assert_playing (&g, &c);
+	    assert_active_or_done (&g, &c);
+	    if (dim (g.history) > 0)
+	    {
+		undo_move (&g);
+		game_send (&g, "NOTICE UNDO\n");
+	    }
 	}
 
-	public void move (&Game g, &Client c, Color color, Direction dir) {
+	public void reset (&Game g, &Client c) {
+	    assert_playing (&g, &c);
+	    assert_active_or_done (&g, &c);
+	    reset_move (&g);
+	}
+
+	public void pass (&Game g, &Client c) {
 	    assert_playing (&g, &c);
 	    assert_active (&g, &c);
-	    if (count (&g) >= c.bid.number)
+	    reset (&g, &c);
+	    c.bid = Bid.none;
+	    set_active (&g);
+	    if (g.active == ClientRef.none)
+		set_state (&g, GameState.DONE);
+	}
+	
+	public void move (&Game g, &Client c, Color color, Direction dir) {
+	    assert_playing (&g, &c);
+	    assert_active_or_done (&g, &c);
+	    if (g.state == GameState.SHOW &&
+		count (&g) >= c.bid.number)
 		raise error (Error.TOOMANYMOVES);
 	    ObjectLoc	src = Boards::find_robot (&g.board, color);
 	    ObjectLoc	dst = Boards::move_robot (&g.board, color, dir);
@@ -467,7 +490,7 @@ extend namespace Server {
 	    Array::push (&g.history, src);
 	    Boards::position_robot (&g.board, color, dst.x, dst.y);
 	    game_send (&g, "NOTICE MOVE %d %C %D\n", count (&g), color, dir);
-	    if (g.state != GameState.Solved && Boards::solved (&g.board))
+	    if (g.state != GameState.DONE && Boards::solved (&g.board))
 	    {
 		if (g.active != ClientRef.none)
 		{
@@ -477,12 +500,18 @@ extend namespace Server {
 			       g.active.client.user.username,
 			       g.active.client.score);
 		}
-		set_state (&g, GameState.Solved);
+		set_state (&g, GameState.DONE);
 	    }
 	}
 
-	public bool solved (&Game g) {
-	    return Boards::solved (&g.board);
+	/*
+	 * DONE state command
+	 */
+	
+	public void turn (&Game g, &Client c) {
+	    assert_playing (&g, &c);
+	    assert_done (&g);
+	    next_target (&g);
 	}
     }
 }
