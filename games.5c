@@ -208,10 +208,6 @@ extend namespace Server {
 
 	/* select the next target */
 	void next_target (&Game g) {
-	    /* score */
-	    if (g.active != ClientRef.none && Boards::solved (&g.board))
-		g.active.client.score++;
-
 	    Target  t = g.targets[0];
 	    g.targets = (Target[dim(g.targets)-1]) { [i] = g.targets[i+1] };
 	    g.history = (ObjectLoc[*]) {};
@@ -345,8 +341,18 @@ extend namespace Server {
 	    Array::push (&g.history, src);
 	    Boards::position_robot (&g.board, color, dst.x, dst.y);
 	    game_send (&g, "NOTICE MOVE %d %C %D\n", count (&g), color, dir);
-	    if (Boards::solved (&g.board))
+	    if (g.state != GameState.Solved && Boards::solved (&g.board))
+	    {
+		if (g.active != ClientRef.none)
+		{
+		    /* score */
+		    g.active.client.score++;
+		    game_send (&g, "NOTICE SCORE %s %d\n",
+			       g.active.client.user.username,
+			       g.active.client.score);
+		}
 		set_state (&g, GameState.Solved);
+	    }
 	}
 
 	public bool solved (&Game g) {

@@ -363,6 +363,10 @@ Document Conventions
 
 	Only the active player may move the robots
 
+2.10. Score (game)
+
+	NOTICE SCORE <username> <score>
+
 2.10. Game state change
 
 	NOTICE GAMESTATE <state>
