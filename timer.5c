@@ -1,0 +1,65 @@
+/*
+ * $Id$
+ *
+ * Copyright © 2003 Keith Packard
+ *
+ * Permission to use, copy, modify, distribute, and sell this software and its
+ * documentation for any purpose is hereby granted without fee, provided that
+ * the above copyright notice appear in all copies and that both that
+ * copyright notice and this permission notice appear in supporting
+ * documentation, and that the name of Keith Packard not be used in
+ * advertising or publicity pertaining to distribution of the software without
+ * specific, written prior permission.  Keith Packard makes no
+ * representations about the suitability of this software for any purpose.  It
+ * is provided "as is" without express or implied warranty.
+ *
+ * KEITH PACKARD DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * EVENT SHALL KEITH PACKARD BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+ * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
+ * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+public namespace Timer {
+    public void start (int expire_delta, int notify_delta,
+		       bool() lock, bool () unlock,
+		       bool() validate,
+		       void(int number) notify,
+		       void() expire) 
+    {
+	int start_time = time();
+	int expire_time = start_time + expire_delta;
+	int notify_time = start_time;
+
+	void timer () {
+	    twixt (lock (); unlock ()) {
+		for (;;) {
+		    if (!validate ())
+			return;
+
+		    int	now = time ();
+		    int	remain = expire_time - now;
+
+		    if (remain <= 0) 
+		    {
+			expire ();
+			return;
+		    }
+		    while (now >= notify_time) {
+			notify (remain);
+			notify_time += notify_delta;
+		    }
+		    int delay = notify_time - now;
+		    if (delay > remain)
+			delay = remain;
+		    twixt (unlock (); lock ())
+			sleep (delay * 1000);
+		}
+	    }
+	}
+
+	fork timer();
+    }
+}
