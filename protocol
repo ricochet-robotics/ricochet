@@ -152,9 +152,9 @@ Document Conventions
 
 	->
 
-	BID <number>
+	BID
 
-	Possible errors: NOTINGAME, TIMEOUT
+	Possible errors: NOTINGAME, TIMEOUT, NOTNUMBER
 
 1.10. Move
 
@@ -232,6 +232,14 @@ Document Conventions
 	MESSAGE
 
 	Possible errors: NOTINGAME
+
+1.17. Quit
+
+	QUIT
+
+	->
+
+	QUIT
 
 2. Asynchronous notification.  
 
@@ -342,6 +350,12 @@ Document Conventions
 	
 	Possibly returned by: MOVE, RESET, UNDO
 
+3.4. Not number
+
+	ERROR NOTNUMBER
+
+	A non-numeric value was supplied where a number was required
+	
 Some comments/questions
 -----------------------
 
