@@ -103,6 +103,7 @@ extend namespace RR {
 		case Error.NOGAME:	File::fprintf (f, "NOGAME"); break;
 		case Error.NOUSER:	File::fprintf (f, "NOUSER"); break;
 		case Error.NOTINGAME:	File::fprintf (f, "NOTINGAME"); break;
+		case Error.NOTPLAYING:	File::fprintf (f, "NOTPLAYING"); break;
 		case Error.NOTBIDDING:	File::fprintf (f, "NOTBIDDING"); break;
 		case Error.NOTLOWER:	File::fprintf (f, "NOTLOWER"); break;
 		case Error.NOBID:	File::fprintf (f, "NOBID"); break;

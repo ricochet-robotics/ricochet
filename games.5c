@@ -47,6 +47,16 @@ extend namespace Server {
     
 	public exception no_such_game (string name);
 	
+	void assert_active (&Game g, &Client c) {
+	    if (g.active != (ClientRef.client) (&c))
+		raise error (Error.NOTACTIVE);
+	}
+
+	void assert_playing (&Game c, &Client c) {
+	    if (!c.playing)
+		raise error (Error.NOTPLAYING);
+	}
+	
 	/* find a game by name */
 	public &Game find (string name) {
 	    exception	found (&Game g);
@@ -276,7 +286,8 @@ extend namespace Server {
 	    game_send (&g, "NOTICE TURN %C %S\n", g.target.color, g.target.shape);
 	}
 
-	public void next_turn (&Game g) {
+	public void next_turn (&Game g, &Client c) {
+	    assert_playing (&g, &c);
 	    switch (g.state) {
 	    case GameState.New:
 	    case GameState.Bidding:
@@ -368,11 +379,6 @@ extend namespace Server {
 	    return g.active;
 	}
 
-	void assert_active (&Game g, &Client c) {
-	    if (g.active != (ClientRef.client) (&c))
-		raise error (Error.NOTACTIVE);
-	}
-	
 	void assert_bidding (&Game g) {
 	    switch (g.state) {
 	    case GameState.New:
@@ -387,6 +393,7 @@ extend namespace Server {
 	}
 	
 	public void undo (&Game g, &Client c) {
+	    assert_playing (&g, &c);
 	    assert_active (&g, &c);
 	    if (dim (g.history) > 0)
 	    {
@@ -396,11 +403,13 @@ extend namespace Server {
 	}
 
 	public void reset (&Game g, &Client c) {
+	    assert_playing (&g, &c);
 	    assert_active (&g, &c);
 	    reset_move (&g);
 	}
 
 	public void pass (&Game g, &Client c) {
+	    assert_playing (&g, &c);
 	    assert_active (&g, &c);
 	    reset (&g, &c);
 	    c.bid = Bid.none;
@@ -408,6 +417,7 @@ extend namespace Server {
 	}
 	
 	public void bid (&Game g, &Client c, int number) {
+	    assert_playing (&g, &c);
 	    assert_bidding (&g);
 	    if (g.state == GameState.New)
 		set_state (&g, GameState.Bidding);
@@ -420,6 +430,7 @@ extend namespace Server {
 	}
 
 	public void revoke (&Game g, &Client c) {
+	    assert_playing (&g, &c);
 	    assert_bidding (&g);
 	    if (c.bid == Bid.none)
 		raise error (Error.NOBID);
@@ -430,6 +441,7 @@ extend namespace Server {
 	}
 
 	public void abandon (&Game g, &Client c) {
+	    assert_playing (&g, &c);
 	    assert_bidding (&g);
 	    if (!c.abandon) {
 		c.abandon = true;
@@ -444,6 +456,7 @@ extend namespace Server {
 	}
 
 	public void move (&Game g, &Client c, Color color, Direction dir) {
+	    assert_playing (&g, &c);
 	    assert_active (&g, &c);
 	    if (count (&g) >= c.bid.number)
 		raise error (Error.TOOMANYMOVES);

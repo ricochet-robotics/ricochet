@@ -279,7 +279,7 @@ extend namespace Server {
 		if (c.game == GameRef.none)
 		    raise error (Error.NOTINGAME);
 	    }
-		
+
 	    void print_client_score (&Client o) {
 		Clients::print_client_score (&c, &o);
 	    }
@@ -480,7 +480,7 @@ extend namespace Server {
 	    void	turn () {
 		assert_user ();
 		assert_game ();
-		Games::next_turn (&c.game.game);
+		Games::next_turn (&c.game.game, &c);
 		respond ("TURN\n");
 	    }
 

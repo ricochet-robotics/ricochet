@@ -1,6 +1,6 @@
 		 Ricochet Robots Game Protocol (RRGP)
-			    Version 0.1
-			     2003-5-27
+			    Version 0.1.1
+			     2003-5-30
 		
 		  Keith Packard         Carl Worth
 		keithp@keithp.com     cworth@isi.edu
@@ -587,7 +587,7 @@ Document Conventions
 
     3.6.1. Global game errors
     
-	3.1. Not in game
+	3.6.1.1. Not in game
     
 	    ERROR NOTINGAME
     
@@ -597,7 +597,14 @@ Document Conventions
 	    Possibly returned by: SHOW, MOVE, RESET, UNDO, TURN, PASS,
 	    MESSAGE.
 
-	3.3.3. Not finished
+	3.6.1.2. Not playing
+
+	    ERROR NOTPLAYING
+
+	    A command was executed by a watching user that is
+	    permitted only to players
+
+	3.6.1.3. Not finished
     
 	    ERROR NOTFINISHED
     
