@@ -3,7 +3,7 @@
 			     2003-5-31
 		
 		  Keith Packard         Carl Worth
-		keithp@keithp.com     cworth@isi.edu
+		keithp@keithp.com   carl@theworths.org
 
 Introduction
 
@@ -48,6 +48,8 @@ Document Conventions
 
     If the client doesn't supply <username>, the server will compute
     one and return it.
+
+    Possible errors: INVALIDNAME
 
 1.2. Global commands
 
@@ -250,11 +252,11 @@ Document Conventions
 	    For example:
     
 	    SHOW "
-	     ===
-	    |R.. ... .gs
-	    
+	     ===         
+	    |R.. ... .gs 
+	                 
 	     byc|... .RT|
-	     ===    ==="
+	     ===     === "
     
 	    R.. = 	Red robot (goal robot)
 	    .gs = 	Green square target
@@ -570,6 +572,8 @@ Document Conventions
     
 	All names must be unique.
 
+	Possibly returned by: HELO
+
 3.2. Command format errors
 
     Errors caused by ill-formed commands
@@ -718,14 +722,4 @@ Document Conventions
 	
 	    Possibly returned by: MOVE
 	
-
-Some comments/questions
------------------------
-
-The server manages ACTIVE based on bids, scores, and PASS
-requests. Once a turn is over, (solution demonstrated or all bidding
-users PASS), it would be nice to allow others to show alternate
-solutions, failed attempts, etc. Shall we provide a way for the ACTIVE
-user to pass control to another, (only when a turn is over)? Or maybe
-since the turn is over we just let any user move the pieces?
 
