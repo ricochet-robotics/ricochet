@@ -189,7 +189,7 @@ extend namespace Server {
 	    assert_active (&g, &c);
 	    while (dim (g.history) > 0)
 		undo (&g, &c);
-	    Clients::game_send (&g, "NOTICE RESEt\n");
+	    Clients::game_send (&g, "NOTICE RESET\n");
 	}
 
 	ClientRef lowest_bidder (&Game g) {
