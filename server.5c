@@ -41,12 +41,12 @@ namespace Server {
 
     public bool lock () {
 	Mutex::acquire (server_mutex);
-#	printf ("lock %v\n", Thread::current());
+#	File::fprintf (stderr, "lock %v\n", Thread::current());
 	return true;
     }
 
     public bool unlock () {
-#	printf ("unlock %v\n", Thread::current());
+#	File::fprintf (stderr, "unlock %v\n", Thread::current());
 	Mutex::release (server_mutex);
 	return true;
     }

@@ -608,7 +608,7 @@ extend namespace Server {
 		}
 	    };
 
-	    printf ("New client\n");
+	    File::fprintf (stderr, "New client\n");
 
 	    for (;;) {
 		try {
