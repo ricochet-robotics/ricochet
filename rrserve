@@ -1,4 +1,4 @@
-#!/local/bin/nickle
+#!/usr/bin/env nickle
 
 autoload Server::Main
 
