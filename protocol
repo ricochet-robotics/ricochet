@@ -84,8 +84,8 @@ Document Conventions
 	->
 
 	OK
-	USER <username1>
-	USER <username2>
+	USER <username1>, <score1>
+	USER <username2>, <score2>
 	...
 	DONE
 
@@ -173,6 +173,7 @@ Document Conventions
 	<color> is one of 'R', 'Y', 'G' or 'B', <dir> is one of 'N', 'E',
 	'S' or 'W'.
 
+	Possible errors: NOTACTIVE
 
 1.12. Undo
 
@@ -185,6 +186,8 @@ Document Conventions
 
 	Undoes the last move
 
+	Possible errors: NOTACTIVE
+
 1.13. Reset
 
 	RESET
@@ -196,6 +199,8 @@ Document Conventions
 
 	Resets robot positions to that at the start of the turn.
 
+	Possible errors: NOTACTIVE
+
 1.14. Next turn
 
 	TURN
@@ -204,6 +209,16 @@ Document Conventions
 
 	OK
 	DONE
+
+	Advance the game to the next turn, (which will have a new
+	target square). The robots will start in their final positions
+	at the end of the first successfully demonstrated solution.
+
+	If a solution has been demonstrated, or if all users with
+	active bids have issued PASS then a TURN request from a single
+	user has immediate effect. Otherwise, the server requires a
+	TURN request from each active user before it will ABANDON the
+	current turn.
 
 1.15. Pass the bid to the next lowest bidder
 
@@ -303,7 +318,6 @@ Document Conventions
 	NOTICE
 	RESET
 	DONE
-	
 
 2.12. Next turn
 
@@ -362,13 +376,10 @@ Document Conventions
 	
 	Possibly returned by: MOVE, RESET, UNDO
 
-Some comments from Carl Worth
------------------------------
+Some comments (still need to be incorporated into the specification)
+--------------------------------------------------------------------
 
-> I don't understand the board contents. What is '_'?  How are robot and
-> target colors indicated for the same space?
-
-How about:
+New proposal for ASCII board art:
 
 	 ==
 	|.. .. ..
@@ -383,38 +394,41 @@ How about:
 	RR = 	Red robot (goal robot)
 	gg = 	Green robot (non-goal target)
 
-Does that look unambiguous?
+--
 
-> Can we replace "BOARD" with "GAME" in the protocol?
+>> Hmmm... looks like a user can only be in a single game (would need to
+>> fix SHOW, BID, MOVE, RESET, TURN, NOTICE, etc.)
 
-Sure.
+> Yup.
 
-> Shall we require a quorum for TURN? Perhaps no quorum requirement
-> after the timer has run out and a correct solution has been
-> demonstrated?
+It doesn't seem right to support multiple games in a single server yet
+not allow the same user to JOIN or WATCH more than one game
+simultaneously.
 
-Hmm.  I think that's reasonable -- require quorum for abandoning without a
-solution.  That'll take another notice (ABANDON)
+Or is the idea that I connect as cworth1, cworth2, etc.? (ugh)
 
-> What are the semantics of RESET? Quorum?
+--
 
-RESET is just like MOVE - only the current user can execute reset
+>> And does the server know the rules/keep score?
 
-> Hmmm... looks like a user can only be in a single game (would need to
-> fix SHOW, BID, MOVE, RESET, TURN, NOTICE, etc.)
+> I think it might as well; the C code I've got already manages that part.
 
-Yup.
+We'll need to provide scores. I've added a score field to the result
+from USERS. Do we want anything more?
 
-> I wonder if this server should just support one game at a time,
-> (available servers/users for other games can be negotiated
-> externally).
+--
 
-Easy to support multiple games, and that means we only ever need one server.
+The server manages ACTIVE based on bids, scores, and PASS
+requests. Once a turn is over, (solution demonstrated or all bidding
+users PASS), it would be nice to allow others to show alternate
+solutions, failed attempts, etc. Shall we provide a way for the ACTIVE
+user to pass control to another, (only when a turn is over)? Or maybe
+since the turn is over we just let any user move the pieces?
 
-> And does the server know the rules/keep score?
+--
 
-I think it might as well; the C code I've got already manages that part.
-
-> Do we allow broadcast and private messages?
-
-Just broadcast.
+With the new ABANDON semantics, (and the possible free-for-all moving
+of pieces mentioned above), a new TURN may jump several robots back to
+previous positions. I think the TURN notice should include the current
+board diagram. (The diagram contains the new target, so it won't need
+to be provided externally)
