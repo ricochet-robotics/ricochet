@@ -579,7 +579,12 @@ extend namespace Server {
 		    for (i = 0; i < dim(commands); i++)
 			if (command == commands[i].command)
 			{
-			    commands[i].f (args);
+			    try {
+				commands[i].f (args);
+			    } catch invalid_array_bounds (string s,
+							  poly a, poly i) {
+				raise rr_error (Error.SYNTAX);
+			    }
 			    break;
 			}
 		    if (i == dim(commands))
