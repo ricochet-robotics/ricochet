@@ -109,11 +109,69 @@ extend namespace Server {
 	    }
 
 	    void	gameinfo (string game) {
+		assert_user ();
 		&Game	g = Games::find (game);
+
+		int	    turn = 17 - dim (g.targets);
 		
+		int	    remain = 0;
+		if (g.state == GameState.Bidding)
+		{
+		    remain = g.expire_time - time();
+		    if (remain < 0) remain = 0;
+		}
+		
+		int	    bid = 0;
+		union switch (Games::lowest_bidder (&g)) {
+		case none: break;
+		case client c: bid = c.bid.number; break;
+		}
+
+		string	    active = "";
+		switch (g.state) {
+		case GameState.Showing:
+		case GameState.Solved:
+		    active = g.active.client.user.username;
+		    break;
+		}
+
+		respond ("GAMEINFO %d %C %S %G %d %d %s\n",
+			 turn, 
+			 g.target.color,
+			 g.target.shape,
+			 g.state,
+			 remain,
+			 bid,
+			 active);
 	    }
 
 	    void	userinfo (string username) {
+		assert_user ();
+		ClientRef	cr = Clients::find (username);
+		union switch (cr) {
+		case none:
+		    raise error (Error.NOUSER);
+		case client c:
+		    string  game = "";
+		    bool    playing = false;
+		    int	    score = 0;
+		    int	    bid = 0;
+
+		    union switch (c.game) {
+		    case none:	break;
+		    case game g:
+			game = g.name;
+			playing = c.playing;
+			if (playing)
+			{
+			    score = c.score;
+			    if (c.bid != Bid.none)
+				bid = c.bid.number;
+			}
+		    }
+		    respond ("USERINFO %s %b %d %d\n",
+			     game, playing, score, bid);
+		}
 	    }
 	    
 	    void	new(string game) {

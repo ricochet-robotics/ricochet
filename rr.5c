@@ -200,6 +200,7 @@ namespace RR {
 
     public typedef enum {
 	NOGAME,
+	NOUSER,
 	NOTINGAME,
 	NOTBIDDING,
 	NOTLOWER,

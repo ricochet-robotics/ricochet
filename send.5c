@@ -101,6 +101,7 @@ extend namespace RR {
 	    void put_error (Error e) {
 		switch (e) {
 		case Error.NOGAME:	File::fprintf (f, "NOGAME"); break;
+		case Error.NOUSER:	File::fprintf (f, "NOUSER"); break;
 		case Error.NOTINGAME:	File::fprintf (f, "NOTINGAME"); break;
 		case Error.NOTBIDDING:	File::fprintf (f, "NOTBIDDING"); break;
 		case Error.NOTLOWER:	File::fprintf (f, "NOTLOWER"); break;
@@ -122,6 +123,10 @@ extend namespace RR {
 
 	    void put_number (int n) {
 		File::fprintf (f, "%d", n);
+	    }
+
+	    void put_bool (bool b) {
+		File::fprintf (f, "%s", b ? "true" : "false");
 	    }
 	    
 	    /*
@@ -203,6 +208,7 @@ extend namespace RR {
 		    switch (fmt::c()) {
 		    case 's':	put_string (a); break;
 		    case 'd':	put_number (a); break;
+		    case 'b':	put_bool (a); break;
 		    case 'C':	put_color (a); break;
 		    case 'D':	put_direction (a); break;
 		    case 'S':	put_shape (a); break;

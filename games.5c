@@ -124,7 +124,7 @@ extend namespace Server {
 	    return all;
 	}
 	
-	ClientRef lowest_bidder (&Game g) {
+	public ClientRef lowest_bidder (&Game g) {
 	    Bid		min = Bid.none;
 	    ClientRef	min_client = ClientRef.none;
 	    void lower_bid (&Client c) {
@@ -182,7 +182,9 @@ extend namespace Server {
 		    set_state (&g, GameState.Showing);
 		}
 
-		Timer::start (60, 10, lock, unlock, validate, notify, expire);
+		g.expire_time = Timer::start (g.expire_interval, 10, 
+					      lock, unlock, 
+					      validate, notify, expire);
 		break;
 	    case GameState.Showing:
 		set_active (&g);
@@ -256,19 +258,19 @@ extend namespace Server {
 		return;
 	    }
 
-	    Target  t = g.targets[0];
+	    g.target = g.targets[0];
 	    g.targets = (Target[dim(g.targets)-1]) { [i] = g.targets[i+1] };
 	    g.history = (ObjectLoc[*]) {};
-	    g.time = Time.none;
+	    g.expire_time = 0;
 	    g.state = GameState.New;
-	    Boards::set_target (&g.board, t.color, t.shape);
+	    Boards::set_target (&g.board, g.target.color, g.target.shape);
 
 	    void reset_client (&Client c) {
 		c.bid = Bid.none;
 		c.abandon = false;
 	    }
 	    iterate_client (&g, reset_client, true, false);
-	    game_send (&g, "NOTICE TURN %C %S\n", t.color, t.shape);
+	    game_send (&g, "NOTICE TURN %C %S\n", g.target.color, g.target.shape);
 	}
 
 	public void next_turn (&Game g) {
@@ -329,6 +331,7 @@ extend namespace Server {
 	    &Game g = insert ();
 	    g.name = name;
 	    g.clients = ((&Client)[*]) {};
+	    g.expire_interval = 60;
 	    init (&g);
 	    Clients::server_send ("NOTICE NEW %s\n", g.name);
 	    return &g;

@@ -120,7 +120,7 @@ Document Conventions
 
 	<score> is a number from 0 to 17 indicating this players score
 
-	<bid> is either "none" indicating no bid or a number indicating
+	<bid> is either "0" indicating no bid or a number indicating
 	the users minimum bid.
 	
 1.7. Creating a new game
@@ -438,6 +438,12 @@ Document Conventions
 	ERROR NOGAME
 
 	A game name was provided that does not exist.
+
+3.1. No such user
+
+	ERROR NOUSER
+
+	A user name was provided that does not exist.
 
 3.1. Not in game
 

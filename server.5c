@@ -97,8 +97,10 @@ namespace Server {
 	GameState	state;
 	(&Client)[*]	clients;
 	Target[*]	targets;
+	Target		target;
 	Board		board;
-	Time		time;
+	int		expire_interval;
+	int		expire_time;
 	ClientRef	active;
 	ObjectLoc[*]    history;
 	int		timer_serial;

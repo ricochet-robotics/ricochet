@@ -23,7 +23,7 @@
  */
 
 public namespace Timer {
-    public void start (int expire_delta, int notify_delta,
+    public int start (int expire_delta, int notify_delta,
 		       bool() lock, bool () unlock,
 		       bool() validate,
 		       void(int number) notify,
@@ -61,5 +61,6 @@ public namespace Timer {
 	}
 
 	fork timer();
+	return expire_time;
     }
 }
