@@ -93,6 +93,7 @@ extend namespace RR {
 		    }
 		}
 		s = s + String::new(c);
+		escaped = false;
 	    }
 	    return s;
 	}
