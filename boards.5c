@@ -25,7 +25,6 @@
 autoload RR
 autoload Server
 autoload Shuffle
-autoload Array
 
 extend namespace Server {
     public namespace Boards {
@@ -441,15 +440,19 @@ extend namespace Server {
 	    return b;
 	}
 
+	/*
+	 * Locate objects on the board, the predicate matching
+	 * function is used to test whether objects should be added
+	 * to the returned array
+	 */
+	
 	ObjectLoc[*] find (&Board b, bool (Object) match) {
 	    ObjectLoc[*]    ol = {};
+	    int		    i = 0;
 	    for (int y = 0; y < Height; y++)
 		for (int x = 0; x < Width; x++)
 		    if (match (b[x,y]))
-			Array::append (&ol, 
-				       (ObjectLoc) { 
-					x = x, y = y, object = b[x,y] 
-				       });
+			ol[i++] = (ObjectLoc) { x = x, y = y, object = b[x,y] };
 	    return ol;
 	}
 
@@ -536,6 +539,8 @@ extend namespace Server {
 	public void position_robot (&Board b, Color color, int x, int y) {
 	    ObjectLoc ol = find_robot (&b, color);
 	    b[ol.x, ol.y].robot = RobotOrNone.none;
+	    if (b[x, y].robot != RobotOrNone.none)
+		raise invalid_robot (color);
 	    b[x, y].robot = ol.object.robot;
 	}
 

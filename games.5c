@@ -352,19 +352,35 @@ extend namespace Server {
 		return;
 	    }
 
+	    /*
+	     * Move robots to finish positions.  First, remove them from the
+	     * board
+	     */
 	    Track::Loc	loc = Track::new();
+	    for (int i = 0; i < dim (g.done_robots); i++)
+	    {
+		Color	    color = g.done_robots[i].object.robot.robot.color;
+		int	    x = g.done_robots[i].x;
+		int	    y = g.done_robots[i].y;
+		ObjectLoc   now = Boards::find_robot (&g.board, color);
+		
+		g.board[now.x,now.y].robot = RobotOrNone.none;
+		if (now.x != x || now.y != y)
+		    Track::note (&loc, color, x, y);
+	    }
+
+	    /*
+	     * Now reposition them in the new spots
+	     */
 	    for (int i = 0; i < dim (g.done_robots); i++)
 	    {
 		Color	color = g.done_robots[i].object.robot.robot.color;
 		int	x = g.done_robots[i].x;
 		int	y = g.done_robots[i].y;
-		ObjectLoc   now = Boards::find_robot (&g.board, color);
-		if (now.x != x || now.y != y)
-		{
-		    Track::note (&loc, color, x, y);
-		    Boards::position_robot (&g.board, color, x, y);
-		}
+		
+		g.board[x,y].robot = g.done_robots[i].object.robot;
 	    }
+	    
 	    g.target = g.targets[0];
 	    g.targets = (Target[dim(g.targets)-1]) { [i] = g.targets[i+1] };
 	    g.history = (ObjectLoc[*]) {};
