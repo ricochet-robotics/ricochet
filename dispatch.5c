@@ -130,6 +130,12 @@ extend namespace Server {
 		"Watch an existing game.\n"
 	    },
 	    {
+		command = "DISPOSE",
+		usage = "DISPOSE <game>",
+		describe =
+		"Dispose an empty game.\n"
+	    },
+	    {
 		command = "SHOW",
 		usage = "SHOW",
 		describe =
