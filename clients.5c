@@ -49,14 +49,6 @@ extend namespace Server {
 	    Clients::iterate (message_client);
 	}
 
-	public void game_send (&Game g, string fmt, poly args...) {
-	    void	message_client (&Client o) {
-		if (o.game == (GameRef.game) (&g))
-		    client_send (&o, fmt, args...);
-	    }
-	    Clients::iterate (message_client);
-	}
-
 	public &Client select (file f) {
 	    exception found (&Client c);
 	    try {
@@ -92,12 +84,18 @@ extend namespace Server {
 				    user = User.none, 
 				    game = GameRef.none,
 				    score = 0,
+				    bid = Bid.none,
+				    playing = false
 				  }));
 	    return &clients[dim(clients)-1];
 	}
 
 	public void dispose (&Client c) {
+	    printf ("Client closed %v\n", c.user);
+	    if (c.user != User.none)
+		Clients::server_send ("NOTICE QUIT %s\n", c.user.username);
 	    Array::remove (&clients, &c);
+	    File::close (c.f);
 	}
 
 	public void print (&Client c) {

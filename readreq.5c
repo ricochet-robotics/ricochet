@@ -78,10 +78,25 @@ extend namespace Server {
 	    case "GAMES":
 		req = Request.GAMES;
 		break;
-	    case "USERS":
+	    case "PLAYERS":
 		packet = (struct { string game; }) {};
 		game_ (&packet);
-		req = (Request.USERS) packet;
+		req = (Request.PLAYERS) packet;
+		break;
+	    case "WATCHERS":
+		packet = (struct { string game; }) {};
+		game_ (&packet);
+		req = (Request.WATCHERS) packet;
+		break;
+	    case "GAMEINFO":
+		packet = (struct { string game; }) {};
+		game_ (&packet);
+		req = (Request.GAMEINFO) packet;
+		break;
+	    case "USERINFO":
+		packet = (struct { string username; }) {};
+		username_ (&packet);
+		req = (Request.USERINFO) packet;
 		break;
 	    case "NEW":
 		packet = (struct { string game; }) {};
@@ -106,6 +121,9 @@ extend namespace Server {
 		number_ (&packet);
 		req = (Request.BID) packet;
 		break;
+	    case "REVOKE":
+		req = Request.REVOKE;
+		break;
 	    case "MOVE":
 		packet = (struct { Color color; Direction direction; }) {};
 		color_ (&packet);
@@ -129,23 +147,36 @@ extend namespace Server {
 		text_ (&packet);
 		req = (Request.MESSAGE) packet;
 		break;
+	    case "PART":
+		req = Request.PART;
+		break;
 	    case "QUIT":
 		req = Request.QUIT;
 		break;
 	    case "":
 		raise request_closed ();
 	    default:
-		raise invalid_request (w);
+		raise error (Error.COMMAND);
 	    }
 	    if (!eol (f))
-		raise syntax ();
+		raise error (Error.SYNTAX);
 	    return req;
 	}
 
 	public Request read (file f) {
-	    twixt (unlock (); lock ())
-		twixt (true; skipline (f))
-		    return read_unlocked (f);
+	    try {
+		twixt (unlock (); lock ())
+		    twixt (true; skipline (f))
+			return read_unlocked (f);
+	    } catch RR::Lex::syntax() {
+		raise error (Error.SYNTAX);
+	    } catch RR::Lex::invalid_color (string color) {
+		raise error (Error.NOTCOLOR);
+	    } catch RR::Lex::invalid_shape (string shape) {
+		raise error (Error.NOTSHAPE);
+	    } catch RR::Lex::invalid_direction (string direction) {
+		raise error (Error.NOTDIRECTION);
+	    } 
 	    raise notreached ();
 	}
     }

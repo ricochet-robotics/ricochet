@@ -67,18 +67,18 @@ extend namespace Server {
 	    void assert_user ()
 	    {
 		if (c.user == User.none)
-		    raise nonameset ();
+		    raise error (Error.NONAMESET);
 	    }
 
 	    void assert_game ()
 	    {
 		if (c.game == GameRef.none)
-		    raise notingame ();
+		    raise error (Error.NOTINGAME);
 	    }
 		
 	    void	helo (string username) {
 		if (Clients::find (username) != ClientRef.none)
-		    raise invalidname ();
+		    raise error (Error.INVALIDNAME);
 		c.user.username = username;
 		respond ("HELO %s\n", server_id);
 		Clients::server_send ("NOTICE USER %s\n", username);
@@ -100,12 +100,27 @@ extend namespace Server {
 		respond ("\n");
 	    }
 
-	    void	users(string game) {
+	    void	players(string game) {
 		assert_user ();
 		&Game	g = Games::find (game);
-		respond ("USERS");
-		Games::iterate_client (&g, print_client_score);
+		respond ("PLAYERS");
+		Games::iterate_client (&g, print_client_score, true, false);
 		respond ("\n");
+	    }
+
+	    void	watchers(string game) {
+		assert_user ();
+		&Game	g = Games::find (game);
+		respond ("WATCHERS");
+		Games::iterate_client (&g, print_client_score, false, true);
+		respond ("\n");
+	    }
+
+	    void	new(string game) {
+		assert_user ();
+		&Game g = Games::new (game);
+		Games::add_client (&g, &c, true);
+		respond ("NEW %s\n", g.name);
 	    }
 
 	    void	join (string game) {
@@ -115,14 +130,13 @@ extend namespace Server {
 		respond ("JOIN\n");
 	    }
 	    
-	    void	new(string game) {
+	    void	watch (string game) {
 		assert_user ();
-		&Game g =Games::new (game);
+		&Game g = Games::find (game);
 		Games::add_client (&g, &c, false);
-		respond ("NEW %s\n", g.name);
-		Clients::server_send ("NOTICE NEW %s\n", g.name);
+		respond ("WATCH\n");
 	    }
-
+	    
 	    void	show () {
 		assert_user ();
 		assert_game ();
@@ -136,6 +150,13 @@ extend namespace Server {
 		assert_game ();
 		Games::bid (&c.game.game, &c, number);
 		respond ("BID\n");
+	    }
+
+	    void	revoke () {
+		assert_user ();
+		assert_game ();
+		Games::revoke (&c.game.game, &c);
+		respond ("REVOKE\n");
 	    }
 
 	    void	move (Color color, Direction direction) {
@@ -180,6 +201,13 @@ extend namespace Server {
 		Clients::server_send ("NOTICE MESSAGE %s %s\n", u, text);
 	    }
 
+	    void	part () {
+		assert_user ();
+		assert_game ();
+		Games::remove_client (&c);
+		respond ("PART\n");
+	    }
+	    
 	    void	quit () {
 		respond ("QUIT\n");
 		raise Readreq::request_closed();
@@ -202,8 +230,17 @@ extend namespace Server {
 		    case GAMES:
 			games ();
 			break;
-		    case USERS u:
-			users (u.game);
+		    case PLAYERS p:
+			players (p.game);
+			break;
+		    case WATCHERS w:
+			watchers (w.game);
+			break;
+		    case GAMEINFO g:
+#			gameinfo (g.game);
+			break;
+		    case USERINFO u:
+#			userinfo (u.username);
 			break;
 		    case NEW n:
 			new (n.game);
@@ -212,13 +249,16 @@ extend namespace Server {
 			join (j.game);
 			break;
 		    case WATCH w:
-#			watch (w.game);
+			watch (w.game);
 			break;
 		    case SHOW:
 			show ();
 			break;
 		    case BID b:
 			bid (b.number);
+			break;
+		    case REVOKE:
+			revoke ();
 			break;
 		    case MOVE m:
 			move (m.color, m.direction);
@@ -238,62 +278,32 @@ extend namespace Server {
 		    case MESSAGE m:
 			message (m.text);
 			break;
+		    case PART:
+			part ();
+			break;
 		    case QUIT:
 			quit ();
 			break;
 		    }
-		} catch Readreq::invalid_request (string w) {
-		    respond ("ERROR COMMAND %s\n", w);
-		} catch RR::Lex::syntax() {
-		    respond ("ERROR SYNTAX\n");
-		} catch RR::Lex::invalid_color (string color) {
-		    respond ("ERROR NOTCOLOR %s\n", color);
-		} catch RR::Lex::invalid_shape (string shape) {
-		    respond ("ERROR NOTSHAPE %s\n", shape);
-		} catch RR::Lex::invalid_direction (string direction) {
-		    respond ("ERROR NOTDIRECTION %s\n", direction);
-		} catch Games::notactive (&Game g, &Client c) {
-		    respond ("ERROR NOTACTIVE\n");
-		} catch notingame () {
-		    respond ("ERROR NOTINGAME\n");
-		} catch Games::no_such_game (string name) {
-		    respond ("ERROR NOGAME\n");
-		} catch nonameset () {
-		    respond ("ERROR NONAMESET\n");
-		} catch invalidname () {
-		    respond ("ERROR INVALIDNAME\n");
-		} catch Games::notbidding (&Game g) {
-		    respond ("ERROR NOTBIDDING\n");
-		} catch Games::toomanymoves (&Game g, &Client c) {
-		    respond ("ERROR TOOMANYMOVES\n");
-		} catch Games::blocked (&Game g, &Client c) {
-		    respond ("ERROR BLOCKED\n");
-		} catch Games::notlower (&Game g, &Client c, int bid) {
-		    respond ("ERROR NOTLOWER\n");
+		} catch error (Error e) {
+		    respond ("ERROR %E\n", e);
 		} catch Readreq::request_closed () {
-		    User user = c.user;
-		    printf ("Client closed %v\n", c.user);
-		    Clients::dispose (&c);
-		    if (c.user != User.none)
-			Clients::server_send ("NOTICE PART %s\n", c.user.username);
 		    return;
 		}
 	    }
 	}
 
 	void client_cleanup (&Client c) {
-	    if (c.game != GameRef.none)
-		Games::remove_client (&c.game.game, &c);
+	    Games::remove_client (&c);
 	    Clients::dispose (&c);
 	}
 	
 	public void client (file f)
 	{
-    	    twixt (true; File::close (f))
-		twixt (lock (); unlock ())
-		    twixt ((&Client c = Clients::new (f)), true;
-			   client_cleanup (&c))
-			client_locked (f, &c);
+	    twixt (lock (); unlock ())
+		twixt ((&Client c = Clients::new (f)), true;
+		       client_cleanup (&c))
+		    client_locked (f, &c);
 	}
     }
 }

@@ -63,13 +63,21 @@ Document Conventions
 
 	GAMES <game1> <game2> ...
 
-1.4. Listing users in a game
+1.4. Listing players in a game
 
-	USERS <game>
+	PLAYERS <game>
 
 	->
 
-	USERS <username1> <score1> <username2> <score2> ...
+	PLAYERS <username1> <score1> <username2> <score2> ...
+
+1.5. Listing watchers of a game
+
+	WATCHERS <game>
+
+	->
+
+	WATCERS <username1> <username2> ...
 
 1.5. Get game information
 
@@ -195,7 +203,17 @@ Document Conventions
 
 	Possible errors: NOTINGAME, NOTBIDDING, NOTNUMBER, NOTLOWER
 
-1.12. Move
+1.12. Revoke
+
+	REVOKE
+
+	->
+
+	REVOKE
+
+	Possible errors: NOTINGAME, NOTBIDDING, NOBID
+
+1.13. Move
 
 	MOVE <color> <dir>
 
@@ -208,7 +226,7 @@ Document Conventions
 
 	Possible errors: NOTINGAME, NOTACTIVE, BLOCKED, TOOMANYMOVES
 
-1.13. Undo
+1.14. Undo
 
 	UNDO
 
@@ -222,7 +240,7 @@ Document Conventions
 
 	XXX: Do we add another error code for no further undo?
 
-1.14. Reset
+1.15. Reset
 
 	RESET
 
@@ -234,7 +252,7 @@ Document Conventions
 
 	Possible errors: NOTINGAME, NOTACTIVE
 
-1.14. Next turn
+1.16. Next turn
 
 	TURN
 
@@ -254,7 +272,7 @@ Document Conventions
 
 	Possible errors: NOTINGAME
 
-1.15. Pass the bid to the next lowest bidder
+1.17. Pass the bid to the next lowest bidder
 
 	PASS
 
@@ -264,7 +282,7 @@ Document Conventions
 
 	Possible errors: NOTINGAME
 
-1.16. Message
+1.18. Message
 
 	MESSAGE <text>
 
@@ -274,7 +292,7 @@ Document Conventions
 
 	Possible errors: NOTINGAME
 
-1.17. Part
+1.19. Part
 
 	PART
 
@@ -284,7 +302,7 @@ Document Conventions
 
 	Departs the current game
 
-1.17. Quit
+1.20. Quit
 
 	QUIT
 
@@ -329,39 +347,43 @@ Document Conventions
 
 	NOTICE BID <username> <number>
 
-2.7. Timer (game)
+2.7. Revoke (game)
+
+	NOTICE REVOKE <username>
+
+2.8. Timer (game)
 
 	NOTICE TIME <seconds>
 
 	Timer ticks are sent every 10 seconds
 
-2.8. Select active player (game)
+2.9. Select active player (game)
 
 	NOTICE ACTIVE <username> <bid>
 
 	Only the active player may move the robots
 
-2.9. Game state change
+2.10. Game state change
 
 	NOTICE GAMESTATE <state>
 
-2.9. Undo (game)
+2.11. Undo (game)
 
 	NOTICE UNDO
 
-2.11. Reset (game)
+2.12. Reset (game)
 
 	NOTICE RESET
 
-2.12. Next turn (game)
+2.13. Next turn (game)
 
 	NOTICE TURN <color> <shape>
 
-2.13. Message (all)
+2.14. Message (all)
 
 	NOTICE MESSAGE <username> <text>
 
-2.14. Abandon request (game)
+2.15. Abandon request (game)
 
 	NOTICE ABANDON <username>
 
@@ -372,7 +394,15 @@ Document Conventions
 	selected with the robots reset to their position before the
 	turn started.
 
-2.15. User departed game (game)
+2.16. Join game (game)
+
+	NOTICE JOIN <username>
+
+2.17. Watch game (game)
+
+	NOTICE WATCH <username>
+
+2.18. User departed game (game)
 
 	NOTICE PART <username>
 
@@ -412,7 +442,15 @@ Document Conventions
 
 	Possibly returned by: BID
 
-3.4. Not active
+3.4. No bid
+
+	ERROR NOBID
+
+	A revoke was requested when no bid had been entered
+
+	Possibly returned by: REVOKE
+
+3.5. Not active
 
 	ERROR NOTACTIVE
 
@@ -421,19 +459,71 @@ Document Conventions
 	
 	Possibly returned by: MOVE, RESET, UNDO
 
-3.5. Not number
+3.6. Not number
 
 	ERROR NOTNUMBER
 
 	A non-numeric value was supplied where a number was required
 	
-3.6. Blocked
+3.7. Blocked
 
 	ERROR BLOCKED
 
 	The robot cannot move the requested direction.
 
 	Possibly returned by: MOVE
+
+3.8. TOOMANYMOVES
+
+	ERROR TOOMANYMOVES
+
+	An attempt was made to make more moves than the users bid
+
+	Possibly returned by: MOVE
+
+3.8. Command
+
+	ERROR COMMAND
+
+	An invalid command was specified
+
+3.9. Syntax
+
+	ERROR SYNTAX
+
+	A syntax error was detected
+
+3.10. Not color
+
+	ERROR NOTCOLOR
+
+	The color name specified in the command was invalid
+
+3.11. Not shape
+
+	ERROR NOTSHAPE
+
+	The shape name specified in the command was invalid
+
+3.12. Not direction
+
+	ERROR NOTDIRECTION
+
+	The direction name specified in the command was invalid
+
+3.13. No name set
+
+	ERROR NONAMESET
+
+	'helo' must be sent before any command other than 'quit'.
+
+3.14. Invalid name
+
+	ERROR INVALIDNAME
+
+	All names must be unique.
+
+
 
 Some comments/questions
 -----------------------

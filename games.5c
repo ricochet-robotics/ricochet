@@ -40,17 +40,14 @@ extend namespace Server {
 	    Array::remove (&games, &g);
 	}
 	
+	/* iterate over the available games */
 	public void iterate (void (&Game g) f) {
 	    Array::iterate (&games, f);
 	}
     
 	public exception no_such_game (string name);
-	public exception notactive (&Game g, &Client c);
-	public exception notbidding (&Game g);
-	public exception notlower (&Game g, &Client c, int bid);
-	public exception toomanymoves (&Game g, &Client c);
-	public exception blocked (&Game g, &Client c);
 	
+	/* find a game by name */
 	public &Game find (string name) {
 	    exception	found (&Game g);
 	    try {
@@ -77,28 +74,160 @@ extend namespace Server {
 	    return false;
 	}
 
-	public void remove_client (&Game g, &Client c) {
-	    if (g.active == (ClientRef.client) (&c))
-		g.active = ClientRef.none;
-	    Array::remove (&g.clients, &c);
+	/* list clients associated with a game */
+	public void iterate_client (&Game g, void (&Client c) f, 
+				    bool playing, bool watching) {
+	    void pick (&Client c) {
+		if ((playing && c.playing) || (watching && !c.playing))
+		    f (&c);
+	    }
+	    Array::iterate (&g.clients, pick);
 	}
 
+	public void game_send (&Game g, string fmt, poly args...) {
+	    void	message_client (&Client o) {
+		Clients::client_send (&o, fmt, args...);
+	    }
+	    iterate_client (&g, message_client, true, true);
+	}
+
+	bool any_bids (&Game g) {
+	    bool    any = false;
+	    void bid_set (&Client c) {
+		if (c.bid != Bid.none)
+		    any = true;
+	    }
+	    iterate_client (&g, bid_set, true, false);
+	    return any;
+	}
+
+	ClientRef lowest_bidder (&Game g) {
+	    Bid		min = Bid.none;
+	    ClientRef	min_client = ClientRef.none;
+	    void lower_bid (&Client c) {
+		union switch (c.bid) {
+		case none:
+		    break;
+		case number n:
+		    if (min == Bid.none || min.number > n)
+		    {
+			min = (Bid.number) n;
+			min_client = (ClientRef.client) (&c);
+		    }
+		    break;
+		}
+	    }
+	    iterate_client (&g, lower_bid, true, false);
+	    return min_client;
+	}
+
+	void set_active (&Game g) {
+	    ClientRef	active = lowest_bidder (&g);
+
+	    if (active != g.active) {
+		g.active = active;
+		union switch (active) {
+		case none:
+		    break;
+		case client c:
+		    game_send (&g, "NOTICE ACTIVE %s %d\n",
+			       c.user.username, c.bid.number);
+		    break;
+		}
+	    }
+	}
+
+	void set_state (&Game g, GameState state) {
+	    g.state = state;
+	    game_send (&g, "NOTICE GAMESTATE %G\n", state);
+	    switch (state) {
+	    case GameState.Bidding:
+		int timer_serial = ++g.timer_serial;
+		
+		bool validate () {
+		    if (g.state != GameState.Bidding || 
+			g.timer_serial != timer_serial)
+			    return false;
+		    return true;
+		}
+		
+		void notify (int remain) {
+		    game_send (&g, "NOTICE TIMER %d\n", remain);
+		}
+
+		void expire () {
+		    set_state (&g, GameState.Showing);
+		}
+
+		Timer::start (60, 10, lock, unlock, validate, notify, expire);
+		break;
+	    case GameState.Showing:
+		set_active (&g);
+		break;
+	    }
+	}
+
+	/* remove a client from any game */
+	public void remove_client (&Client c) {
+	    if (c.game == GameRef.none)
+		return;
+	    &Game g = &c.game.game;
+	    Array::remove (&g.clients, &c);
+	    game_send (&g, "NOTICE PART %s\n", c.user.username);
+	    /* correct the state if necessary */
+	    switch (g.state) {
+	    case GameState.New:
+		break;
+	    case GameState.Bidding:
+		if (!any_bids (&g))
+		    set_state (&g, GameState.New);
+		break;
+	    case GameState.Showing:
+		set_active (&g);
+		if (g.active == ClientRef.none)
+		    set_state (&g, GameState.New);
+		break;
+	    case GameState.Solved:
+		break;
+	    }
+	}
+
+	/* add a client to a game */
 	public &Client add_client (&Game g, &Client c, bool playing) {
-	    if (c.game != GameRef.none)
-		remove_client (&c.game.game, &c);
+	    remove_client (&c);
 	    c.game = (GameRef.game) (&g);
 	    c.playing = playing;
 	    c.score = 0;
 	    c.bid = Bid.none;
 	    Array::append (&g.clients, &c);
-	    Clients::game_send (&g, "NOTICE %s %s %s\n", 
-				playing ? "JOIN" : "WATCH",
-				g.name, c.user.username);
+	    game_send (&g, "NOTICE %s %s\n", 
+		       playing ? "JOIN" : "WATCH",
+		       c.user.username);
 	    return &c;
 	}
 
-	public void iterate_client (&Game g, void (&Client c) f) {
-	    Array::iterate (&g.clients, f);
+	/* select the next target */
+	void next_target (&Game g) {
+	    /* score */
+	    if (g.active != ClientRef.none && Boards::solved (&g.board))
+		g.active.client.score++;
+
+	    Target  t = g.targets[0];
+	    g.targets = (Target[dim(g.targets)-1]) { [i] = g.targets[i+1] };
+	    g.history = (ObjectLoc[*]) {};
+	    g.time = Time.none;
+	    g.state = GameState.New;
+	    Boards::set_target (&g.board, t.color, t.shape);
+
+	    void reset_client (&Client c) {
+		c.bid = Bid.none;
+	    }
+	    iterate_client (&g, reset_client, true, false);
+	    game_send (&g, "NOTICE TURN %C %S\n", t.color, t.shape);
+	}
+
+	public void next_turn (&Game g) {
+	    next_target (&g);
 	}
 
 	Target[*] random_targets () {
@@ -123,25 +252,6 @@ extend namespace Server {
 	    return t;
 	}
 	    
-	void next_target (&Game g) {
-	    Target  t = g.targets[0];
-	    g.targets = (Target[dim(g.targets)-1]) { [i] = g.targets[i+1] };
-	    g.history = (ObjectLoc[*]) {};
-	    g.time = Time.none;
-	    g.state = GameState.New;
-	    Boards::set_target (&g.board, t.color, t.shape);
-
-	    void reset_client (&Client c) {
-		c.bid = Bid.none;
-	    }
-	    iterate_client (&g, reset_client);
-	    Clients::game_send (&g, "NOTICE TURN %C %S\n", t.color, t.shape);
-	}
-
-	public void next_turn (&Game g) {
-	    next_target (&g);
-	}
-
 	public &Game new (string suggestion) {
 	    string name;
 	    for (int n = 0; 
@@ -157,6 +267,7 @@ extend namespace Server {
 	    g.active = ClientRef.none;
 	    g.timer_serial = 0;
 	    next_target (&g);
+	    Clients::server_send ("NOTICE NEW %s\n", g.name);
 	    return &g;
 	}
 
@@ -166,7 +277,7 @@ extend namespace Server {
 
 	void assert_active (&Game g, &Client c) {
 	    if (g.active != (ClientRef.client) (&c))
-		raise notactive (&g, &c);
+		raise error (Error.NOTACTIVE);
 	}
 	
 	void undo_move (&Game g)
@@ -181,7 +292,7 @@ extend namespace Server {
 	    if (dim (g.history) > 0)
 	    {
 		undo_move (&g);
-		Clients::game_send (&g, "NOTICE UNDO\n");
+		game_send (&g, "NOTICE UNDO\n");
 	    }
 	}
 
@@ -189,71 +300,7 @@ extend namespace Server {
 	    assert_active (&g, &c);
 	    while (dim (g.history) > 0)
 		undo (&g, &c);
-	    Clients::game_send (&g, "NOTICE RESET\n");
-	}
-
-	ClientRef lowest_bidder (&Game g) {
-	    Bid		min = Bid.none;
-	    ClientRef	min_client = ClientRef.none;
-	    void lower_bid (&Client c) {
-		union switch (c.bid) {
-		case none:
-		    break;
-		case number n:
-		    if (min == Bid.none || min.number > n)
-		    {
-			min = (Bid.number) n;
-			min_client = (ClientRef.client) (&c);
-		    }
-		    break;
-		}
-	    }
-	    iterate_client (&g, lower_bid);
-	    return min_client;
-	}
-
-	void set_active (&Game g) {
-	    g.active = lowest_bidder (&g);
-
-	    union switch (g.active) {
-	    case none:
-		break;
-	    case client c:
-		Clients::game_send (&g, "NOTICE ACTIVE %s %d\n",
-				    c.user.username, c.bid.number);
-		break;
-	    }
-	}
-
-	void set_state (&Game g, GameState state) {
-	    g.state = state;
-	    Clients::game_send (&g, "NOTICE GAMESTATE %G\n", state);
-	    switch (state) {
-	    case GameState.Bidding:
-		int timer_serial = ++g.timer_serial;
-		
-		bool validate () {
-		    if (g.state != GameState.Bidding || 
-			g.timer_serial != timer_serial)
-			    return false;
-		    return true;
-		}
-		
-		void notify (int remain) {
-		    Clients::game_send (&g, "NOTICE TIMER %d\n",
-					remain);
-		}
-
-		void expire () {
-		    set_state (&g, GameState.Showing);
-		}
-
-		Timer::start (60, 10, lock, unlock, validate, notify, expire);
-		break;
-	    case GameState.Showing:
-		set_active (&g);
-		break;
-	    }
+	    game_send (&g, "NOTICE RESET\n");
 	}
 
 	public void bid (&Game g, &Client c, int number) {
@@ -264,15 +311,23 @@ extend namespace Server {
 		break;
 	    case GameState.Showing:
 	    case GameState.Solved:
-		raise notbidding (&g);
+		raise error (Error.NOTBIDDING);
 		break;
 	    }
 	    /*
 	    if (c.bid != Bid.none && c.bid.number <= number)
-		raise notlower (&g, &c, number);
+		raise error (Error.NOTLOWER);
 	     */
 	    c.bid = (Bid.number) number;
-	    Clients::game_send (&g, "NOTICE BID %s %d\n", c.user.username, number);
+	    game_send (&g, "NOTICE BID %s %d\n", c.user.username, number);
+	}
+
+	public void revoke (&Game g, &Client c) {
+	    if (c.bid == Bid.none)
+		raise error (Error.NOBID);
+	    c.bid = Bid.none;
+	    if (!any_bids(&g))
+		set_state (&g, GameState.New);
 	}
 	
 	public int count (&Game g) {
@@ -282,15 +337,14 @@ extend namespace Server {
 	public void move (&Game g, &Client c, Color color, Direction dir) {
 	    assert_active (&g, &c);
 	    if (count (&g) >= c.bid.number)
-		raise toomanymoves (&g, &c);
+		raise error (Error.TOOMANYMOVES);
 	    ObjectLoc	src = Boards::find_robot (&g.board, color);
 	    ObjectLoc	dst = Boards::move_robot (&g.board, color, dir);
 	    if (src == dst)
-		raise blocked (&g, &c);
+		raise error (Error.BLOCKED);
 	    Array::push (&g.history, src);
 	    Boards::position_robot (&g.board, color, dst.x, dst.y);
-	    Clients::game_send (&g, "NOTICE MOVE %d %C %D\n",
-				Games::count (&g), color, dir);
+	    game_send (&g, "NOTICE MOVE %d %C %D\n", count (&g), color, dir);
 	    if (Boards::solved (&g.board))
 		set_state (&g, GameState.Solved);
 	}

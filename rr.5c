@@ -74,36 +74,47 @@ namespace RR {
     public typedef union {
 	struct {
 	    string	username;
-	}	    HELO;
+	}	HELO;
 	void    WHO;
 	void    GAMES;
 	struct {
 	    string	game;
-	}	    USERS;
+	}	PLAYERS;
 	struct {
 	    string	game;
-	}	    NEW;
+	}	WATCHERS;
 	struct {
 	    string	game;
-	}	    JOIN;
+	}	GAMEINFO;
+	struct {
+	    string	username;
+	}	USERINFO;
 	struct {
 	    string	game;
-	}	    WATCH;
+	}	NEW;
+	struct {
+	    string	game;
+	}	JOIN;
+	struct {
+	    string	game;
+	}	WATCH;
 	void    SHOW;
 	struct {
 	    int	number;
-	}	    BID;
+	}	BID;
+	void	REVOKE;
 	struct {
 	    Color	color;
 	    Direction   direction;
-	}	    MOVE;
+	}	MOVE;
 	void    UNDO;
 	void    RESET;
 	void    TURN;
 	void    PASS;
 	struct {
 	    string	text;
-	}	    MESSAGE;
+	}	MESSAGE;
+	void	PART;
 	void	QUIT;
     } Request;
 
@@ -163,6 +174,9 @@ namespace RR {
 	    string	username;
 	}	BID;
 	struct {
+	    string	username;
+	}	REVOKE;
+	struct {
 	    int	seconds;
 	}	TIME;
 	struct {
@@ -183,10 +197,23 @@ namespace RR {
 	}	ABANDON;
     } Notice;
 
-    public typedef union {
-	void    NOGAME;
-	void    TIMEOUT;
-	void    NOTACTIVE;
+    public typedef enum {
+	NOGAME,
+	NOTINGAME,
+	NOTBIDDING,
+	NOTLOWER,
+	NOBID,
+	NOTACTIVE,
+	NOTNUMBER,
+	BLOCKED,
+	COMMAND,
+	SYNTAX,
+	NOTCOLOR,
+	NOTSHAPE,
+	NOTDIRECTION,
+	TOOMANYMOVES,
+	NONAMESET,
+	INVALIDNAME
     } Error;
 
     public typedef union {

@@ -37,6 +37,8 @@ namespace Server {
 
     public void set_server_id (string id) { server_id = id; }
 
+    public exception error (Error e);
+
     public bool lock () {
 	Mutex::acquire (server_mutex);
 #	printf ("lock %v\n", Thread::current());

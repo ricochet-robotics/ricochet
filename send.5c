@@ -98,6 +98,27 @@ extend namespace RR {
 		}
 	    }
 
+	    void put_error (Error e) {
+		switch (e) {
+		case Error.NOGAME:	File::fprintf (f, "NOGAME"); break;
+		case Error.NOTINGAME:	File::fprintf (f, "NOTINGAME"); break;
+		case Error.NOTBIDDING:	File::fprintf (f, "NOTBIDDING"); break;
+		case Error.NOTLOWER:	File::fprintf (f, "NOTLOWER"); break;
+		case Error.NOBID:	File::fprintf (f, "NOBID"); break;
+		case Error.NOTACTIVE:	File::fprintf (f, "NOTACTIVE"); break;
+		case Error.NOTNUMBER:	File::fprintf (f, "NOTNUMBER"); break;
+		case Error.BLOCKED:	File::fprintf (f, "BLOCKED"); break;
+		case Error.COMMAND:	File::fprintf (f, "COMMAND"); break;
+		case Error.SYNTAX:	File::fprintf (f, "SYNTAX"); break;
+		case Error.NOTCOLOR:	File::fprintf (f, "NOTCOLOR"); break;
+		case Error.NOTSHAPE:	File::fprintf (f, "NOTSHAPE"); break;
+		case Error.NOTDIRECTION:File::fprintf (f, "NOTDIRECTION"); break;
+		case Error.TOOMANYMOVES:File::fprintf (f, "TOOMANYMOVES"); break;
+		case Error.NONAMESET:	File::fprintf (f, "NONAMESET"); break;
+		case Error.INVALIDNAME:	File::fprintf (f, "INVALIDNAME"); break;
+		}
+	    }
+
 	    void put_number (int n) {
 		File::fprintf (f, "%d", n);
 	    }
@@ -185,6 +206,7 @@ extend namespace RR {
 		    case 'D':	put_direction (a); break;
 		    case 'S':	put_shape (a); break;
 		    case 'G':	put_gamestate (a); break;
+		    case 'E':	put_error (a); break;
 		    }
 		}
 		else
