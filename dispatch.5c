@@ -143,7 +143,7 @@ extend namespace Server {
 		    f = void func (string[] w) {
 			string game = w[0];
 			assert_user ();
-			&Game	g = Games::find (w[1]);
+			&Game	g = Games::find (game);
 			respond ("WATCHERS");
 			Games::iterate_client (&g, print_client, false, true);
 			respond ("\n");
