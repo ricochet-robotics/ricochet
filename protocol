@@ -85,7 +85,7 @@ Document Conventions
 
 	->
 
-	JOIN <username1> <username2> ...
+	JOIN
 
 	Possible errors: NOGAME
 
@@ -95,7 +95,7 @@ Document Conventions
 
 	->
 
-	WATCH <username1> <username2> ...
+	WATCH
 
 	The client will monitor the game, but not be listed in the
 	userlist nor be allowed to make moves.
