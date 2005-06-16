@@ -474,7 +474,7 @@ extend namespace Server {
 			 sprintf ("%s-%d", suggestion, n) : suggestion);
 		 n++)
 		 ;
-	    &Game g = insert ();
+	    &Game g = &insert ();
 	    g.name = name;
 	    g.clients = ((&Client)[*]) {};
 	    g.expire_interval = 60;

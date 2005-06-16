@@ -159,7 +159,7 @@ extend namespace Server {
 		    f = void func (string[] w) {
 			string game = w[0];
 			assert_user ();
-			&Game g = Games::find (game);
+			&Game g = &Games::find (game);
 			respond ("PLAYERS");
 			Games::iterate_client (&g, print_client_score, true, false);
 			respond ("\n");
@@ -173,7 +173,7 @@ extend namespace Server {
 		    f = void func (string[] w) {
 			string game = w[0];
 			assert_user ();
-			&Game	g = Games::find (game);
+			&Game	g = &Games::find (game);
 			respond ("WATCHERS");
 			Games::iterate_client (&g, print_client, false, true);
 			respond ("\n");
@@ -202,7 +202,7 @@ extend namespace Server {
 		    f = void func (string[] w) {
 			string game = w[0];
 			assert_user ();
-			&Game	g = Games::find (game);
+			&Game	g = &Games::find (game);
 
 			int	    turn = 17 - dim (g.targets);
 
@@ -288,7 +288,7 @@ extend namespace Server {
 		    f = void func (string[] w) {
 			string game=w[0];
 			assert_user ();
-			&Game g = Games::new (game);
+			&Game g = &Games::new (game);
 			Games::add_client (&g, &c, true);
 			respond ("NEW %s\n", g.name);
 		    }
@@ -301,7 +301,7 @@ extend namespace Server {
 		    f = void func (string[] w) {
 			string game=w[0];
 			assert_user ();
-			&Game g = Games::find (game);
+			&Game g = &Games::find (game);
 			Games::add_client (&g, &c, true);
 			respond ("JOIN\n");
 		    }
@@ -314,7 +314,7 @@ extend namespace Server {
 		    f = void func (string[] w) {
 			string game=w[0];
 			assert_user ();
-			&Game g = Games::find (game);
+			&Game g = &Games::find (game);
 			Games::add_client (&g, &c, false);
 			respond ("WATCH\n");
 		    }
@@ -327,7 +327,7 @@ extend namespace Server {
 		    f = void func (string[] w) {
 			string game=w[0];
 			assert_user ();
-			&Game g = Games::find (game);
+			&Game g = &Games::find (game);
 			Games::dispose (&g);
 			respond ("DISPOSE\n");
 		    }
@@ -610,12 +610,14 @@ extend namespace Server {
 		    for (i = 0; i < dim(commands); i++)
 			if (command == commands[i].command)
 			{
+			    void f(string[*]);
 			    try {
-				commands[i].f (args);
+				f = commands[i].f;
 			    } catch invalid_array_bounds (string s,
 							  poly a, poly i) {
 				raise rr_error (Error.SYNTAX);
 			    }
+			    f (args);
 			    break;
 			}
 		    if (i == dim(commands))
@@ -643,7 +645,7 @@ extend namespace Server {
 	public void client (file f)
 	{
 	    twixt (lock (); unlock ())
-		twixt ((&Client c = Clients::new (f)), true;
+		twixt ((&Client c = &Clients::new (f)), true;
 		       client_cleanup (&c))
 		    client_locked (f, &c);
 	}
