@@ -157,6 +157,8 @@ extend namespace Server {
 		    describe =
 		    "List players in the indicated game and their current score.\n",
 		    f = void func (string[] w) {
+		    	if (dim (w) == 0)
+			    raise rr_error (Error.SYNTAX);
 			string game = w[0];
 			assert_user ();
 			&Game g = &Games::find (game);
@@ -171,6 +173,8 @@ extend namespace Server {
 		    describe =
 		    "List users watching the indicated game.\n",
 		    f = void func (string[] w) {
+		    	if (dim (w) == 0)
+			    raise rr_error (Error.SYNTAX);
 			string game = w[0];
 			assert_user ();
 			&Game	g = &Games::find (game);
@@ -200,6 +204,8 @@ extend namespace Server {
 		    "<bid> is valid in all but NEW state where it's 0\n"+
 		    "<active> is valid in SHOW and SOLVED states, else it's \"\".\n",
 		    f = void func (string[] w) {
+		    	if (dim (w) == 0)
+			    raise rr_error (Error.SYNTAX);
 			string game = w[0];
 			assert_user ();
 			&Game	g = &Games::find (game);
@@ -250,6 +256,8 @@ extend namespace Server {
 		    "<bid> is either \"0\" indicating no bid or a number indicating\n"+
 		    "the users minimum bid.\n",
 		    f = void func (string[] w) {
+		    	if (dim (w) == 0)
+			    raise rr_error (Error.SYNTAX);
 			string username = w[0];
 			assert_user ();
 			ClientRef	cr = Clients::find (username);
@@ -286,6 +294,8 @@ extend namespace Server {
 		    "Create new game.  <game-suggestion> will be used to construct\n"+
 		    "the game name.\n",
 		    f = void func (string[] w) {
+		    	if (dim (w) == 0)
+			    raise rr_error (Error.SYNTAX);
 			string game=w[0];
 			assert_user ();
 			&Game g = &Games::new (game);
@@ -299,6 +309,8 @@ extend namespace Server {
 		    describe =
 		    "Join an existing game.\n",
 		    f = void func (string[] w) {
+		    	if (dim (w) == 0)
+			    raise rr_error (Error.SYNTAX);
 			string game=w[0];
 			assert_user ();
 			&Game g = &Games::find (game);
@@ -312,6 +324,8 @@ extend namespace Server {
 		    describe =
 		    "Watch an existing game.\n",
 		    f = void func (string[] w) {
+		    	if (dim (w) == 0)
+			    raise rr_error (Error.SYNTAX);
 			string game=w[0];
 			assert_user ();
 			&Game g = &Games::find (game);
@@ -325,6 +339,8 @@ extend namespace Server {
 		    describe =
 		    "Dispose an empty game.\n",
 		    f = void func (string[] w) {
+		    	if (dim (w) == 0)
+			    raise rr_error (Error.SYNTAX);
 			string game=w[0];
 			assert_user ();
 			&Game g = &Games::find (game);
@@ -380,6 +396,8 @@ extend namespace Server {
 		    describe =
 		    "Make a bid on the current turn.\n",
 		    f = void func (string[] w) {
+		    	if (dim (w) == 0)
+			    raise rr_error (Error.SYNTAX);
 			int number = string_to_integer (w[0]);
 			assert_user ();
 			assert_game ();
@@ -433,6 +451,8 @@ extend namespace Server {
 		    "Move the robot indicated by <color> in the indicated\n"+
 		    "sequence of directions.\n",
 		    f = void func (string[] w) {
+		    	if (dim (w) == 0)
+			    raise rr_error (Error.SYNTAX);
 			Color col = color(w[0]);
 			Direction[dim(w)-1] directions = { 
 			    [i] = direction(w[i+1]) 
@@ -509,6 +529,8 @@ extend namespace Server {
 		    describe =
 		    "Broadcast <text> to all users.\n",
 		    f = void func (string[] w) {
+		    	if (dim (w) == 0)
+			    raise rr_error (Error.SYNTAX);
 			assert_user ();
 			respond ("MESSAGE\n");
 			string text = w[0];
@@ -587,6 +609,8 @@ extend namespace Server {
 		    describe =
 		    "Negotiate protocol version.\n",
 		    f = void func (string[] w) {
+		    	if (dim (w) == 0)
+			    raise rr_error (Error.SYNTAX);
 			int version = min (string_to_integer (w[0],
 							      server_version));
 			c.version = version;
