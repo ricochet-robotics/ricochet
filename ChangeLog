@@ -1,9 +1,0 @@
-2005-06-16  Carl Worth  <cworth@cworth.org>
-
-	* dispatch.5c:
-	* games.5c: Track syntax change in nickle like so:
-		was: &Foo foo = make_foo ();
-		now: &Foo foo = &make_foo ();
-
-	* dispatch.5c: Extract function call from try block to let
-	unexpected exceptions to bubble out.

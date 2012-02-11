@@ -1,0 +1,72 @@
+/*
+ * Copyright © 2012 Keith Packard <keithp@keithp.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 2 of the License.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
+ */
+
+autoload Nichrome;
+autoload RR;
+autoload Client;
+autoload Client::Draw;
+
+extend namespace Nichrome {
+
+	public namespace RRboard {
+
+		import Client;
+		import RR;
+
+		public int	board_width = RR::Width * Draw::cell_width;
+		public int	board_height = RR::Height * Draw::cell_height;
+
+		public typedef widget_t + struct {
+			RR::Board	board;
+		} rrboard_widget_t;
+
+		void draw (cairo_t cr, &rrboard_widget_t widget) {
+			real	xinc = widget.geometry.width / board_width;
+			real	yinc = widget.geometry.height / board_height;
+
+			save(cr);
+			scale(cr, xinc, yinc);
+			for (int y = 0; y < RR::Height; y++)
+				for (int x = 0; x < RR::Width; x++)
+					Draw::draw(cr, x, y, widget.board[x,y]);
+			restore(cr);
+		}
+
+		void outline (cairo_t cr, &rrboard_widget_t widget) {
+			rectangle(cr, 0, 0, widget.geometry.width, widget.geometry.height);
+		}
+
+		void natural (cairo_t cr, &rrboard_widget_t widget) {
+			rectangle(cr, 0, 0, board_width, board_height);
+		}
+
+		public *rrboard_widget_t new(&nichrome_t nichrome) {
+			rrboard_widget_t	widget;
+
+			Widget::init(&nichrome, &widget);
+			widget.draw = draw;
+			widget.outline = outline;
+			widget.natural = natural;
+			widget.board = (RR::Board) { { { .robot = RobotOrNone.none,
+						       .target = TargetOrNone.none,
+						       .walls = { .left = false, .right = false,
+								  .above = false, .below = false } }
+						       ... } ... };
+			return &widget;
+		}
+	}
+}

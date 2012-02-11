@@ -1,0 +1,62 @@
+void
+bin_to_5cstring(file f)
+{
+	bool was_escape = false;
+	putchar ('"');
+	while (!File::end(f)) {
+		int c = File::getc (f);
+
+		if (Ctype::isprint (c) && c != '"' && (!Ctype::isdigit(c) || !was_escape)) {
+			printf ("%c", c);
+			was_escape = false;
+		} else {
+			was_escape = false;
+			switch (c) {
+			case '\n':
+				printf ("\\n");
+				break;
+			case '\t':
+				printf ("\\t");
+				break;
+			case '"':
+				printf ("\\\042");
+				break;
+			default:
+				printf ("\\%03o", c);
+				was_escape = true;
+			}
+		}
+	}
+	putchar('"');
+}
+
+public string filename(string path) 
+/*
+ * Return the file portion of 'path'
+ */
+{
+	int n = String::rindex(path, "/");
+	if (n == -1)
+		return path;
+	int len = String::length(path);
+	return String::substr(path, n+1, len-(n+1));
+}
+
+void
+main()
+{
+	printf("extend namespace Client {\n    public namespace SVG {\n");
+	for (int i = 1; i < dim(argv); i++) {
+		twixt (file f = File::open(argv[i], "r"); File::close(f)) {
+			string base = filename(argv[i]);
+			string name = String::split(base, ".")[0];
+			printf ("\tpublic string %s = ", name);
+			bin_to_5cstring(f);
+			printf (";\n");
+		}
+	}
+	printf ("   }\n}\n");
+}
+
+main();
+		       

@@ -1,0 +1,71 @@
+/*
+ * Copyright © 2012 Keith Packard <keithp@keithp.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 2 of the License.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
+ */
+
+autoload Client;
+autoload Client::Window;
+autoload ParseArgs;
+autoload RR;
+autoload Cairo;
+autoload Nichrome;
+autoload Nichrome::Button;
+autoload Nichrome::Box;
+autoload Nichrome::Label;
+autoload Nichrome::Toggle;
+autoload Nichrome::RRboard;
+
+extend namespace Client {
+
+	public namespace Main {
+		import Nichrome;
+		import RRboard;
+		import Box;
+		import RR;
+
+		string	host = "localhost";
+		int	port = RR::Port;
+		ParseArgs::argdesc argd = {
+			.args = {
+				{ .var = { .arg_string = &host },
+				  .abbr = 'h',
+				  .name = "host",
+				  .expr_name = "hostname",
+				  .desc = "server hostname"},
+				{ .var = { .arg_int = &port },
+				  .abbr = 'p',
+				  .name = "port",
+				  .expr_name = "port",
+				  .desc = "server port" }
+			},
+			.unknown = &(int user_argind),
+			.prog_name = "rrclient"
+		};
+
+		public void main () {
+			ParseArgs::parseargs(&argd, &argv);
+			&nichrome_t		ui = Nichrome::new("Ricochet Robots", board_width, board_height);
+			&rrboard_widget_t	rrboard = RRboard::new(&ui);
+			&box_t			box = Box::new (Box::dir_t.vertical,
+								Box::widget_item(&rrboard));
+			set_box(&ui, &box);
+			rrboard.board[0,0].robot = (RobotOrNone) { .robot = { .color = Color.Red, .active = false }};
+			rrboard.board[4,4].walls.left = true;
+			rrboard.board[5,5].target = (TargetOrNone) { .target = { .color = Color.Red, .shape = Shape.Triangle } };
+			main_loop(&ui);
+		}
+	}
+}
+

@@ -23,6 +23,7 @@
  */
 
 autoload RR
+autoload Mutex
 
 namespace Server {
 

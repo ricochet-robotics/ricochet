@@ -2,6 +2,6 @@
 
 Command::nickle_path = ".:" + Command::nickle_path;
 
-autoload Server::Main
+autoload Client::Main
 
-Server::Main::main();
+Client::Main::main();

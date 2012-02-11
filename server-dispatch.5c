@@ -654,6 +654,9 @@ extend namespace Server {
 		    File::fprintf (stderr, "%v: %s\n",
 				   c.user, msg);
 		    return;
+		} catch File::io_eof (file f) {
+		    File::fprintf (stderr, "%v: closed\n", c.user);
+		    return;
 		} catch closed () {
 		    File::fprintf (stderr, "%v: closed\n", c.user);
 		    return;

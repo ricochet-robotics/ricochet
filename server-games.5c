@@ -90,7 +90,7 @@ extend namespace Server {
 	    raise rr_error (Error.NOTACTIVE);
 	}
 
-	void assert_playing (&Game c, &Client c) {
+	void assert_playing (&Game g, &Client c) {
 	    if (!c.playing)
 		raise rr_error (Error.NOTPLAYING);
 	}

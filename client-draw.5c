@@ -1,0 +1,93 @@
+/*
+ * Copyright © 2012 Keith Packard <keithp@keithp.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 2 of the License.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
+ */
+
+autoload Cairo;
+autoload Client;
+autoload Client::SVG;
+
+extend namespace Client {
+
+	public namespace Draw {
+
+		import Cairo;
+		import Cairo::Rsvg;
+		import RR;
+
+		rsvg_t[2]	cell = { new_from_string(Client::SVG::cell1),
+					 new_from_string(Client::SVG::cell2) };
+
+		rsvg_t[Color]	robots = {
+			Color.Red => new_from_string(Client::SVG::robot_red),
+			Color.Blue => new_from_string(Client::SVG::robot_blue),
+			Color.Yellow => new_from_string(Client::SVG::robot_yellow),
+			Color.Green => new_from_string(Client::SVG::robot_green) };
+
+		rsvg_t[Color][Shape]	targets = {
+			Color.Red => {
+				Shape.Triangle => new_from_string(Client::SVG::target_red_triangle),
+				Shape.Triangle => new_from_string(Client::SVG::target_red_triangle),
+				Shape.Triangle => new_from_string(Client::SVG::target_red_triangle),
+				Shape.Triangle => new_from_string(Client::SVG::target_red_triangle),
+			} 
+		};
+
+		rsvg_t 		wall = new_from_string(Client::SVG::wall);
+
+		dimensions_t cell_dim  = get_dimensions(cell[0]);
+
+		public int cell_width = cell_dim.width;
+		public int cell_height = cell_dim.height;
+
+		public void draw (cairo_t cr, int x, int y, RR::Object object) {
+			save(cr);
+			translate(cr, x * cell_width, y * cell_height);
+
+			render(cell[x+y & 1], cr);
+
+			void draw_wall (bool doit, bool vertical, bool shift) {
+				if (!doit) return;
+				save(cr);
+				if (vertical)
+					rotate(cr, pi/2);
+				if (shift)
+					translate(cr, cell_width, 0);
+				render(wall, cr);
+				restore(cr);
+			}
+			draw_wall (object.walls.left, true, false);
+			draw_wall (object.walls.above, false, false);
+			draw_wall (object.walls.right, true, true);
+			draw_wall (object.walls.below, false, true);
+
+			union switch (object.target) {
+			case none:
+				break;
+			case target t:
+				render(targets[t.color][t.shape], cr);
+				break;
+			}
+			union switch(object.robot) {
+			case none:
+				break;
+			case robot r:
+				render(robots[r.color], cr);
+				break;
+			}
+			restore(cr);
+		}
+	}
+}

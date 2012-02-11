@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 10.0, SVG Export Plug-In . SVG Version: 3.0.0 Build 76)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.0//EN"    "http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd" [
+	<!ENTITY ns_flows "http://ns.adobe.com/Flows/1.0/">
+	<!ENTITY ns_svg "http://www.w3.org/2000/svg">
+	<!ENTITY ns_xlink "http://www.w3.org/1999/xlink">
+]>
+<svg  xmlns="&ns_svg;" xmlns:xlink="&ns_xlink;" xmlns:a="http://ns.adobe.com/AdobeSVGViewerExtensions/3.0/"
+	 width="32" height="32" viewBox="0 0 32 32" overflow="visible" enable-background="new 0 0 32 32" xml:space="preserve">
+	<g id="Layer_1">
+		<g>
+			<path fill="#FFFFFF" stroke="#B0AFAF" stroke-width="0.5" d="M9.667,26.914L3.393,16.046L9.667,5.177h12.55l6.274,10.869
+				l-6.274,10.868H9.667z"/>
+			<path fill="#D12A30" d="M10,26.364L4.06,16.074L10,5.784h11.882l5.941,10.29l-5.941,10.29H10z"/>
+			<path fill="none" stroke="#969595" stroke-width="0.4" d="M9.92,26.469L3.902,16.045L9.92,5.62h12.036l6.019,10.425
+				l-6.019,10.424H9.92z"/>
+			<path fill="none" stroke="#D4D3D3" stroke-width="0.3" d="M9.438,27.212L2.993,16.046L9.438,4.88H22.33l6.446,11.166
+				L22.33,27.212H9.438z"/>
+			<path fill="none" stroke="#D4D3D3" stroke-width="0.15" d="M10.009,26.304L4.088,16.046l5.921-10.259h11.843l5.922,10.259
+				l-5.922,10.258H10.009z"/>
+			<path opacity="0.2" fill="none" stroke="#000000" stroke-width="0.3" d="M10.177,26.006L4.43,16.05l5.748-9.956h11.498
+				l5.749,9.956l-5.749,9.956H10.177z"/>
+			<path fill="#FFFFFF" stroke="#7A7A7A" stroke-width="0.4" d="M15.965,30.451l-1.604-12.846L1.52,15.965l12.846-1.604
+				l1.641-12.842l1.604,12.846l12.842,1.641l-12.846,1.604L15.965,30.451z"/>
+			<path fill="none" stroke="#595959" stroke-width="0.1" d="M15.963,28.936L14.523,17.42L3.011,15.946l11.517-1.438l1.47-11.514
+				l1.44,11.517l11.512,1.474l-11.518,1.438L15.963,28.936z"/>
+			<path fill="none" stroke="#A8A8A8" stroke-width="0.15" d="M15.963,31.108L14.284,17.66L0.841,15.943l13.447-1.68l1.717-13.442
+				l1.679,13.449l13.443,1.716l-13.447,1.68L15.963,31.108z"/>
+			<path fill="none" d="M32,32H0V0h32V32z"/>
+			<path fill="none" stroke="#B5B5B5" stroke-width="0.1" d="M15.96,28.527l-1.388-11.158L3.42,15.95l11.157-1.399l1.43-11.153
+				l1.389,11.158l11.153,1.418L17.39,17.373L15.96,28.527z"/>
+		</g>
+	</g>
+</svg>
