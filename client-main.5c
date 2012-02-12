@@ -17,6 +17,8 @@
 
 autoload Client;
 autoload Client::Window;
+autoload Client::Link;
+autoload Client::Update;
 autoload ParseArgs;
 autoload RR;
 autoload Cairo;
@@ -37,6 +39,11 @@ extend namespace Client {
 
 		string	host = "localhost";
 		int	port = RR::Port;
+		string	name = "user";
+		string	game = "game";
+
+		*Link::link_t	link;
+
 		ParseArgs::argdesc argd = {
 			.args = {
 				{ .var = { .arg_string = &host },
@@ -48,7 +55,17 @@ extend namespace Client {
 				  .abbr = 'p',
 				  .name = "port",
 				  .expr_name = "port",
-				  .desc = "server port" }
+				  .desc = "server port" },
+				{ .var = { .arg_string = &name },
+				  .abbr = 'n',
+				  .name = "name",
+				  .expr_name = "username",
+				  .desc = "user name" },
+				{ .var = { .arg_string = &game },
+				  .abbr = 'g',
+				  .name = "game",
+				  .expr_name = "gamename",
+				  .desc = "proposed game name" },
 			},
 			.unknown = &(int user_argind),
 			.prog_name = "rrclient"
@@ -61,9 +78,20 @@ extend namespace Client {
 			&box_t			box = Box::new (Box::dir_t.vertical,
 								Box::widget_item(&rrboard));
 			set_box(&ui, &box);
-			rrboard.board[0,0].robot = (RobotOrNone) { .robot = { .color = Color.Red, .active = false }};
-			rrboard.board[4,4].walls.left = true;
-			rrboard.board[5,5].target = (TargetOrNone) { .target = { .color = Color.Red, .shape = Shape.Triangle } };
+
+			link = Link::new(host, port);
+
+			*Link::message_t r = Link::command(link, "helo %s\n", name);
+
+			*Link::message_t r = Link::command(link, "join %s\n", game);
+
+			if (r->type == "ERROR" && r->args[0] == "NOGAME")
+				*Link::message_t r = Link::command(link, "new %s\n", game);
+
+			*Link::message_t r = Link::command(link, "show\n");
+
+			Update::update(&(rrboard.board), r->args[0]);
+
 			main_loop(&ui);
 		}
 	}

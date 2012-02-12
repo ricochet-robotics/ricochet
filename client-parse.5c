@@ -1,0 +1,91 @@
+/*
+ * Copyright © 2012 Keith Packard
+ *
+ * Permission to use, copy, modify, distribute, and sell this software and its
+ * documentation for any purpose is hereby granted without fee, provided that
+ * the above copyright notice appear in all copies and that both that
+ * copyright notice and this permission notice appear in supporting
+ * documentation, and that the name of Keith Packard not be used in
+ * advertising or publicity pertaining to distribution of the software without
+ * specific, written prior permission.  Keith Packard makes no
+ * representations about the suitability of this software for any purpose.  It
+ * is provided "as is" without express or implied warranty.
+ *
+ * KEITH PACKARD DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * EVENT SHALL KEITH PACKARD BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+ * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
+ * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+autoload Client;
+
+extend namespace Client {
+	namespace Parse {
+		void skip_white(file f) {
+			while (!File::end(f)) {
+				int c = File::getc(f);
+				if (!Ctype::isblank(c)) {
+					File::ungetc(c, f);
+					return;
+				}
+			}
+		}
+
+		public exception server_gone();
+
+		bool end(file f) {
+			skip_white(f);
+			if (File::end(f))
+				raise server_gone();
+			int c = File::getc(f);
+			if (c == '\n')
+				return true;
+			File::ungetc(c, f);
+			return false;
+		}
+
+		string lex(file f) {
+			string token = "";
+			bool inquote = false;
+			bool inback = false;
+			while (!File::end(f)) {
+				int c = File::getc(f);
+
+				if (c == '\\') {
+					inback = true;
+					continue;
+				}
+				if (inback) {
+					inback = false;
+				} else if (inquote) {
+					if (c == '"') {
+						inquote = false;
+						continue;
+					}
+				} else {
+					if (c == '\n' || Ctype::isblank(c)) {
+						File::ungetc(c, f);
+						break;
+					}
+					if (c == '"') {
+						inquote = true;
+						continue;
+					}
+				}
+				token = token + String::new(c);
+			}
+			return token;
+		}
+
+		public string[*] reply(file f) {
+			string[...] ret = {};
+
+			while (!end(f))
+				ret[dim(ret)] = lex(f);
+			return ret;
+		}
+	}
+}

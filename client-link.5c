@@ -1,0 +1,115 @@
+/*
+ * Copyright © 2012 Keith Packard <keithp@keithp.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 2 of the License.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
+ */
+
+autoload Client;
+autoload Client::Parse;
+autoload Client::Net;
+autoload Mutex;
+autoload List;
+
+extend namespace Client {
+	public namespace Link {
+
+		public typedef List::list_t + struct {
+			string		type;
+			string[*]	args;
+		} message_t;
+
+		public typedef struct {
+			file		f;
+			string		host;
+			int		port;
+			List::list_t	replies;
+			semaphore	replies_sem;
+			List::list_t	notices;
+			semaphore	notices_sem;
+			Mutex::mutex	lock;
+			thread		reader;
+		} link_t;
+
+		void read_replies(&link_t l) {
+			try {
+				for (;;) {
+					string[*]	reply = Parse::reply(l.f);
+					if (dim(reply) == 0)
+						continue;
+					twixt (Mutex::acquire(l.lock); Mutex::release(l.lock)) {
+						message_t m = {
+							.type = reply[0],
+							.args = (string[dim(reply)-1]) { [i] = reply[i+1] }
+						};
+						if (m.type == "NOTICE") {
+							List::insert(&m, &l.notices);
+							Semaphore::signal(l.notices_sem);
+						} else {
+							List::insert(&m, &l.replies);
+							Semaphore::signal(l.replies_sem);
+						}
+					}
+				}
+			} catch Thread::signal(int sig) {
+				printf ("link closing\n");
+			} catch Parse::server_gone() {
+				printf ("server gone\n");
+				exit(0);
+			}
+		}
+
+		public *message_t command(&link_t l, string format, poly args...) {
+			File::fprintf(l.f, format, args...);
+			File::flush(l.f);
+			Semaphore::wait(l.replies_sem);
+			*message_t reply;
+			twixt(Mutex::acquire(l.lock); Mutex::release(l.lock)) {
+				reply = List::first(&l.replies);
+				List::remove(reply);
+			}
+			return reply;
+		}
+
+		public *message_t notice(&link_t l) {
+			Semaphore::wait(l.notices_sem);
+			*message_t notice;
+			twixt(Mutex::acquire(l.lock); Mutex::release(l.lock)) {
+				notice = List::first(&l.notices);
+				List::remove(notice);
+			}
+			return notice;
+		}
+
+		public *link_t new (string host, int port) {
+			link_t	l = { .host = host, .port = port };
+			l.lock = Mutex::new();
+
+			List::init(&l.replies);
+			l.replies_sem = Semaphore::new();
+
+			List::init(&l.notices);
+			l.notices_sem = Semaphore::new();
+
+			l.f = Net::connect (l.host, l.port);
+			l.reader = fork read_replies(&l);
+			return &l;
+		}
+
+		public void close(&link_t l) {
+			Thread::send_signal(l.reader, 1);
+			Thread::join(l.reader);
+			File::close(l.f);
+		}
+	}
+}

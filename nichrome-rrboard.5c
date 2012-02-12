@@ -42,7 +42,13 @@ extend namespace Nichrome {
 			scale(cr, xinc, yinc);
 			for (int y = 0; y < RR::Height; y++)
 				for (int x = 0; x < RR::Width; x++)
-					Draw::draw(cr, x, y, widget.board[x,y]);
+					Draw::background(cr, x, y, widget.board[x,y]);
+			for (int y = 0; y < RR::Height; y++)
+				for (int x = 0; x < RR::Width; x++)
+					Draw::walls(cr, x, y, widget.board[x,y]);
+			for (int y = 0; y < RR::Height; y++)
+				for (int x = 0; x < RR::Width; x++)
+					Draw::contents(cr, x, y, widget.board[x,y]);
 			restore(cr);
 		}
 

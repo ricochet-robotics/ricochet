@@ -39,10 +39,31 @@ extend namespace Client {
 		rsvg_t[Color][Shape]	targets = {
 			Color.Red => {
 				Shape.Triangle => new_from_string(Client::SVG::target_red_triangle),
-				Shape.Triangle => new_from_string(Client::SVG::target_red_triangle),
-				Shape.Triangle => new_from_string(Client::SVG::target_red_triangle),
-				Shape.Triangle => new_from_string(Client::SVG::target_red_triangle),
-			} 
+				Shape.Square => new_from_string(Client::SVG::target_red_square),
+				Shape.Octagon => new_from_string(Client::SVG::target_red_octagon),
+				Shape.Circle => new_from_string(Client::SVG::target_red_circle),
+			},
+			Color.Yellow => {
+				Shape.Triangle => new_from_string(Client::SVG::target_yellow_triangle),
+				Shape.Square => new_from_string(Client::SVG::target_yellow_square),
+				Shape.Octagon => new_from_string(Client::SVG::target_yellow_octagon),
+				Shape.Circle => new_from_string(Client::SVG::target_yellow_circle),
+			},
+			Color.Green => {
+				Shape.Triangle => new_from_string(Client::SVG::target_green_triangle),
+				Shape.Square => new_from_string(Client::SVG::target_green_square),
+				Shape.Octagon => new_from_string(Client::SVG::target_green_octagon),
+				Shape.Circle => new_from_string(Client::SVG::target_green_circle),
+			},
+			Color.Blue => {
+				Shape.Triangle => new_from_string(Client::SVG::target_blue_triangle),
+				Shape.Square => new_from_string(Client::SVG::target_blue_square),
+				Shape.Octagon => new_from_string(Client::SVG::target_blue_octagon),
+				Shape.Circle => new_from_string(Client::SVG::target_blue_circle),
+			},
+			Color.Whirl => {
+				Shape.Whirl => new_from_string(Client::SVG::target_whirl),
+			},
 		};
 
 		rsvg_t 		wall = new_from_string(Client::SVG::wall);
@@ -52,26 +73,42 @@ extend namespace Client {
 		public int cell_width = cell_dim.width;
 		public int cell_height = cell_dim.height;
 
-		public void draw (cairo_t cr, int x, int y, RR::Object object) {
+		public void background (cairo_t cr, int x, int y, RR::Object object) {
 			save(cr);
 			translate(cr, x * cell_width, y * cell_height);
 
 			render(cell[x+y & 1], cr);
+			restore(cr);
+		}
+		
+		public void walls(cairo_t cr, int x, int y, RR::Object object) {
+			save(cr);
+			translate(cr, x * cell_width, y * cell_height);
 
 			void draw_wall (bool doit, bool vertical, bool shift) {
 				if (!doit) return;
 				save(cr);
-				if (vertical)
+				if (vertical) {
 					rotate(cr, pi/2);
-				if (shift)
-					translate(cr, cell_width, 0);
+					if (shift)
+						translate(cr, 0, -cell_height);
+				} else if (shift)
+						translate(cr, 0, cell_height);
 				render(wall, cr);
 				restore(cr);
 			}
 			draw_wall (object.walls.left, true, false);
 			draw_wall (object.walls.above, false, false);
-			draw_wall (object.walls.right, true, true);
-			draw_wall (object.walls.below, false, true);
+			if (x == RR::Width - 1)
+				draw_wall (object.walls.right, true, true);
+			if (y == RR::Height - 1)
+				draw_wall (object.walls.below, false, true);
+			restore(cr);
+		}
+		
+		public void contents (cairo_t cr, int x, int y, RR::Object object) {
+			save(cr);
+			translate(cr, x * cell_width, y * cell_height);
 
 			union switch (object.target) {
 			case none:

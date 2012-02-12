@@ -1,0 +1,106 @@
+/*
+ * Copyright © 2012 Keith Packard <keithp@keithp.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 2 of the License.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
+ */
+
+autoload Client;
+autoload RR;
+autoload Nichrome::RRboard;
+autoload Server;
+autoload Server::Show;
+
+extend namespace Client {
+	public namespace Update {
+
+		public void update(&RR::Board board, string image) {
+
+			import RR;
+
+			string[*] lines = String::split(image, "\n");
+
+			printf ("%d lines of %d chars\n", dim(lines), String::length(lines[1]));
+
+			int	width = (String::length(lines[1]) - 1) / 4;
+			int	height = (dim(lines) - 2) / 2;
+
+			void update_hwall(int x, int y, bool above) {
+				if (y > 0)
+					board[x,y-1].walls.below = above;
+				if (y < height)
+					board[x,y].walls.above = above;
+			}
+
+			void update_vwall(int x, int y, int c) {
+				bool left;
+
+				switch (c) {
+				case '|':
+					left = true;
+					break;
+				case ' ':
+					left = false;
+					break;
+				}
+				if (x > 0)
+					board[x-1,y].walls.right = left;
+				if (x < width)
+					board[x,y].walls.left = left;
+			}
+
+			void update_hwalls(int y, string line) {
+				printf ("hwalls %d: %s\n", y, line);
+				for (int x = 0; x < width; x++)
+					update_hwall(x, y, line[x*4 + 2] == '=');
+			}
+
+			void update_squares(int y, string line) {
+				int x;
+				for (x = 0; x < width; x++) {
+					update_vwall(x, y, line[x*4]);
+					string robot = String::substr(line,x*4+1,1);
+					if (robot == ".")
+						board[x,y].robot = RobotOrNone.none;
+					else {
+						Color c = color(robot);
+						Robot r = { .color = color(robot),
+							    .active = Ctype::isupper(robot[0]) };
+						board[x,y].robot = (RobotOrNone.robot) r;
+					}
+					string target = String::substr(line,x*4+2,2);
+					if (target[0] == '.') {
+						board[x,y].target = TargetOrNone.none;
+					} else {
+						Color c = color(String::substr(target,0,1));
+						Shape s = shape(String::substr(target,1,1));
+						Target t = { .color = c,
+							     .shape = s,
+							     .active = Ctype::isupper(target[0]) };
+						printf("target at %d,%d is %v\n", x, y, t);
+						board[x,y].target = (TargetOrNone.target) t;
+					}
+				}
+				update_vwall(x, y, line[x*4]);
+			}
+
+			int x, y;
+			for (y = 0; y < height; y++) {
+				update_hwalls(y, lines[y*2 + 1]);
+				update_squares(y, lines[y*2 + 2]);
+			}
+			update_hwalls(y, lines[y*2 + 1]);
+			Server::Show::show(stdout, &board);
+		}
+	}
+}
