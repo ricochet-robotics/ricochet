@@ -28,6 +28,7 @@ autoload Nichrome::Box;
 autoload Nichrome::Label;
 autoload Nichrome::Toggle;
 autoload Nichrome::RRboard;
+autoload Mutex;
 
 extend namespace Client {
 
@@ -41,6 +42,7 @@ extend namespace Client {
 		int	port = RR::Port;
 		string	name = "user";
 		string	game = "game";
+		Mutex::mutex	board_lock = Mutex::new();
 
 		*Link::link_t	link;
 
@@ -71,11 +73,70 @@ extend namespace Client {
 			.prog_name = "rrclient"
 		};
 
+		namespace Menu {
+			import Nichrome;
+			import Nichrome::Box;
+			import Nichrome::Button;
+			public typedef struct {
+				&box_t		menu;
+				&button_t	connect;
+				&button_t	quit;
+			} menu_t;
+
+			public *menu_t new(&nichrome_t ui) {
+				menu_t	m;
+
+				&m.connect = Button::new(&ui, "Connect",
+							 void func (&widget_t w, bool state) {
+							 });
+				&m.quit = Button::new(&ui, "Quit",
+						      void func (&widget_t w, bool state) {
+							      Link::close(link);
+							      w.nichrome.running = false;
+							      exit(0);
+						      });
+
+				&m.menu = Box::new (Box::dir_t.horizontal,
+						    Box::widget_item(&m.connect, 0),
+						    Box::widget_item(&m.quit, 0),
+						    Box::glue_item(1));
+				return &m;
+			}
+		}
+
+		import Menu;
+
+		&nichrome_t		ui;
+		&menu_t			menu;
+		&rrboard_widget_t	rrboard;
+
+		void update_board(string board) {
+			twixt (Mutex::acquire(board_lock); Mutex::release(board_lock))
+				Update::update(&(rrboard.board), board);
+		}
+
+		void handle_notice() {
+			for (;;) {
+				*Link::message_t notice = Link::notice(link);
+				printf ("notice %v\n", notice);
+				switch (notice->reply[1]) {
+				case "BOARD":
+					update_board(notice->reply[2]);
+					RRboard::redraw(rrboard);
+					break;
+				}
+			}
+		}
+
 		public void main () {
 			ParseArgs::parseargs(&argd, &argv);
-			&nichrome_t		ui = Nichrome::new("Ricochet Robots", board_width, board_height);
-			&rrboard_widget_t	rrboard = RRboard::new(&ui);
+
+			&ui = Nichrome::new("Ricochet Robots", board_width, board_height);
+			&menu = Menu::new(&ui);
+			&rrboard = RRboard::new(&ui);
+
 			&box_t			box = Box::new (Box::dir_t.vertical,
+								Box::box_item(&menu.menu),
 								Box::widget_item(&rrboard));
 			set_box(&ui, &box);
 
@@ -85,12 +146,14 @@ extend namespace Client {
 
 			*Link::message_t r = Link::command(link, "join %s\n", game);
 
-			if (r->type == "ERROR" && r->args[0] == "NOGAME")
+			if (r->reply[0] == "ERROR" && r->reply[1] == "NOGAME")
 				*Link::message_t r = Link::command(link, "new %s\n", game);
+
+			fork handle_notice();
 
 			*Link::message_t r = Link::command(link, "show\n");
 
-			Update::update(&(rrboard.board), r->args[0]);
+			update_board(r->reply[1]);
 
 			main_loop(&ui);
 		}

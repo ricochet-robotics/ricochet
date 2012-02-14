@@ -25,8 +25,7 @@ extend namespace Client {
 	public namespace Link {
 
 		public typedef List::list_t + struct {
-			string		type;
-			string[*]	args;
+			string[*]	reply;
 		} message_t;
 
 		public typedef struct {
@@ -41,18 +40,19 @@ extend namespace Client {
 			thread		reader;
 		} link_t;
 
+		*message_t read_reply(&link_t l) {
+			message_t m = { .reply = Parse::reply(l.f) };
+			return &m;
+		}
+
 		void read_replies(&link_t l) {
 			try {
 				for (;;) {
-					string[*]	reply = Parse::reply(l.f);
-					if (dim(reply) == 0)
+					&message_t	m = read_reply(&l);
+					if (dim(m.reply) == 0)
 						continue;
 					twixt (Mutex::acquire(l.lock); Mutex::release(l.lock)) {
-						message_t m = {
-							.type = reply[0],
-							.args = (string[dim(reply)-1]) { [i] = reply[i+1] }
-						};
-						if (m.type == "NOTICE") {
+						if (m.reply[0] == "NOTICE") {
 							List::insert(&m, &l.notices);
 							Semaphore::signal(l.notices_sem);
 						} else {

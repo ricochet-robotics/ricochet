@@ -71,6 +71,58 @@ namespace RR {
     
     public typedef Object[Width,Height]	Board;
 
+    public TargetOrNone active_target(&Board board) {
+	    for (int y = 0; y < Height; y++)
+		    for (int x = 0; x < Width; x++)
+			    union switch (board[x,y].target) {
+			    case target t:
+				    if (t.active)
+					    return (TargetOrNone.target) t;
+				    break;
+			    case none:
+				    break;
+			    }
+	    return TargetOrNone.none;
+    }
+
+    public void set_target(&Board board, Target target) {
+	    for (int y = 0; y < Height; y++)
+		    for (int x = 0; x < Width; x++)
+			    union switch (board[x,y].target) {
+			    case target t:
+				    board[x,y].target.target.active = t == target;
+				    break;
+			    case none:
+				    break;
+			    }
+    }
+
+    public RobotOrNone active_robot(&Board board) {
+	    for (int y = 0; y < Height; y++)
+		    for (int x = 0; x < Width; x++)
+			    union switch (board[x,y].robot) {
+			    case robot r:
+				    if (r.active)
+					    return (RobotOrNone.robot) r;
+				    break;
+			    case none:
+				    break;
+			    }
+	    return RobotOrNone.none;
+    }
+
+    public void set_robot(&Board board, Robot robot) {
+	    for (int y = 0; y < Height; y++)
+		    for (int x = 0; x < Width; x++)
+			    union switch (board[x,y].robot) {
+			    case robot r:
+				    board[x,y].robot.robot.active = r == robot;
+				    break;
+			    case none:
+				    break;
+			    }
+    }
+
     public typedef enum {
 	NOGAME,
 	NOUSER,

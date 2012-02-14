@@ -84,6 +84,8 @@ extend namespace Client {
 		public void walls(cairo_t cr, int x, int y, RR::Object object) {
 			save(cr);
 			translate(cr, x * cell_width, y * cell_height);
+			rectangle(cr, 0, 0, cell_width, cell_height);
+			clip(cr);
 
 			void draw_wall (bool doit, bool vertical, bool shift) {
 				if (!doit) return;
@@ -99,10 +101,8 @@ extend namespace Client {
 			}
 			draw_wall (object.walls.left, true, false);
 			draw_wall (object.walls.above, false, false);
-			if (x == RR::Width - 1)
-				draw_wall (object.walls.right, true, true);
-			if (y == RR::Height - 1)
-				draw_wall (object.walls.below, false, true);
+			draw_wall (object.walls.right, true, true);
+			draw_wall (object.walls.below, false, true);
 			restore(cr);
 		}
 		
@@ -122,6 +122,20 @@ extend namespace Client {
 				break;
 			case robot r:
 				render(robots[r.color], cr);
+				break;
+			}
+			restore(cr);
+		}
+
+		public void target (cairo_t cr, real x, real y, TargetOrNone target) {
+			save(cr);
+			translate(cr, x * cell_width, y * cell_height);
+			scale(cr, 2, 2);
+			union switch (target) {
+			case target t:
+				render(targets[t.color][t.shape], cr);
+				break;
+			default:
 				break;
 			}
 			restore(cr);

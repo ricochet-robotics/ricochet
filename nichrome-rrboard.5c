@@ -30,8 +30,15 @@ extend namespace Nichrome {
 		public int	board_width = RR::Width * Draw::cell_width;
 		public int	board_height = RR::Height * Draw::cell_height;
 
+		public typedef RR::Object + struct {
+			bool	dirty;
+		} rrobject_t;
+
+		public typedef rrobject_t[RR::Width, RR::Height] rrboard_t;
+
 		public typedef widget_t + struct {
-			RR::Board	board;
+			rrboard_t		board;
+			RR::TargetOrNone	target;
 		} rrboard_widget_t;
 
 		void draw (cairo_t cr, &rrboard_widget_t widget) {
@@ -42,13 +49,23 @@ extend namespace Nichrome {
 			scale(cr, xinc, yinc);
 			for (int y = 0; y < RR::Height; y++)
 				for (int x = 0; x < RR::Width; x++)
-					Draw::background(cr, x, y, widget.board[x,y]);
-			for (int y = 0; y < RR::Height; y++)
-				for (int x = 0; x < RR::Width; x++)
-					Draw::walls(cr, x, y, widget.board[x,y]);
-			for (int y = 0; y < RR::Height; y++)
-				for (int x = 0; x < RR::Width; x++)
-					Draw::contents(cr, x, y, widget.board[x,y]);
+					if (widget.board[x,y].dirty) {
+						Draw::background(cr, x, y, widget.board[x,y]);
+						Draw::walls(cr, x, y, widget.board[x,y]);
+						Draw::contents(cr, x, y, widget.board[x,y]);
+						widget.board[x,y].dirty = false;
+					}
+			RR::TargetOrNone new_target = RR::active_target(&widget.board);
+			if (new_target != widget.target) {
+				widget.target = new_target;
+				for (int y = RR::Height / 2 - 1; y < RR::Height/2 + 1; y++)
+					for (int x = RR::Width / 2 - 1; x < RR::Width/2 + 1; x++) {
+						Draw::background(cr, x, y, widget.board[x,y]);
+						Draw::walls(cr, x, y, widget.board[x,y]);
+					}
+				Draw::target(cr, RR::Width / 2 - 1, RR::Height / 2 - 1,
+					     new_target);
+			}
 			restore(cr);
 		}
 
@@ -67,11 +84,13 @@ extend namespace Nichrome {
 			widget.draw = draw;
 			widget.outline = outline;
 			widget.natural = natural;
-			widget.board = (RR::Board) { { { .robot = RobotOrNone.none,
-						       .target = TargetOrNone.none,
-						       .walls = { .left = false, .right = false,
-								  .above = false, .below = false } }
+			widget.board = (rrboard_t) { { { .robot = RobotOrNone.none,
+							 .target = TargetOrNone.none,
+							 .walls = { .left = false, .right = false,
+								  .above = false, .below = false },
+							 .dirty = true }
 						       ... } ... };
+			widget.target = TargetOrNone.none;
 			return &widget;
 		}
 	}
