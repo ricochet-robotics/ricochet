@@ -44,7 +44,7 @@ extend namespace Client {
 		string	game = "game";
 		Mutex::mutex	board_lock = Mutex::new();
 
-		*Link::link_t	link;
+		Link::link_t	link;
 
 		ParseArgs::argdesc argd = {
 			.args = {
@@ -117,7 +117,7 @@ extend namespace Client {
 
 		void handle_notice() {
 			for (;;) {
-				*Link::message_t notice = Link::notice(link);
+				Link::message_t notice = Link::notice(link);
 				printf ("notice %v\n", notice);
 				switch (notice->reply[1]) {
 				case "BOARD":
@@ -142,16 +142,22 @@ extend namespace Client {
 
 			link = Link::new(host, port);
 
-			*Link::message_t r = Link::command(link, "helo %s\n", name);
+			Link::message_t r = Link::command(link, "helo %s\n", name);
 
-			*Link::message_t r = Link::command(link, "join %s\n", game);
+			Link::message_t r = Link::command(link, "join %s\n", game);
 
 			if (r->reply[0] == "ERROR" && r->reply[1] == "NOGAME")
-				*Link::message_t r = Link::command(link, "new %s\n", game);
+				Link::message_t r = Link::command(link, "new %s\n", game);
+
+			Link::message_t r = Link::command(link, "PLAYERS %s\n", game);
+
+			for (int i = 1; i < dim(r->reply); i += 2)
+				Userlist::add(&userlist, r->reply[i],
+					      string_to_integer(r->reply[i+1]));
 
 			fork handle_notice();
 
-			*Link::message_t r = Link::command(link, "show\n");
+			Link::message_t r = Link::command(link, "show\n");
 
 			update_board(r->reply[1]);
 
