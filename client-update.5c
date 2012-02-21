@@ -25,9 +25,7 @@ extend namespace Client {
 		import Nichrome::RRboard;
 		import RR;
 
-		public bool update(&rrboard_t board, string image) {
-
-			rrboard_t	old = board;
+		public void update(&RR::Board board, string image) {
 
 			string[*] lines = String::split(image, "\n");
 
@@ -97,15 +95,25 @@ extend namespace Client {
 				update_squares(y, lines[y*2 + 2]);
 			}
 			update_hwalls(y, lines[y*2 + 1]);
-			bool dirty = false;
-			for (y = 0; y < height; y++)
-				for (x = 0; x < height; x++) {
-					if (old[x,y] != board[x,y]) {
-						board[x,y].dirty = true;
-						dirty = true;
+		}
+
+		public void update_robot(&RR::Board board, Color color, int new_x, int new_y) {
+			bool active = false;
+			for (int y = 0; y < RR::Height; y++) {
+				for (int x = 0; x < RR::Width; x++) {
+					union switch (board[x,y].robot) {
+					case robot r:
+						if (r.color == color) {
+							active = r.active;
+							board[x,y].robot = RobotOrNone.none;
+						}
+						break;
+					default:
+						break;
 					}
 				}
-			return dirty;
+			}
+			board[new_x, new_y].robot = (RobotOrNone.robot) (Robot) { .color = color, .active = active };
 		}
 	}
 }

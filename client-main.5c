@@ -19,6 +19,7 @@ autoload Client;
 autoload Client::Window;
 autoload Client::Link;
 autoload Client::Update;
+autoload Client::Userlist;
 autoload ParseArgs;
 autoload RR;
 autoload Cairo;
@@ -27,6 +28,7 @@ autoload Nichrome::Button;
 autoload Nichrome::Box;
 autoload Nichrome::Label;
 autoload Nichrome::Toggle;
+autoload Nichrome::Text;
 autoload Nichrome::RRboard;
 autoload Mutex;
 
@@ -37,6 +39,7 @@ extend namespace Client {
 		import RRboard;
 		import Box;
 		import RR;
+		import Userlist;
 
 		string	host = "localhost";
 		int	port = RR::Port;
@@ -73,46 +76,21 @@ extend namespace Client {
 			.prog_name = "rrclient"
 		};
 
-		namespace Menu {
-			import Nichrome;
-			import Nichrome::Box;
-			import Nichrome::Button;
-			public typedef struct {
-				&box_t		menu;
-				&button_t	connect;
-				&button_t	quit;
-			} menu_t;
-
-			public *menu_t new(&nichrome_t ui) {
-				menu_t	m;
-
-				&m.connect = Button::new(&ui, "Connect",
-							 void func (&widget_t w, bool state) {
-							 });
-				&m.quit = Button::new(&ui, "Quit",
-						      void func (&widget_t w, bool state) {
-							      Link::close(link);
-							      w.nichrome.running = false;
-							      exit(0);
-						      });
-
-				&m.menu = Box::new (Box::dir_t.horizontal,
-						    Box::widget_item(&m.connect, 0),
-						    Box::widget_item(&m.quit, 0),
-						    Box::glue_item(1));
-				return &m;
-			}
-		}
-
-		import Menu;
-
 		&nichrome_t		ui;
-		&menu_t			menu;
+		&Button::button_t	connect;
+		&Button::button_t	quit;
+		&Text::text_t		bid;
 		&rrboard_widget_t	rrboard;
+		&userlist_t		userlist;
 
 		void update_board(string board) {
 			twixt (Mutex::acquire(board_lock); Mutex::release(board_lock))
 				Update::update(&(rrboard.board), board);
+		}
+
+		void update_robot(Color color, int x, int y) {
+			twixt (Mutex::acquire(board_lock); Mutex::release(board_lock))
+				Update::update_robot(&(rrboard.board), color, x, y);
 		}
 
 		void handle_notice() {
@@ -122,9 +100,25 @@ extend namespace Client {
 				switch (notice->reply[1]) {
 				case "BOARD":
 					update_board(notice->reply[2]);
-					RRboard::redraw(rrboard);
 					break;
+				case "POSITION":
+					update_robot(RR::color(notice->reply[2]),
+						     string_to_integer(notice->reply[3]),
+						     string_to_integer(notice->reply[4]));
+					break;
+				case "JOIN":
+					Userlist::add(&userlist, notice->reply[2], 0);
+					break;
+				case "PART":
+					Userlist::remove(&userlist, notice->reply[2]);
+					break;
+				case "SCORE":
+					Userlist::score(&userlist, notice->reply[2],
+							string_to_integer(notice->reply[3]));
+					break;
+
 				}
+				Nichrome::redraw(&ui);
 			}
 		}
 
@@ -132,14 +126,33 @@ extend namespace Client {
 			ParseArgs::parseargs(&argd, &argv);
 
 			&ui = Nichrome::new("Ricochet Robots", board_width, board_height);
-			&menu = Menu::new(&ui);
 			&rrboard = RRboard::new(&ui);
+			&userlist = Userlist::new(&ui);
 
-			&box_t			box = Box::new (Box::dir_t.vertical,
-								Box::box_item(&menu.menu),
-								Box::widget_item(&rrboard));
-			set_box(&ui, &box);
+			&connect = Button::new(&ui, "Connect",
+					       void func (&widget_t w, bool state) {
+					       });
+			&quit = Button::new(&ui, "Quit",
+					    void func (&widget_t w, bool state) {
+						    Link::close(link);
+						    w.nichrome.running = false;
+						    Thread::list();
+						    exit(0);
+					    });
 
+			&bid = Text::new(&ui, 6);
+
+			&box_t			top = Box::new (Box::dir_t.horizontal,
+								Box::widget_item(&connect, 0),
+								Box::widget_item(&quit, 0),
+								Box::widget_item(&bid, 0),
+								Box::glue_item(1));
+			&box_t			hbox = Box::new (Box::dir_t.horizontal,
+								 Box::widget_item(&rrboard, 1),
+								 Box::box_item(userlist.hbox));
+			&box_t			vbox = Box::new (Box::dir_t.vertical,
+								 Box::box_item(&top),
+								 Box::box_item(&hbox));
 			link = Link::new(host, port);
 
 			Link::message_t r = Link::command(link, "helo %s\n", name);
@@ -160,6 +173,8 @@ extend namespace Client {
 			Link::message_t r = Link::command(link, "show\n");
 
 			update_board(r->reply[1]);
+
+			set_box(&ui, &vbox);
 
 			main_loop(&ui);
 		}

@@ -1,6 +1,6 @@
 #!/usr/bin/env nickle
 
-Command::nickle_path = ".:" + Command::nickle_path;
+Command::nickle_path = ".:/home/keithp/src/cairo/cairo-5c/nichrome:" + Command::nickle_path;
 
 autoload Client::Main
 
