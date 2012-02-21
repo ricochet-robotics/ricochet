@@ -36,6 +36,8 @@ extend namespace Client {
 			Color.Yellow => new_from_string(Client::SVG::robot_yellow),
 			Color.Green => new_from_string(Client::SVG::robot_green) };
 
+		rsvg_t robot_shadow = new_from_string(Client::SVG::robot_shadow);
+
 		rsvg_t[Color][Shape]	targets = {
 			Color.Red => {
 				Shape.Triangle => new_from_string(Client::SVG::target_red_triangle),
@@ -121,6 +123,13 @@ extend namespace Client {
 			case none:
 				break;
 			case robot r:
+				if (r.active) {
+					save(cr);
+					translate(cr, 5, 1);
+					scale(cr, 1.1, 1.1);
+					render(robot_shadow, cr);
+					restore(cr);
+				}
 				render(robots[r.color], cr);
 				break;
 			}

@@ -23,7 +23,8 @@ SVG=\
 	svg/target_yellow_octagon.svg \
 	svg/target_yellow_square.svg \
 	svg/target_yellow_triangle.svg \
-	svg/wall.svg
+	svg/wall.svg \
+	svg/robot_shadow.svg
 
 client-svg.5c: $(SVG) svg/bin2cstring.5c
 	rm -f $@
