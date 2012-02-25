@@ -52,10 +52,10 @@ extend namespace Client {
 						continue;
 					twixt (Mutex::acquire(l->lock); Mutex::release(l->lock)) {
 						if (m->reply[0] == "NOTICE") {
-							List::insert(m, &l->notices);
+							List::append(m, &l->notices);
 							Semaphore::signal(l->notices_sem);
 						} else {
-							List::insert(m, &l->replies);
+							List::append(m, &l->replies);
 							Semaphore::signal(l->replies_sem);
 						}
 					}

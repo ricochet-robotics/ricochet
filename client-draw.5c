@@ -108,7 +108,7 @@ extend namespace Client {
 			restore(cr);
 		}
 		
-		public void contents (cairo_t cr, int x, int y, RR::Object object) {
+		public void contents (cairo_t cr, int x, int y, RR::Object object, RR::RobotOrNone active_robot) {
 			save(cr);
 			translate(cr, x * cell_width, y * cell_height);
 
@@ -123,12 +123,17 @@ extend namespace Client {
 			case none:
 				break;
 			case robot r:
-				if (r.active) {
-					save(cr);
-					translate(cr, 5, 1);
-					scale(cr, 1.1, 1.1);
-					render(robot_shadow, cr);
-					restore(cr);
+				union switch (active_robot) {
+				case robot a:
+					if (a.color == r.color) {
+						save(cr);
+						translate(cr, 5, 1);
+						scale(cr, 1.1, 1.1);
+						render(robot_shadow, cr);
+						restore(cr);
+					}
+					break;
+				default:
 				}
 				render(robots[r.color], cr);
 				break;

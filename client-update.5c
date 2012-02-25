@@ -115,5 +115,22 @@ extend namespace Client {
 			}
 			board[new_x, new_y].robot = (RobotOrNone.robot) (Robot) { .color = color, .active = active };
 		}
+
+		public void update_target(&RR::Board board, Color color, Shape shape) {
+			for (int y = 0; y < RR::Height; y++) {
+				for (int x = 0; x < RR::Width; x++) {
+					union switch (board[x,y].target) {
+					case target t:
+						if (t.color == color && t.shape == shape)
+							board[x,y].target.target.active = true;
+						else
+							board[x,y].target.target.active = false;
+						break;
+					default:
+						break;
+					}
+				}
+			}
+		}
 	}
 }

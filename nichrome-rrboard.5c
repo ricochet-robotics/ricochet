@@ -19,6 +19,7 @@ autoload Nichrome;
 autoload RR;
 autoload Client;
 autoload Client::Draw;
+autoload Mutex;
 
 extend namespace Nichrome {
 
@@ -32,19 +33,109 @@ extend namespace Nichrome {
 
 		public typedef widget_t + struct {
 			RR::Board		board;
+			Mutex::mutex		timer_mutex;
+			real			time;
+			thread			timer;
+			RR::RobotOrNone		active_robot;
+			void (RR::Color color,
+			      RR::Direction direction) move_callback;
 		} rrboard_widget_t;
 
+		typedef struct {
+			real	xoff, yoff;
+			real	xscale, yscale;
+		} transform_t;
+
+		transform_t transform(&rrboard_widget_t widget) {
+			real	dim = min (widget.geometry.width, widget.geometry.height);
+			return (transform_t) {
+				.xscale = dim / board_width,
+					.yscale = dim / board_height,
+					.xoff = (widget.geometry.width - dim) / 2,
+					.yoff = (widget.geometry.height - dim) / 2
+					};
+		}
+
+		void draw_clock (cairo_t cr, &rrboard_widget_t widget) {
+			printf ("draw clock %g\n", widget.time);
+			save (cr);
+			new_path (cr);
+			move_to (cr,
+				 board_width / 2,
+				 board_height / 2);
+			arc (cr,
+			     board_width / 2,
+			     board_height / 2,
+			     0.9 * Draw::cell_width,
+			     - π / 2,
+			     2 * π * (60.0 - widget.time) / 60.0 - π/2);
+			close_path (cr);
+			set_source_rgba (cr, 0.0, 0.0, 0.0, 0.5);
+			fill (cr);
+
+			restore (cr);
+		}
+
+		void run_timer (&rrboard_widget_t widget) {
+			printf ("timer thread\n");
+			twixt(Mutex::acquire(widget.timer_mutex); Mutex::release(widget.timer_mutex)) {
+				real	start = millis() / 1000;
+				real	end = start + widget.time;
+
+				while (widget.time >= 0) {
+					real delay = 1;
+
+					if (delay > widget.time)
+						delay = widget.time;
+					twixt(Mutex::release(widget.timer_mutex);
+					      Mutex::acquire(widget.timer_mutex)) {
+						printf ("time %g\n", widget.time);
+						sleep(floor (delay * 1000));
+						Widget::redraw(&widget);
+					}
+					widget.time = end - millis() / 1000;
+				}
+				make_uninit(&widget.timer);
+			}
+		}
+
+		void start_timer (&rrboard_widget_t widget) {
+			twixt(Mutex::acquire(widget.timer_mutex); Mutex::release(widget.timer_mutex)) {
+				if (is_uninit(&widget.timer)) {
+					printf ("starting timer thread\n");
+					widget.timer = fork run_timer(&widget);
+				}
+			}
+		}
+
+		protected void set_timer (&rrboard_widget_t widget, real time) {
+			widget.time = time;
+			printf ("set timer to %g\n", time);
+			start_timer(&widget);
+		}
+
+		protected void stop_timer (&rrboard_widget_t widget) {
+			printf ("stop timer\n");
+			widget.time = -1;
+			twixt(Mutex::acquire(widget.timer_mutex); Mutex::release(widget.timer_mutex)) {
+				if (!is_uninit(&widget.timer)) {
+					Thread::kill(widget.timer);
+					make_uninit(&widget.timer);
+				}
+			}
+		}
+
 		void draw (cairo_t cr, &rrboard_widget_t widget) {
-			real	xinc = widget.geometry.width / board_width;
-			real	yinc = widget.geometry.height / board_height;
+			transform_t	t = transform(&widget);
 
 			save(cr);
-			scale(cr, xinc, yinc);
+			translate(cr, t.xoff, t.yoff);
+			scale(cr, t.xscale, t.yscale);
 			for (int y = 0; y < RR::Height; y++)
 				for (int x = 0; x < RR::Width; x++) {
 					Draw::background(cr, x, y, widget.board[x,y]);
 					Draw::walls(cr, x, y, widget.board[x,y]);
-					Draw::contents(cr, x, y, widget.board[x,y]);
+					Draw::contents(cr, x, y, widget.board[x,y], widget.active_robot);
 				}
 			for (int y = RR::Height / 2 - 1; y < RR::Height/2 + 1; y++)
 				for (int x = RR::Width / 2 - 1; x < RR::Width/2 + 1; x++) {
@@ -53,6 +144,8 @@ extend namespace Nichrome {
 				}
 			Draw::target(cr, RR::Width / 2 - 1, RR::Height / 2 - 1,
 				     RR::active_target(&widget.board));
+			if (widget.time >= 0)
+				draw_clock(cr, &widget);
 			restore(cr);
 		}
 
@@ -64,13 +157,73 @@ extend namespace Nichrome {
 			rectangle(cr, 0, 0, board_width, board_height);
 		}
 
-		public *rrboard_widget_t new(&nichrome_t nichrome) {
+		void set_active (&rrboard_widget_t widget, string color) {
+			try {
+				widget.active_robot = (RR::RobotOrNone.robot) (RR::Robot) { .color = RR::color(color) };
+				Widget::redraw(&widget);
+			} catch RR::rr_error(RR::Error error) {
+			}
+		}
+
+		void move_active (&rrboard_widget_t widget, string dir) {
+			try {
+				RR::Direction direction = RR::direction(dir);
+				union switch (widget.active_robot) {
+				case robot r:
+					widget.move_callback(r.color, direction);
+					break;
+				default:
+				}
+			} catch RR::rr_error(RR::Error error) {
+			}
+		}
+
+		protected void key (&rrboard_widget_t widget, &key_event_t event) {
+			switch (event.key) {
+			case "r": case "R":
+			case "g": case "G":
+			case "b": case "B":
+			case "y": case "Y":
+				set_active (&widget, event.key);
+				break;
+			case " ": case "w":
+				set_active (&widget, "whirl");
+				break;
+			case "Left": case "w": case "W":
+				move_active(&widget, "west");
+				break;
+			case "Right": case "e": case "E":
+				move_active(&widget, "east");
+				break;
+			case "Up": case "n": case "N":
+				move_active(&widget, "north");
+				break;
+			case "Down": case "s": case "S":
+				move_active(&widget, "south");
+				break;
+			default:
+				printf ("unknown key %s\n", event.key);
+				break;
+			}
+		}
+
+		protected void button (&rrboard_widget_t widget, &button_event_t event) {
+		}
+
+		public *rrboard_widget_t new(&nichrome_t nichrome,
+					     void(RR::Color color, RR::Direction dir) move_callback) {
 			rrboard_widget_t	widget;
 
 			Widget::init(&nichrome, &widget);
 			widget.draw = draw;
 			widget.outline = outline;
 			widget.natural = natural;
+			widget.timer_mutex = Mutex::new();
+			widget.time = -1;
+			widget.key = key;
+			widget.button = button;
+			widget.active_robot = RobotOrNone.none;
+			widget.move_callback = move_callback;
 			widget.board = (RR::Board) { { { .robot = RobotOrNone.none,
 							 .target = TargetOrNone.none,
 							 .walls = { .left = false, .right = false,

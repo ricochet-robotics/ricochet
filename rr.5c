@@ -143,7 +143,8 @@ namespace RR {
 	NOTDIRECTION,
 	TOOMANYMOVES,
 	NONAMESET,
-	INVALIDNAME
+	INVALIDNAME,
+	NOTGAMESTATE
     } Error;
 
     public exception rr_error (Error e);
@@ -176,7 +177,17 @@ namespace RR {
 	case 'e': case 'E': return Direction.East;
 	case 's': case 'S': return Direction.South;
 	case 'w': case 'W': return Direction.West;
-	    default: raise rr_error (Error.NOTDIRECTION);
+	default: raise rr_error (Error.NOTDIRECTION);
+	}
+    }
+
+    public GameState game_state(string w) {
+	switch (w[0]) {
+	case 'n': case 'N': return GameState.NEW;
+	case 'b': case 'B': return GameState.BID;
+	case 's': case 'S': return GameState.SHOW;
+	case 'd': case 'D': return GameState.DONE;
+	default: raise rr_error (Error.NOTGAMESTATE);
 	}
     }
 }
