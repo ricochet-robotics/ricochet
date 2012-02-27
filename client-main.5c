@@ -78,6 +78,8 @@ extend namespace Client {
 
 		&nichrome_t		ui;
 		&Label::label_t		state;
+		&Label::label_t		moves;
+		&Box::box_t		bid_box;
 		&Button::button_t	bid;
 		&Text::text_t		bid_value;
 		&Button::button_t	turn;
@@ -101,24 +103,51 @@ extend namespace Client {
 				Update::update_target(&(rrboard.board), color, shape);
 		}
 
+		void update_moves(int new_moves) {
+			Label::relabel(&moves, sprintf("Moves: %d", new_moves));
+		}
+
 		void update_state(string new_state) {
 			Label::relabel(&state, sprintf("State: %s", new_state));
+			Nichrome::suspend_draw(&ui);
 			current_state = RR::game_state(new_state);
 			union switch (current_state){
 			case NEW:
 				RRboard::stop_timer(&rrboard);
+				Userlist::clear_bid(&userlist);
 				/* fall through ... */
 			case BID:
 				Nichrome::set_key_focus(&ui, &bid_value);
+				Box::set_active(&bid_box, true);
+				Box::set_active(&turn, false);
+				Box::set_active(&moves, false);
+				Userlist::clear_showing(&userlist);
 				break;
 			case SHOW:
 				RRboard::stop_timer(&rrboard);
 				Nichrome::set_key_focus(&ui, &rrboard);
+				Box::set_active(&bid_box, false);
+				Box::set_active(&turn, false);
+				update_moves(0);
+				Box::set_active(&moves, true);
 				break;
 			case DONE:
 				RRboard::stop_timer(&rrboard);
+				Box::set_active(&bid_box, false);
+				Box::set_active(&turn, true);
+				Userlist::clear_showing(&userlist);
 				break;
 			}
+			Nichrome::release_draw(&ui);
+		}
+
+		void add_user(string name) {
+			Link::message_t u = Link::command(link, "USERINFO %s\n", name);
+			Userlist::add(&userlist, name,
+				      RR::boolean(u->reply[2]),
+				      string_to_integer(u->reply[3]),
+				      string_to_integer(u->reply[4]));
+			printf ("user %s added\n", name);
 		}
 
 		void handle_notice() {
@@ -135,7 +164,7 @@ extend namespace Client {
 						     string_to_integer(notice->reply[4]));
 					break;
 				case "JOIN":
-					Userlist::add(&userlist, notice->reply[2], 0);
+					add_user(notice->reply[2]);
 					break;
 				case "PART":
 					Userlist::remove(&userlist, notice->reply[2]);
@@ -143,6 +172,16 @@ extend namespace Client {
 				case "SCORE":
 					Userlist::score(&userlist, notice->reply[2],
 							string_to_integer(notice->reply[3]));
+					break;
+				case "BID":
+					Userlist::bid(&userlist, notice->reply[2],
+						      string_to_integer(notice->reply[3]));
+					break;
+				case "ACTIVE":
+					Userlist::showing(&userlist, notice->reply[2], true);
+					break;
+				case "MOVE":
+					update_moves(string_to_integer(notice->reply[2]));
 					break;
 				case "GAMESTATE":
 					update_state (notice->reply[2]);
@@ -165,7 +204,7 @@ extend namespace Client {
 			string c;
 			enum switch (color) {
 			case Red:	c = "red"; break;
-			case Yellow:	c = "yello"; break;
+			case Yellow:	c = "yellow"; break;
 			case Green:	c = "green"; break;
 			case Blue:	c = "blue"; break;
 			case Whirl:	return;
@@ -182,11 +221,16 @@ extend namespace Client {
 			printf ("move reply %v\n", r);
 		}
 
+		void undo() {
+			Link::message_t r = Link::command(link, "undo\n");
+			printf ("undo reply %v\n", r);
+		}
+
 		public void main () {
 			ParseArgs::parseargs(&argd, &argv);
 
 			&ui = Nichrome::new("Ricochet Robots", board_width, board_height);
-			&rrboard = RRboard::new(&ui, move);
+			&rrboard = RRboard::new(&ui, move, undo);
 			&userlist = Userlist::new(&ui);
 
 			&quit = Button::new(&ui, "Quit",
@@ -199,6 +243,7 @@ extend namespace Client {
 					    });
 
 			&state = Label::new(&ui, "state");
+			&moves = Label::new(&ui, "moves");
 
 			&bid = Button::new(&ui, "Bid",
 					   void func (&widget_t w, bool state) {
@@ -210,6 +255,10 @@ extend namespace Client {
 			&bid_value = Text::new(&ui, 6);
 			Text::set_text(&bid_value, "0");
 
+			&bid_box = Box::new(Box::dir_t.horizontal,
+					    Box::widget_item(&bid, 0),
+					    Box::widget_item(&bid_value, 0));
+
 			&turn = Button::new(&ui, "Turn",
 					    void func (&widget_t w, bool state) {
 						    if (state)
@@ -218,8 +267,8 @@ extend namespace Client {
 
 			&box_t			top = Box::new (Box::dir_t.horizontal,
 								Box::widget_item(&state, 0),
-								Box::widget_item(&bid, 0),
-								Box::widget_item(&bid_value, 0),
+								Box::widget_item(&moves, 0),
+								Box::box_item(&bid_box),
 								Box::widget_item(&turn, 0),
 								Box::glue_item(1),
 								Box::widget_item(&quit, 0));
@@ -240,21 +289,30 @@ extend namespace Client {
 
 			Link::message_t r = Link::command(link, "PLAYERS %s\n", game);
 
-			for (int i = 1; i < dim(r->reply); i += 2)
-				Userlist::add(&userlist, r->reply[i],
-					      string_to_integer(r->reply[i+1]));
+			for (int i = 1; i < dim(r->reply); i += 2) {
+				printf ("going to add user %s\n", r->reply[i]);
+				add_user(r->reply[i]);
+				printf ("back from adding user %s\n", r->reply[i]);
+			}
 
-			fork handle_notice();
+			printf ("all users added\n");
 
-			Link::message_t r = Link::command(link, "gameinfo %s\n", game);
+			Link::message_t r = Link::command(link, "GAMEINFO %s\n", game);
+
+			printf ("game info reply %v\n", r);
 
 			update_state(r->reply[4]);
 
-			Link::message_t r = Link::command(link, "show\n");
+			if (current_state == RR::GameState.SHOW)
+				Userlist::showing(&userlist, r->reply[7], true);
+
+			Link::message_t r = Link::command(link, "SHOW\n");
 
 			update_board(r->reply[1]);
 
 			set_box(&ui, &vbox);
+
+			fork handle_notice();
 
 			main_loop(&ui);
 		}

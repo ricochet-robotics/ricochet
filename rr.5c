@@ -144,7 +144,8 @@ namespace RR {
 	TOOMANYMOVES,
 	NONAMESET,
 	INVALIDNAME,
-	NOTGAMESTATE
+	NOTGAMESTATE,
+	NOTBOOL
     } Error;
 
     public exception rr_error (Error e);
@@ -156,10 +157,21 @@ namespace RR {
 	case 'g': case 'G': return Color.Green;
 	case 'b': case 'B': return Color.Blue;
 	case 'w': case 'W': return Color.Whirl;
-	    default: raise rr_error (Error.NOTCOLOR);
+	default: raise rr_error (Error.NOTCOLOR);
 	}
     }
     
+    public bool boolean (string w) {
+	switch (w[0]) {
+	case 't': case 'T': case 'y': case 'Y': case '1':
+	    return true;
+	case 'f': case 'F': case 'n': case 'N': case '0':
+	    return false;
+	default:
+	    raise rr_error(Error.NOTBOOL);
+	}
+    }
+
     public Shape shape (string w) {
 	switch (w[0]) {
 	case 't': case 'T': return Shape.Triangle;
