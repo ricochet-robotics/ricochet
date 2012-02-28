@@ -43,7 +43,12 @@ extend namespace Client {
 
 		string	host = "localhost";
 		int	port = RR::Port;
-		string	name = "user";
+		string	name;
+		try {
+			name = Environ::get("USER");
+		} catch invalid_argument(string message, int id, poly value) {
+			name = "user";
+		}
 		string	game = "game";
 		Mutex::mutex	board_lock = Mutex::new();
 
@@ -77,6 +82,7 @@ extend namespace Client {
 		};
 
 		&nichrome_t		ui;
+		&Label::label_t		turn;
 		&Label::label_t		state;
 
 		/* New/Bid mode items */
@@ -96,7 +102,7 @@ extend namespace Client {
 
 		/* Done mode items */
 		&Box::box_t		done_box;
-		&Button::button_t	turn;
+		&Button::button_t	next_turn;
 
 		&Button::button_t	quit;
 		&rrboard_widget_t	rrboard;
@@ -123,6 +129,13 @@ extend namespace Client {
 		void update_moves(int new_moves) {
 			current_moves = new_moves;
 			Label::relabel(&moves, sprintf("Moves: %d", new_moves));
+		}
+
+		int 	current_turn = 0;
+
+		void update_turn(int new_turn) {
+			current_turn = new_turn;
+			Label::relabel(&turn, sprintf("Turn: %d", new_turn));
 		}
 
 		void update_state(string new_state) {
@@ -183,9 +196,11 @@ extend namespace Client {
 				case "TURN":
 					update_target(RR::color(notice->reply[2]),
 						      RR::shape(notice->reply[3]));
+					update_turn(current_turn + 1);
 					break;
 				case "GAMEOVER":
 					/* XXX start new game */
+					update_turn(0);
 					break;
 				case "JOIN":
 				case "WATCH":
@@ -282,6 +297,8 @@ extend namespace Client {
 						    exit(0);
 					    });
 
+			&turn = Label::new(&ui, "turn");
+
 			&state = Label::new(&ui, "state");
 
 			/* Bid mode items */
@@ -345,16 +362,17 @@ extend namespace Client {
 					     Box::widget_item(&reset, 0),
 					     Box::widget_item(&pass, 0));
 
-			&turn = Button::new(&ui, "Turn",
-					    void func (&widget_t w, bool state) {
-						    if (state)
-							    Link::message_t r = Link::command(link, "turn\n");
-					    });
+			&next_turn = Button::new(&ui, "Turn",
+						 void func (&widget_t w, bool state) {
+							 if (state)
+								 Link::command(link, "turn\n");
+						 });
 
 			&done_box = Box::new(Box::dir_t.horizontal,
-					     Box::widget_item(&turn, 0));
+					     Box::widget_item(&next_turn, 0));
 
 			&box_t			top = Box::new (Box::dir_t.horizontal,
+								Box::widget_item(&turn, 0),
 								Box::widget_item(&state, 0),
 								Box::box_item(&show_box),
 								Box::box_item(&bid_box),
@@ -383,6 +401,8 @@ extend namespace Client {
 				add_user(r->reply[i]);
 
 			Link::message_t r = Link::command(link, "GAMEINFO %s\n", game);
+
+			update_turn(string_to_integer(r->reply[1]));
 
 			update_state(r->reply[4]);
 
