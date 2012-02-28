@@ -59,7 +59,6 @@ extend namespace Nichrome {
 		}
 
 		void draw_clock (cairo_t cr, &rrboard_widget_t widget) {
-			printf ("draw clock %g\n", widget.time);
 			save (cr);
 			new_path (cr);
 			move_to (cr,
@@ -79,7 +78,6 @@ extend namespace Nichrome {
 		}
 
 		void run_timer (&rrboard_widget_t widget) {
-			printf ("timer thread\n");
 			twixt(Mutex::acquire(widget.timer_mutex); Mutex::release(widget.timer_mutex)) {
 				real	start = millis() / 1000;
 				real	end = start + widget.time;
@@ -91,7 +89,6 @@ extend namespace Nichrome {
 						delay = widget.time;
 					twixt(Mutex::release(widget.timer_mutex);
 					      Mutex::acquire(widget.timer_mutex)) {
-						printf ("time %g\n", widget.time);
 						sleep(floor (delay * 1000));
 						Widget::redraw(&widget);
 					}
@@ -104,7 +101,6 @@ extend namespace Nichrome {
 		void start_timer (&rrboard_widget_t widget) {
 			twixt(Mutex::acquire(widget.timer_mutex); Mutex::release(widget.timer_mutex)) {
 				if (is_uninit(&widget.timer)) {
-					printf ("starting timer thread\n");
 					widget.timer = fork run_timer(&widget);
 				}
 			}
@@ -112,12 +108,10 @@ extend namespace Nichrome {
 
 		protected void set_timer (&rrboard_widget_t widget, real time) {
 			widget.time = time;
-			printf ("set timer to %g\n", time);
 			start_timer(&widget);
 		}
 
 		protected void stop_timer (&rrboard_widget_t widget) {
-			printf ("stop timer\n");
 			widget.time = -1;
 			twixt(Mutex::acquire(widget.timer_mutex); Mutex::release(widget.timer_mutex)) {
 				if (!is_uninit(&widget.timer)) {

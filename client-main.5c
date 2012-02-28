@@ -166,13 +166,11 @@ extend namespace Client {
 				      RR::boolean(u->reply[2]),
 				      string_to_integer(u->reply[3]),
 				      string_to_integer(u->reply[4]));
-			printf ("user %s added\n", name);
 		}
 
 		void handle_notice() {
 			for (;;) {
 				Link::message_t notice = Link::notice(link);
-				printf ("notice %v\n", notice);
 				switch (notice->reply[1]) {
 
 				/* Global game notices */
@@ -245,7 +243,6 @@ extend namespace Client {
 		}
 
 		void move_callback(RR::Color color, RR::Direction dir) {
-			printf ("move %v %v\n", color, dir);
 			string c;
 			enum switch (color) {
 			case Red:	c = "red"; break;
@@ -263,7 +260,6 @@ extend namespace Client {
 			}
 			Link::message_t r = Link::command(link, "move %s %s\n",
 							  c, d);
-			printf ("move reply %v\n", r);
 		}
 
 		void undo_callback() {
@@ -376,8 +372,6 @@ extend namespace Client {
 
 			Link::message_t r = Link::command(link, "helo %s\n", name);
 
-			printf ("helo reply %v\n", r);
-
 			Link::message_t r = Link::command(link, "join %s\n", game);
 
 			if (r->reply[0] == "ERROR" && r->reply[1] == "NOGAME")
@@ -385,17 +379,10 @@ extend namespace Client {
 
 			Link::message_t r = Link::command(link, "PLAYERS %s\n", game);
 
-			for (int i = 1; i < dim(r->reply); i += 2) {
-				printf ("going to add user %s\n", r->reply[i]);
+			for (int i = 1; i < dim(r->reply); i += 2)
 				add_user(r->reply[i]);
-				printf ("back from adding user %s\n", r->reply[i]);
-			}
-
-			printf ("all users added\n");
 
 			Link::message_t r = Link::command(link, "GAMEINFO %s\n", game);
-
-			printf ("game info reply %v\n", r);
 
 			update_state(r->reply[4]);
 

@@ -175,7 +175,6 @@ extend namespace Client {
 		}
 
 		public void add(*userlist_t ul, string name, bool playing, int score, int bid) {
-			printf ("add %s %v %d %d\n", name, playing, score, bid);
 			*user_t find = &(user_t) { .name = name };
 			try {
 				Skiplist::search(ul->names, find);
@@ -197,11 +196,9 @@ extend namespace Client {
 				ul->count = Skiplist::length(ul->names);
 				set_boxes(ul);
 			}
-			printf ("added\n");
 		}
 
 		public void remove(*userlist_t ul, string name) {
-			printf ("remove %s\n", name);
 			*user_t find = &(user_t) { .name = name };
 			try {
 				*user_t user = Skiplist::search(ul->names, find);
