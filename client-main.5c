@@ -78,11 +78,26 @@ extend namespace Client {
 
 		&nichrome_t		ui;
 		&Label::label_t		state;
-		&Label::label_t		moves;
+
+		/* New/Bid mode items */
 		&Box::box_t		bid_box;
 		&Button::button_t	bid;
 		&Text::text_t		bid_value;
+		&Button::button_t	revoke;
+		&Button::button_t	abandon;
+		&Button::button_t	nobid;
+
+		/* Show mode items */
+		&Box::box_t		show_box;
+		&Label::label_t		moves;
+		&Button::button_t	undo;
+		&Button::button_t	reset;
+		&Button::button_t	pass;
+
+		/* Done mode items */
+		&Box::box_t		done_box;
 		&Button::button_t	turn;
+
 		&Button::button_t	quit;
 		&rrboard_widget_t	rrboard;
 		&userlist_t		userlist;
@@ -103,7 +118,10 @@ extend namespace Client {
 				Update::update_target(&(rrboard.board), color, shape);
 		}
 
+		int	current_moves = 0;
+
 		void update_moves(int new_moves) {
+			current_moves = new_moves;
 			Label::relabel(&moves, sprintf("Moves: %d", new_moves));
 		}
 
@@ -111,6 +129,9 @@ extend namespace Client {
 			Label::relabel(&state, sprintf("State: %s", new_state));
 			Nichrome::suspend_draw(&ui);
 			current_state = RR::game_state(new_state);
+			Box::set_active(&bid_box, false);
+			Box::set_active(&done_box, false);
+			Box::set_active(&show_box, false);
 			union switch (current_state){
 			case NEW:
 				RRboard::stop_timer(&rrboard);
@@ -119,23 +140,21 @@ extend namespace Client {
 			case BID:
 				Nichrome::set_key_focus(&ui, &bid_value);
 				Box::set_active(&bid_box, true);
-				Box::set_active(&turn, false);
-				Box::set_active(&moves, false);
 				Userlist::clear_showing(&userlist);
+				Userlist::clear_modes(&userlist);
 				break;
 			case SHOW:
 				RRboard::stop_timer(&rrboard);
 				Nichrome::set_key_focus(&ui, &rrboard);
-				Box::set_active(&bid_box, false);
-				Box::set_active(&turn, false);
 				update_moves(0);
-				Box::set_active(&moves, true);
+				Box::set_active(&show_box, true);
 				break;
 			case DONE:
 				RRboard::stop_timer(&rrboard);
-				Box::set_active(&bid_box, false);
-				Box::set_active(&turn, true);
+				Nichrome::set_key_focus(&ui, &rrboard);
+				Box::set_active(&done_box, true);
 				Userlist::clear_showing(&userlist);
+				Userlist::clear_modes(&userlist);
 				break;
 			}
 			Nichrome::release_draw(&ui);
@@ -155,33 +174,10 @@ extend namespace Client {
 				Link::message_t notice = Link::notice(link);
 				printf ("notice %v\n", notice);
 				switch (notice->reply[1]) {
+
+				/* Global game notices */
 				case "BOARD":
 					update_board(notice->reply[2]);
-					break;
-				case "POSITION":
-					update_robot(RR::color(notice->reply[2]),
-						     string_to_integer(notice->reply[3]),
-						     string_to_integer(notice->reply[4]));
-					break;
-				case "JOIN":
-					add_user(notice->reply[2]);
-					break;
-				case "PART":
-					Userlist::remove(&userlist, notice->reply[2]);
-					break;
-				case "SCORE":
-					Userlist::score(&userlist, notice->reply[2],
-							string_to_integer(notice->reply[3]));
-					break;
-				case "BID":
-					Userlist::bid(&userlist, notice->reply[2],
-						      string_to_integer(notice->reply[3]));
-					break;
-				case "ACTIVE":
-					Userlist::showing(&userlist, notice->reply[2], true);
-					break;
-				case "MOVE":
-					update_moves(string_to_integer(notice->reply[2]));
 					break;
 				case "GAMESTATE":
 					update_state (notice->reply[2]);
@@ -190,16 +186,65 @@ extend namespace Client {
 					update_target(RR::color(notice->reply[2]),
 						      RR::shape(notice->reply[3]));
 					break;
+				case "GAMEOVER":
+					/* XXX start new game */
+					break;
+				case "JOIN":
+				case "WATCH":
+					add_user(notice->reply[2]);
+					break;
+				case "PART":
+					Userlist::remove(&userlist, notice->reply[2]);
+					break;
+
+				/* Bid notices */
+				case "BID":
+					Userlist::bid(&userlist, notice->reply[2],
+						      string_to_integer(notice->reply[3]));
+					break;
+				case "REVOKE":
+					Userlist::bid(&userlist, notice->reply[2], 0);
+					break;
 				case "TIMER":
 					RRboard::set_timer(&rrboard,
 							   string_to_integer(notice->reply[2]));
+					break;
+				case "ABANDON":
+					Userlist::set_mode(&userlist, notice->reply[2], "abandon");
+					break;
+				case "NOBID":
+					Userlist::set_mode(&userlist, notice->reply[2], "done");
+					break;
+
+
+				/* Solving notices */
+				case "ACTIVE":
+					Userlist::showing(&userlist, notice->reply[2], true);
+					break;
+				case "MOVE":
+					update_moves(string_to_integer(notice->reply[2]));
+					break;
+				case "UNDO":
+					update_moves(max(current_moves - 1, 0));
+					break;
+				case "RESET":
+					update_moves(0);
+					break;
+				case "POSITION":
+					update_robot(RR::color(notice->reply[2]),
+						     string_to_integer(notice->reply[3]),
+						     string_to_integer(notice->reply[4]));
+					break;
+				case "SCORE":
+					Userlist::score(&userlist, notice->reply[2],
+							string_to_integer(notice->reply[3]));
 					break;
 				}
 				Nichrome::redraw(&ui);
 			}
 		}
 
-		void move(RR::Color color, RR::Direction dir) {
+		void move_callback(RR::Color color, RR::Direction dir) {
 			printf ("move %v %v\n", color, dir);
 			string c;
 			enum switch (color) {
@@ -221,16 +266,15 @@ extend namespace Client {
 			printf ("move reply %v\n", r);
 		}
 
-		void undo() {
+		void undo_callback() {
 			Link::message_t r = Link::command(link, "undo\n");
-			printf ("undo reply %v\n", r);
 		}
 
 		public void main () {
 			ParseArgs::parseargs(&argd, &argv);
 
 			&ui = Nichrome::new("Ricochet Robots", board_width, board_height);
-			&rrboard = RRboard::new(&ui, move, undo);
+			&rrboard = RRboard::new(&ui, move_callback, undo_callback);
 			&userlist = Userlist::new(&ui);
 
 			&quit = Button::new(&ui, "Quit",
@@ -243,21 +287,67 @@ extend namespace Client {
 					    });
 
 			&state = Label::new(&ui, "state");
-			&moves = Label::new(&ui, "moves");
 
+			/* Bid mode items */
 			&bid = Button::new(&ui, "Bid",
 					   void func (&widget_t w, bool state) {
 						   if (state)
-							   Link::message_t r = Link::command(link, "bid %s\n",
-											     bid_value.text);
+							   Link::command(link, "BID %s\n",
+									 bid_value.text);
 					   });
 
 			&bid_value = Text::new(&ui, 6);
 			Text::set_text(&bid_value, "0");
 
+			&revoke = Button::new(&ui, "Revoke",
+					      void func (&widget_t w, bool state) {
+						      if (state)
+							      Link::message_t r = Link::command(link, "REVOKE\n");
+					      });
+
+			&abandon = Button::new(&ui, "Abandon",
+					      void func (&widget_t w, bool state) {
+						      if (state)
+							      Link::message_t r = Link::command(link, "ABANDON\n");
+					      });
+
+			&nobid = Button::new(&ui, "Done Bidding",
+					      void func (&widget_t w, bool state) {
+						      if (state)
+							      Link::message_t r = Link::command(link, "NOBID\n");
+					      });
+
 			&bid_box = Box::new(Box::dir_t.horizontal,
 					    Box::widget_item(&bid, 0),
-					    Box::widget_item(&bid_value, 0));
+					    Box::widget_item(&bid_value, 0),
+					    Box::widget_item(&revoke, 0),
+					    Box::widget_item(&abandon, 0),
+					    Box::widget_item(&nobid, 0));
+
+			/* Show mode items */
+			&moves = Label::new(&ui, "moves");
+
+			&undo = Button::new(&ui, "Undo Move",
+					    void func (&widget_t w, bool state) {
+						    if (state)
+							    Link::command(link, "UNDO\n");
+					    });
+
+			&reset = Button::new(&ui, "Reset Robots",
+					     void func (&widget_t w, bool state) {
+						     if (state)
+							     Link::command(link, "RESET\n");
+					     });
+			&pass = Button::new(&ui, "Pass",
+					    void func (&widget_t w, bool state) {
+						    if (state)
+							    Link::command(link, "PASS\n");
+					    });
+			&show_box = Box::new(Box::dir_t.horizontal,
+					     Box::widget_item(&moves, 0),
+					     Box::widget_item(&undo, 0),
+					     Box::widget_item(&reset, 0),
+					     Box::widget_item(&pass, 0));
 
 			&turn = Button::new(&ui, "Turn",
 					    void func (&widget_t w, bool state) {
@@ -265,11 +355,14 @@ extend namespace Client {
 							    Link::message_t r = Link::command(link, "turn\n");
 					    });
 
+			&done_box = Box::new(Box::dir_t.horizontal,
+					     Box::widget_item(&turn, 0));
+
 			&box_t			top = Box::new (Box::dir_t.horizontal,
 								Box::widget_item(&state, 0),
-								Box::widget_item(&moves, 0),
+								Box::box_item(&show_box),
 								Box::box_item(&bid_box),
-								Box::widget_item(&turn, 0),
+								Box::box_item(&done_box),
 								Box::glue_item(1),
 								Box::widget_item(&quit, 0));
 			&box_t			hbox = Box::new (Box::dir_t.horizontal,
@@ -278,9 +371,12 @@ extend namespace Client {
 			&box_t			vbox = Box::new (Box::dir_t.vertical,
 								 Box::box_item(&top),
 								 Box::box_item(&hbox));
+
 			link = Link::new(host, port);
 
 			Link::message_t r = Link::command(link, "helo %s\n", name);
+
+			printf ("helo reply %v\n", r);
 
 			Link::message_t r = Link::command(link, "join %s\n", game);
 

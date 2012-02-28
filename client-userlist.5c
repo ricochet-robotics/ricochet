@@ -34,6 +34,8 @@ extend namespace Client {
 			*Label::label_t	score_label;
 			int		bid;
 			*Label::label_t	bid_label;
+			string		mode;
+			*Label::label_t	mode_label;
 		} user_t;
 
 		public typedef union {
@@ -47,9 +49,11 @@ extend namespace Client {
 			*Label::label_t		name_label;
 			*Label::label_t		score_label;
 			*Label::label_t		bid_label;
+			*Label::label_t		mode_label;
 			*Box::box_t		name_box;
 			*Box::box_t		bid_box;
 			*Box::box_t		score_box;
+			*Box::box_t		mode_box;
 			Skiplist::Skip		names;
 			int			count;
 			user_or_none_t		showing;
@@ -61,22 +65,24 @@ extend namespace Client {
 		bool user_greater(*user_t a, *user_t b)  = a->name > b->name;
 
 		protected void set_boxes(&userlist_t ul) {
-			Box::item_t[...]	names = {};
-			Box::item_t[...]	scores = {};
 			ul.name_box->items = (Box::item_t[...]) {};
 			ul.score_box->items = (Box::item_t[...]) {};
 			ul.bid_box->items = (Box::item_t[...]) {};
+			ul.mode_box->items = (Box::item_t[...]) {};
 			Box::add_item(ul.name_box, Box::widget_item(ul.name_label, 1, 0));
 			Box::add_item(ul.score_box, Box::widget_item(ul.score_label, 1, 0));
 			Box::add_item(ul.bid_box, Box::widget_item(ul.bid_label, 1, 0));
+			Box::add_item(ul.mode_box, Box::widget_item(ul.mode_label, 1, 0));
 			Skiplist::walk (ul.names, void func (*user_t user) {
 					Box::add_item(ul.name_box, Box::widget_item(user->name_label, 0, 0));
 					Box::add_item(ul.score_box, Box::widget_item(user->score_label, 0, 0));
 					Box::add_item(ul.bid_box, Box::widget_item(user->bid_label, 0, 0));
+					Box::add_item(ul.mode_box, Box::widget_item(user->mode_label, 0, 0));
 				});
 			Box::add_item(ul.name_box, Box::glue_item(0, 1));
 			Box::add_item(ul.score_box, Box::glue_item(0, 1));
 			Box::add_item(ul.bid_box, Box::glue_item(0, 1));
+			Box::add_item(ul.mode_box, Box::glue_item(0, 1));
 		}
 
 		string score_string(bool playing, int score) {
@@ -152,6 +158,22 @@ extend namespace Client {
 			}
 		}
 
+		public void clear_modes(*userlist_t ul) {
+			Skiplist::walk (ul->names, void func (*user_t user) {
+					Label::relabel(user->mode_label, "");
+				});
+		}
+
+		public void set_mode(*userlist_t ul, string name, string mode) {
+			try {
+				*user_t user = Skiplist::search(ul->names,
+								&(user_t) { .name = name });
+				user->mode = mode;
+				Label::relabel(user->mode_label, user->mode);
+			} catch Skiplist::not_found(*user_t x) {
+			}
+		}
+
 		public void add(*userlist_t ul, string name, bool playing, int score, int bid) {
 			printf ("add %s %v %d %d\n", name, playing, score, bid);
 			*user_t find = &(user_t) { .name = name };
@@ -166,6 +188,8 @@ extend namespace Client {
 					.score_label = Label::new(ul->ui, score_string(playing, score)),
 					.bid = bid,
 					.bid_label = Label::new(ul->ui, bid_string(playing, bid)),
+					.mode = "",
+					.mode_label = Label::new(ul->ui, ""),
 				};
 				if (!playing)
 					user->name_label->font = ul->italic_font;
@@ -204,13 +228,17 @@ extend namespace Client {
 			ul->score_label->font = ul->bold_font;
 			ul->bid_label = Label::new(ui, "Bid");
 			ul->bid_label->font = ul->bold_font;
+			ul->mode_label = Label::new(ui, "State");
+			ul->mode_label->font = ul->bold_font;
 			ul->name_box = Box::new(Box::dir_t.vertical);
 			ul->score_box = Box::new(Box::dir_t.vertical);
 			ul->bid_box = Box::new(Box::dir_t.vertical);
+			ul->mode_box = Box::new(Box::dir_t.vertical);
 			ul->hbox = Box::new(Box::dir_t.horizontal,
 					    Box::box_item(ul->name_box),
 					    Box::box_item(ul->score_box),
-					    Box::box_item(ul->bid_box));
+					    Box::box_item(ul->bid_box),
+					    Box::box_item(ul->mode_box));
 			ul->showing = user_or_none_t.none;
 			ul->count = 0;
 		}

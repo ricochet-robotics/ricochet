@@ -40,6 +40,7 @@ extend namespace Nichrome {
 			void (RR::Color color,
 			      RR::Direction direction) move_callback;
 			void () 		undo_callback;
+			int			button_x, button_y;
 		} rrboard_widget_t;
 
 		typedef struct {
@@ -51,10 +52,10 @@ extend namespace Nichrome {
 			real	dim = min (widget.geometry.width, widget.geometry.height);
 			return (transform_t) {
 				.xscale = dim / board_width,
-					.yscale = dim / board_height,
-					.xoff = (widget.geometry.width - dim) / 2,
-					.yoff = (widget.geometry.height - dim) / 2
-					};
+				.yscale = dim / board_height,
+				.xoff = (widget.geometry.width - dim) / 2,
+				.yoff = (widget.geometry.height - dim) / 2
+				};
 		}
 
 		void draw_clock (cairo_t cr, &rrboard_widget_t widget) {
@@ -158,10 +159,14 @@ extend namespace Nichrome {
 			rectangle(cr, 0, 0, board_width, board_height);
 		}
 
+		void set_active_robot(&rrboard_widget_t widget, RR::Robot robot) {
+			widget.active_robot = (RR::RobotOrNone.robot) robot;
+			Widget::redraw(&widget);
+		}
+		
 		void set_active (&rrboard_widget_t widget, string color) {
 			try {
-				widget.active_robot = (RR::RobotOrNone.robot) (RR::Robot) { .color = RR::color(color) };
-				Widget::redraw(&widget);
+				set_active_robot(&widget, (RR::Robot) { .color = RR::color(color) });
 			} catch RR::rr_error(RR::Error error) {
 			}
 		}
@@ -184,6 +189,9 @@ extend namespace Nichrome {
 		}
 
 		protected void key (&rrboard_widget_t widget, &key_event_t event) {
+
+			if (event.type != key_type_t.press)
+				return;
 
 			switch (event.key) {
 			case "r": case "R":
@@ -216,7 +224,56 @@ extend namespace Nichrome {
 			}
 		}
 
+		typedef struct { int x, y; } position_t;
+
+		position_t find_robot (&rrboard_widget_t widget, RR::Robot robot) {
+			for (int y = 0; y < RR::Height; y++)
+				for (int x = 0; x < RR::Width; x++)
+					if (widget.board[x,y].robot == (RobotOrNone.robot) robot)
+						return (position_t) { .x = x, .y = y };
+			return (position_t) { .x = 0, .y = 0 };
+		}
+
 		protected void button (&rrboard_widget_t widget, &button_event_t event) {
+			transform_t	t = transform(&widget);
+			int		x = floor ((event.x - t.xoff) / t.xscale / Draw::cell_width);
+			int		y = floor ((event.y - t.yoff) / t.yscale / Draw::cell_height);
+
+			enum switch (event.type) {
+			case press:
+				RR::Object	object = widget.board[x,y];
+				union switch (object.robot) {
+				case robot r:
+					set_active_robot(&widget, r);
+					break;
+				default:
+				}
+				break;
+			case release:
+				union switch (widget.active_robot) {
+				case robot r:
+					position_t	robot_pos = find_robot(&widget, r);
+					int	dx = x - robot_pos.x;
+					int	dy = y - robot_pos.y;
+
+					if (abs (dx) > abs (dy)) {
+						if (dx < 0)
+							move_active(&widget, "west");
+						else if (dx > 0)
+							move_active(&widget, "east");
+					} else {
+						if (dy < 0)
+							move_active(&widget, "north");
+						else if (dy > 0)
+							move_active(&widget, "south");
+					}
+					break;
+				default:
+					break;
+				}
+				break;
+			default:
+			}
 		}
 
 		public *rrboard_widget_t new(&nichrome_t nichrome,
