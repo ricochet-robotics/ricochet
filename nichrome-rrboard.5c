@@ -222,9 +222,15 @@ extend namespace Nichrome {
 
 		position_t find_robot (&rrboard_widget_t widget, RR::Robot robot) {
 			for (int y = 0; y < RR::Height; y++)
-				for (int x = 0; x < RR::Width; x++)
-					if (widget.board[x,y].robot == (RobotOrNone.robot) robot)
-						return (position_t) { .x = x, .y = y };
+				for (int x = 0; x < RR::Width; x++) {
+					union switch (widget.board[x,y].robot) {
+					case robot r:
+						if (r.color == robot.color)
+							return (position_t) { .x = x, .y = y };
+						break;
+					default:
+					}
+				}
 			return (position_t) { .x = 0, .y = 0 };
 		}
 

@@ -78,7 +78,6 @@ extend namespace Client {
 				  .desc = "proposed game name" },
 			},
 			.unknown = &(int user_argind),
-			.prog_name = "rrclient"
 		};
 
 		&nichrome_t		ui;
@@ -293,7 +292,6 @@ extend namespace Client {
 						    Link::close(link);
 						    w.nichrome.running = false;
 						    RRboard::stop_timer(&rrboard);
-						    Thread::list();
 						    exit(0);
 					    });
 

@@ -129,6 +129,12 @@ extend namespace Client {
 		void set_showing (*userlist_t ul, *user_t user, bool showing) {
 			if (showing) {
 				if (ul->showing != (user_or_none_t.user) user) {
+					union switch (ul->showing) {
+					case user old:
+						old->name_label->font = ul->font;
+						break;
+					default:
+					}
 					ul->showing = (user_or_none_t.user) user;
 					user->name_label->font = ul->bold_font;
 				}

@@ -61,12 +61,10 @@ extend namespace Client {
 					}
 				}
 			} catch Thread::signal(int sig) {
-				printf ("link closing\n");
 			} catch Parse::server_gone() {
 				printf ("server gone\n");
 				exit(0);
 			}
-			printf ("reader exiting\n");
 		}
 
 		public message_t command(link_t l, string format, poly args...) {
@@ -108,11 +106,8 @@ extend namespace Client {
 
 		public void close(link_t l) {
 			Thread::send_signal(l->reader, 1);
-			printf ("reader signaled\n");
 			Thread::join(l->reader);
-			printf ("reader joined\n");
 			File::close(l->f);
-			printf ("link closed\n");
 		}
 	}
 }
