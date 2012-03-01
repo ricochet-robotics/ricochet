@@ -20,6 +20,7 @@ autoload Client::Window;
 autoload Client::Link;
 autoload Client::Update;
 autoload Client::Userlist;
+autoload Client::Messages;
 autoload ParseArgs;
 autoload RR;
 autoload Cairo;
@@ -107,6 +108,9 @@ extend namespace Client {
 		&rrboard_widget_t	rrboard;
 		&userlist_t		userlist;
 		RR::GameState		current_state;
+		&Messages::messages_t	messages;
+		&Nichrome::widget_t	desired_focus;
+		bool			messages_active = false;
 
 		void update_board(string board) {
 			twixt (Mutex::acquire(board_lock); Mutex::release(board_lock))
@@ -137,6 +141,16 @@ extend namespace Client {
 			Label::relabel(&turn, sprintf("Turn: %d", new_turn));
 		}
 
+		void clear_bid() {
+			Text::set_text(&bid_value, "");
+		}
+			
+		void set_focus(&Nichrome::widget_t focus) {
+			&desired_focus = &focus;
+			if (!messages_active)
+				Nichrome::set_key_focus(&ui, &focus);
+		}
+
 		void update_state(string new_state) {
 			Label::relabel(&state, sprintf("State: %s", new_state));
 			Nichrome::suspend_draw(&ui);
@@ -147,23 +161,24 @@ extend namespace Client {
 			union switch (current_state){
 			case NEW:
 				RRboard::stop_timer(&rrboard);
+				clear_bid();
 				Userlist::clear_bid(&userlist);
 				/* fall through ... */
 			case BID:
-				Nichrome::set_key_focus(&ui, &bid_value);
+				set_focus(&bid_value);
 				Box::set_active(&bid_box, true);
 				Userlist::clear_showing(&userlist);
 				Userlist::clear_modes(&userlist);
 				break;
 			case SHOW:
 				RRboard::stop_timer(&rrboard);
-				Nichrome::set_key_focus(&ui, &rrboard);
+				set_focus(&rrboard);
 				update_moves(0);
 				Box::set_active(&show_box, true);
 				break;
 			case DONE:
 				RRboard::stop_timer(&rrboard);
-				Nichrome::set_key_focus(&ui, &rrboard);
+				set_focus(&rrboard);
 				Box::set_active(&done_box, true);
 				Userlist::clear_showing(&userlist);
 				Userlist::clear_modes(&userlist);
@@ -207,6 +222,11 @@ extend namespace Client {
 					break;
 				case "PART":
 					Userlist::remove(&userlist, notice->reply[2]);
+					break;
+				case "MESSAGE":
+					printf ("message %v\n", notice->reply);
+					Messages::add(&messages, notice->reply[2],
+						      notice->reply[3]);
 					break;
 
 				/* Bid notices */
@@ -276,16 +296,77 @@ extend namespace Client {
 							  c, d);
 		}
 
-		void undo_callback() {
-			Link::message_t r = Link::command(link, "undo\n");
+		void do_undo() {
+			Link::command(link, "undo\n");
 		}
 
+		void do_bid() {
+			Link::command(link, "BID %s\n",
+				      bid_value.text);
+		}
+
+		void do_revoke() {
+			Link::command(link, "REVOKE\n");
+		}
+
+		void do_abandon() {
+			Link::command(link, "ABANDON\n");
+		}
+
+		void do_no_bid() {
+			Link::command(link, "NOBID\n");
+		}
+
+		void go_message() {
+			messages_active = true;
+			Messages::set_focus(&messages);
+		}
+
+		void done_message() {
+			messages_active = false;
+			set_focus(&desired_focus);
+		}
+		
+		void do_turn () {
+			Link::command(link, "TURN\n");
+		}
+
+		void do_pass () {
+			Link::command(link, "PASS\n");
+		}
+
+		void key_callback(string key) {
+			switch (key) {
+			case "m": case "slash":
+				go_message();
+				break;
+			case "BackSpace": case "u": case "U":
+				do_undo();
+				break;
+			case "p": case "P":
+				do_pass();
+				break;
+			case "Return": case "t": case "T":
+				if (current_state == RR::GameState.DONE)
+					do_turn();
+				break;
+			}
+		}
+
+		void message_done(*Messages::messages_t m, string message) {
+			printf ("send message %s\n", message);
+			Link::message_t r = Link::command(link, "MESSAGE \"%s\"\n", message);
+			printf ("message reply %v\n", r);
+			done_message();
+		}
+			
 		public void main () {
 			ParseArgs::parseargs(&argd, &argv);
 
 			&ui = Nichrome::new("Ricochet Robots", board_width, board_height);
-			&rrboard = RRboard::new(&ui, move_callback, undo_callback);
+			&rrboard = RRboard::new(&ui, move_callback, do_undo, key_callback);
 			&userlist = Userlist::new(&ui);
+			&messages = Messages::new(&ui, 20, message_done);
 
 			&quit = Button::new(&ui, "Quit",
 					    void func (&widget_t w, bool state) {
@@ -303,29 +384,39 @@ extend namespace Client {
 			&bid = Button::new(&ui, "Bid",
 					   void func (&widget_t w, bool state) {
 						   if (state)
-							   Link::command(link, "BID %s\n",
-									 bid_value.text);
+							   do_bid();
 					   });
 
 			&bid_value = Text::new(&ui, 6);
-			Text::set_text(&bid_value, "0");
+			bid_value.callback = bool func (&widget_t w, string key) {
+				switch (key) {
+				case "b": case "Return": do_bid(); break;
+				case "m": case "slash": go_message(); break;
+				case "r": do_revoke(); break;
+				case "a": do_abandon(); break;
+				case "d": do_no_bid(); break;
+				default: printf ("unknown key %s\n", key); return false;
+				}
+				return true;
+			};
+			clear_bid();
 
 			&revoke = Button::new(&ui, "Revoke",
 					      void func (&widget_t w, bool state) {
 						      if (state)
-							      Link::message_t r = Link::command(link, "REVOKE\n");
+							      do_revoke();
 					      });
 
 			&abandon = Button::new(&ui, "Abandon",
 					      void func (&widget_t w, bool state) {
 						      if (state)
-							      Link::message_t r = Link::command(link, "ABANDON\n");
+							      do_abandon();
 					      });
 
 			&nobid = Button::new(&ui, "Done Bidding",
 					      void func (&widget_t w, bool state) {
 						      if (state)
-							      Link::message_t r = Link::command(link, "NOBID\n");
+							      do_no_bid();
 					      });
 
 			&bid_box = Box::new(Box::dir_t.horizontal,
@@ -363,7 +454,7 @@ extend namespace Client {
 			&next_turn = Button::new(&ui, "Turn",
 						 void func (&widget_t w, bool state) {
 							 if (state)
-								 Link::command(link, "turn\n");
+								 do_turn();
 						 });
 
 			&done_box = Box::new(Box::dir_t.horizontal,
@@ -377,9 +468,13 @@ extend namespace Client {
 								Box::box_item(&done_box),
 								Box::glue_item(1),
 								Box::widget_item(&quit, 0));
+			&box_t			rbox = Box::new (Box::dir_t.vertical,
+								 Box::box_item(userlist.hbox),
+								 Box::glue_item(1),
+								 Box::box_item(messages.vbox));
 			&box_t			hbox = Box::new (Box::dir_t.horizontal,
 								 Box::widget_item(&rrboard, 1),
-								 Box::box_item(userlist.hbox));
+								 Box::box_item(&rbox));
 			&box_t			vbox = Box::new (Box::dir_t.vertical,
 								 Box::box_item(&top),
 								 Box::box_item(&hbox));

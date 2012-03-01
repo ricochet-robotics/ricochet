@@ -40,6 +40,7 @@ extend namespace Nichrome {
 			void (RR::Color color,
 			      RR::Direction direction) move_callback;
 			void () 		undo_callback;
+			void (string key)	key_callback;
 			int			button_x, button_y;
 		} rrboard_widget_t;
 
@@ -209,11 +210,11 @@ extend namespace Nichrome {
 			case "Down": case "s": case "S":
 				move_active(&widget, "south");
 				break;
-			case "BackSpace":
+			case "BackSpace": case "u": case "U":
 				undo(&widget);
 				break;
 			default:
-				printf ("unknown key %s\n", event.key);
+				widget.key_callback(event.key);
 				break;
 			}
 		}
@@ -278,7 +279,8 @@ extend namespace Nichrome {
 
 		public *rrboard_widget_t new(&nichrome_t nichrome,
 					     void(RR::Color color, RR::Direction dir) move_callback,
-					     void() undo_callback) {
+					     void() undo_callback,
+					     void(string key) key_callback) {
 			rrboard_widget_t	widget;
 
 			Widget::init(&nichrome, &widget);
@@ -292,6 +294,7 @@ extend namespace Nichrome {
 			widget.active_robot = RobotOrNone.none;
 			widget.move_callback = move_callback;
 			widget.undo_callback = undo_callback;
+			widget.key_callback = key_callback;
 			widget.board = (RR::Board) { { { .robot = RobotOrNone.none,
 							 .target = TargetOrNone.none,
 							 .walls = { .left = false, .right = false,

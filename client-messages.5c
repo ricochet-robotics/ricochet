@@ -1,0 +1,96 @@
+/*
+ * Copyright © 2012 Keith Packard <keithp@keithp.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 2 of the License.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
+ */
+
+autoload Client;
+autoload Nichrome;
+autoload Nichrome::Box;
+autoload Nichrome::Label;
+autoload Nichrome::Text;
+
+extend namespace Client {
+	public namespace Messages {
+		import Nichrome;
+
+		public typedef messages_t;
+
+		protected typedef void (*messages_t m, string text) callback_t;
+
+		public typedef struct {
+			*nichrome_t		ui;
+			*Box::box_t		vbox;
+			(*Label::label_t)[...]	output;
+			*Text::text_t		input;
+			int			max;
+			callback_t		done_callback;
+		} messages_t;
+
+		void set_boxes (&messages_t m) {
+			m.vbox->items = (Box::item_t[...]) {};
+			Box::add_item(m.vbox, Box::glue_item(1));
+			for (int i = 0; i < dim(m.output); i++)
+				Box::add_item(m.vbox, Box::widget_item(m.output[i], 0, 0));
+			Box::add_item(m.vbox, Box::widget_item(m.input, 0, 0));
+		}
+
+		protected void add (&messages_t m, string user, string message) {
+			string s = m.input->text;
+			printf ("add message %s: %s\n", user, message);
+			*Label::label_t	l = Label::new(m.ui, sprintf ("<%s> %s", user, message));
+			l->justify = Label::justify_t.left;
+			if (dim(m.output) < m.max) {
+				m.output[dim(m.output)] = l;
+			} else {
+				int i;
+				for (i = 0; i < dim(m.output) - 1; i++)
+					m.output[i] = m.output[i+1];
+				m.output[i] = l;
+			}
+			set_boxes(&m);
+		}
+
+		void send(&messages_t m) {
+			string s = m.input->text;
+			Text::set_text(m.input, "");
+			m.done_callback(&m, s);
+		}
+
+		protected void set_focus(*messages_t m) {
+			Nichrome::set_key_focus(m->ui, m->input);
+		}
+
+		protected *messages_t new(&nichrome_t ui, int lines, callback_t done_callback) {
+			*messages_t m = &(messages_t) {
+				.ui = &ui,
+				.vbox = Box::new(Box::dir_t.vertical),
+				.output = {},
+				.input = Text::new(&ui, 40),
+				.max = lines,
+				.done_callback = done_callback
+			};
+			bool key_callback(&Text::text_t widget, string key) {
+				switch (key) {
+				case "Return": send(m); break;
+				default: return false;
+				}
+				return true;
+			}
+			m->input->callback = key_callback;
+			set_boxes(m);
+			return m;
+		}
+	}
+}

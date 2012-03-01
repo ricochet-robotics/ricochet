@@ -26,7 +26,7 @@ extend namespace Client {
 
 		import Nichrome;
 
-		public typedef struct {
+		typedef struct {
 			string		name;
 			*Label::label_t	name_label;
 			bool		playing;
@@ -38,24 +38,25 @@ extend namespace Client {
 			*Label::label_t	mode_label;
 		} user_t;
 
-		public typedef union {
+		typedef union {
 			*user_t		user;
 			void		none;
 		} user_or_none_t;
 
+		typedef struct {
+			*Label::label_t		label;
+			*Box::box_t		box;
+			int			width;
+		} column_t;
+
 		public typedef struct {
 			*nichrome_t		ui;
 			*Box::box_t		hbox;
-			*Label::label_t		name_label;
-			*Label::label_t		score_label;
-			*Label::label_t		bid_label;
-			*Label::label_t		mode_label;
-			*Box::box_t		name_box;
-			*Box::box_t		bid_box;
-			*Box::box_t		score_box;
-			*Box::box_t		mode_box;
+			column_t		name;
+			column_t		score;
+			column_t		bid;
+			column_t		mode;
 			Skiplist::Skip		names;
-			int			count;
 			user_or_none_t		showing;
 			string			font;
 			string			bold_font;
@@ -65,24 +66,24 @@ extend namespace Client {
 		bool user_greater(*user_t a, *user_t b)  = a->name > b->name;
 
 		protected void set_boxes(&userlist_t ul) {
-			ul.name_box->items = (Box::item_t[...]) {};
-			ul.score_box->items = (Box::item_t[...]) {};
-			ul.bid_box->items = (Box::item_t[...]) {};
-			ul.mode_box->items = (Box::item_t[...]) {};
-			Box::add_item(ul.name_box, Box::widget_item(ul.name_label, 1, 0));
-			Box::add_item(ul.score_box, Box::widget_item(ul.score_label, 1, 0));
-			Box::add_item(ul.bid_box, Box::widget_item(ul.bid_label, 1, 0));
-			Box::add_item(ul.mode_box, Box::widget_item(ul.mode_label, 1, 0));
+			void init_box(*column_t column) {
+				column->box->items = (Box::item_t[...]) {};
+				Box::add_item(column->box, Box::widget_item(column->label, 1, 0));
+			}
+			init_box(&ul.name);
+			init_box(&ul.score);
+			init_box(&ul.bid);
+			init_box(&ul.mode);
 			Skiplist::walk (ul.names, void func (*user_t user) {
-					Box::add_item(ul.name_box, Box::widget_item(user->name_label, 0, 0));
-					Box::add_item(ul.score_box, Box::widget_item(user->score_label, 0, 0));
-					Box::add_item(ul.bid_box, Box::widget_item(user->bid_label, 0, 0));
-					Box::add_item(ul.mode_box, Box::widget_item(user->mode_label, 0, 0));
+					Box::add_item(ul.name.box, Box::widget_item(user->name_label, 0, 0));
+					Box::add_item(ul.score.box, Box::widget_item(user->score_label, 0, 0));
+					Box::add_item(ul.bid.box, Box::widget_item(user->bid_label, 0, 0));
+					Box::add_item(ul.mode.box, Box::widget_item(user->mode_label, 0, 0));
 				});
-			Box::add_item(ul.name_box, Box::glue_item(0, 1));
-			Box::add_item(ul.score_box, Box::glue_item(0, 1));
-			Box::add_item(ul.bid_box, Box::glue_item(0, 1));
-			Box::add_item(ul.mode_box, Box::glue_item(0, 1));
+			Box::add_item(ul.name.box, Box::glue_item(0, 1, ul.name.width));
+			Box::add_item(ul.score.box, Box::glue_item(0, 1, ul.score.width));
+			Box::add_item(ul.bid.box, Box::glue_item(0, 1, ul.bid.width));
+			Box::add_item(ul.mode.box, Box::glue_item(0, 1, ul.mode.width));
 		}
 
 		string score_string(bool playing, int score) {
@@ -126,22 +127,29 @@ extend namespace Client {
 				});
 		}
 
+		void set_font(*user_t user, string font) {
+			user->name_label->font = font;
+			user->score_label->font = font;
+			user->bid_label->font = font;
+			user->mode_label->font = font;
+		}
+
 		void set_showing (*userlist_t ul, *user_t user, bool showing) {
 			if (showing) {
 				if (ul->showing != (user_or_none_t.user) user) {
 					union switch (ul->showing) {
 					case user old:
-						old->name_label->font = ul->font;
+						set_font(old, ul->font);
 						break;
 					default:
 					}
 					ul->showing = (user_or_none_t.user) user;
-					user->name_label->font = ul->bold_font;
+					set_font(user, ul->bold_font);
 				}
 			} else {
 				if (ul->showing == (user_or_none_t.user) user) {
 					ul->showing = user_or_none_t.none;
-					user->name_label->font = ul->font;
+					set_font(user, ul->font);
 				}
 			}
 		}
@@ -196,10 +204,15 @@ extend namespace Client {
 					.mode = "",
 					.mode_label = Label::new(ul->ui, ""),
 				};
+				string font = ul->font;
 				if (!playing)
-					user->name_label->font = ul->italic_font;
+					font = ul->italic_font;
+				user->name_label->font = font;
+				user->name_label->justify = Label::justify_t.left;
+				user->score_label->font = font;
+				user->bid_label->font = font;
+				user->mode_label->font = font;
 				Skiplist::insert(ul->names, user);
-				ul->count = Skiplist::length(ul->names);
 				set_boxes(ul);
 			}
 		}
@@ -211,7 +224,6 @@ extend namespace Client {
 				Skiplist::delete(ul->names, user);
 				Nichrome::remove(ul->ui, user->name_label);
 				Nichrome::remove(ul->ui, user->score_label);
-				ul->count = Skiplist::length(ul->names);
 				set_boxes(ul);
 			} catch Skiplist::not_found(string x) {
 			}
@@ -225,25 +237,28 @@ extend namespace Client {
 			ul->italic_font = sprintf("%s:italic", Widget::default_font);
 
 			ul->names = Skiplist::new(user_greater);
-			ul->name_label = Label::new(ui, "Player");
-			ul->name_label->font = ul->bold_font;
-			ul->score_label = Label::new(ui, "Score");
-			ul->score_label->font = ul->bold_font;
-			ul->bid_label = Label::new(ui, "Bid");
-			ul->bid_label->font = ul->bold_font;
-			ul->mode_label = Label::new(ui, "State");
-			ul->mode_label->font = ul->bold_font;
-			ul->name_box = Box::new(Box::dir_t.vertical);
-			ul->score_box = Box::new(Box::dir_t.vertical);
-			ul->bid_box = Box::new(Box::dir_t.vertical);
-			ul->mode_box = Box::new(Box::dir_t.vertical);
+			Cairo::cairo_t	cr = Nichrome::cairo(ui);
+			Cairo::set_font(cr, ul->font);
+			Cairo::text_extents_t x = Cairo::text_extents(cr, "x");
+			real x_width = x.x_advance;
+			void init_column(*column_t column, string label, int width) {
+				column->label = Label::new(ui, label);
+				column->label->font = ul->bold_font;
+				column->box = Box::new(Box::dir_t.vertical);
+				column->width = ceil(width * x_width);
+			}
+			init_column(&ul->name, "Player", 32);
+			ul->name.label->justify = Label::justify_t.left;
+			init_column(&ul->score, "Score", 2);
+			init_column(&ul->bid, "Bid", 3);
+			init_column(&ul->mode, "State", 12);
 			ul->hbox = Box::new(Box::dir_t.horizontal,
-					    Box::box_item(ul->name_box),
-					    Box::box_item(ul->score_box),
-					    Box::box_item(ul->bid_box),
-					    Box::box_item(ul->mode_box));
+					    Box::box_item(ul->name.box),
+					    Box::box_item(ul->score.box),
+					    Box::box_item(ul->bid.box),
+					    Box::box_item(ul->mode.box));
 			ul->showing = user_or_none_t.none;
-			ul->count = 0;
+			set_boxes(ul);
 		}
 
 		public *userlist_t new (*nichrome_t ui) {
