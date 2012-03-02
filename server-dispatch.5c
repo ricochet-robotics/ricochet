@@ -243,13 +243,15 @@ extend namespace Server {
 		    command = "USERINFO",
 		    usage = "USERINFO <username>",
 		    describe =
-		    "USERINFO <game> <playing> <score> <bid>\n"+
+		    "USERINFO <game> <playing> <games> <score> <bid>\n"+
 		    "\n"+
 		    "<game> is any currently associated game, else \"\".  If the user\n"+
 		    "is not associated with any game, the remaining fields are\n"+
 		    "false 0 0.\n"+
 		    "\n"+
 		    "<playing> is true if the user is playing and false if watching.\n"+
+		    "\n"+
+		    "<games> is the number of games won by this user\n"+
 		    "\n"+
 		    "<score> is a number from 0 to 17 indicating this players score\n"+
 		    "\n"+
@@ -267,6 +269,7 @@ extend namespace Server {
 			case client c:
 			    string  game = "";
 			    bool    playing = false;
+			    int	    games = c.games;
 			    int	    score = 0;
 			    int	    bid = 0;
 
@@ -282,8 +285,8 @@ extend namespace Server {
 					bid = c.bid.bid.number;
 				}
 			    }
-			    respond ("USERINFO %s %b %d %d\n",
-				     game, playing, score, bid);
+			    respond ("USERINFO %s %b %d %d %d\n",
+				     game, playing, games, score, bid);
 			}
 		    }
 		},

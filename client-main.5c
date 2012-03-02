@@ -110,7 +110,6 @@ extend namespace Client {
 		RR::GameState		current_state;
 		&Messages::messages_t	messages;
 		&Nichrome::widget_t	desired_focus;
-		bool			messages_active = false;
 
 		void update_board(string board) {
 			twixt (Mutex::acquire(board_lock); Mutex::release(board_lock))
@@ -145,9 +144,15 @@ extend namespace Client {
 			Text::set_text(&bid_value, "");
 		}
 			
-		void set_focus(&Nichrome::widget_t focus) {
+		bool messages_active() {
+			if (is_uninit(&(&ui.key_focus)))
+				return false;
+			return &ui.key_focus == messages.input;
+		}
+
+		void set_focus(&Nichrome::widget_t focus, bool force) {
 			&desired_focus = &focus;
-			if (!messages_active)
+			if (!messages_active() || force)
 				Nichrome::set_key_focus(&ui, &focus);
 		}
 
@@ -165,20 +170,20 @@ extend namespace Client {
 				Userlist::clear_bid(&userlist);
 				/* fall through ... */
 			case BID:
-				set_focus(&bid_value);
+				set_focus(&bid_value, false);
 				Box::set_active(&bid_box, true);
 				Userlist::clear_showing(&userlist);
 				Userlist::clear_modes(&userlist);
 				break;
 			case SHOW:
 				RRboard::stop_timer(&rrboard);
-				set_focus(&rrboard);
+				set_focus(&rrboard, false);
 				update_moves(0);
 				Box::set_active(&show_box, true);
 				break;
 			case DONE:
 				RRboard::stop_timer(&rrboard);
-				set_focus(&rrboard);
+				set_focus(&rrboard, false);
 				Box::set_active(&done_box, true);
 				Userlist::clear_showing(&userlist);
 				Userlist::clear_modes(&userlist);
@@ -192,7 +197,8 @@ extend namespace Client {
 			Userlist::add(&userlist, name,
 				      RR::boolean(u->reply[2]),
 				      string_to_integer(u->reply[3]),
-				      string_to_integer(u->reply[4]));
+				      string_to_integer(u->reply[4]),
+				      string_to_integer(u->reply[5]));
 		}
 
 		void handle_notice() {
@@ -224,7 +230,6 @@ extend namespace Client {
 					Userlist::remove(&userlist, notice->reply[2]);
 					break;
 				case "MESSAGE":
-					printf ("message %v\n", notice->reply);
 					Messages::add(&messages, notice->reply[2],
 						      notice->reply[3]);
 					break;
@@ -318,13 +323,11 @@ extend namespace Client {
 		}
 
 		void go_message() {
-			messages_active = true;
 			Messages::set_focus(&messages);
 		}
 
 		void done_message() {
-			messages_active = false;
-			set_focus(&desired_focus);
+			set_focus(&desired_focus, true);
 		}
 		
 		void do_turn () {
@@ -340,9 +343,7 @@ extend namespace Client {
 		}
 
 		void message_done(*Messages::messages_t m, string message) {
-			printf ("send message %s\n", message);
 			Link::message_t r = Link::command(link, "MESSAGE \"%s\"\n", message);
-			printf ("message reply %v\n", r);
 			done_message();
 		}
 			
@@ -350,7 +351,7 @@ extend namespace Client {
 			if (key.type != key_type_t.press)
 				return false;
 
-			if (messages_active)
+			if (messages_active())
 				return false;
 
 			switch (key.key) {
@@ -393,7 +394,7 @@ extend namespace Client {
 			Nichrome::set_global_key(&ui, global_key);
 			&rrboard = RRboard::new(&ui, move_callback);
 			&userlist = Userlist::new(&ui);
-			&messages = Messages::new(&ui, 20, message_done);
+			&messages = Messages::new(&ui, 20, message_done, name);
 
 			&quit = Button::new(&ui, "Quit",
 					    void func (&widget_t w, bool state) {
@@ -486,7 +487,6 @@ extend namespace Client {
 								Box::widget_item(&quit, 0));
 			&box_t			rbox = Box::new (Box::dir_t.vertical,
 								 Box::box_item(userlist.hbox),
-								 Box::glue_item(1),
 								 Box::box_item(messages.vbox));
 			&box_t			hbox = Box::new (Box::dir_t.horizontal,
 								 Box::widget_item(&rrboard, 1),

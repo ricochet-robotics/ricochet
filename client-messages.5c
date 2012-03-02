@@ -18,8 +18,10 @@
 autoload Client;
 autoload Nichrome;
 autoload Nichrome::Box;
-autoload Nichrome::Label;
+autoload Nichrome::Edit;
 autoload Nichrome::Text;
+autoload Nichrome::Label;
+autoload Nichrome::Scrollbar;
 
 extend namespace Client {
 	public namespace Messages {
@@ -31,36 +33,20 @@ extend namespace Client {
 
 		public typedef struct {
 			*nichrome_t		ui;
+			*Box::box_t		hbox;
 			*Box::box_t		vbox;
-			(*Label::label_t)[...]	output;
+			*Edit::edit_t		output;
+			*Scrollbar::scrollbar_t	scrollbar;
+			*Label::label_t		name;
 			*Text::text_t		input;
-			int			max;
 			callback_t		done_callback;
 		} messages_t;
 
-		void set_boxes (&messages_t m) {
-			m.vbox->items = (Box::item_t[...]) {};
-			Box::add_item(m.vbox, Box::glue_item(1));
-			for (int i = 0; i < dim(m.output); i++)
-				Box::add_item(m.vbox, Box::widget_item(m.output[i], 0, 0));
-			Box::add_item(m.vbox, Box::widget_item(m.input, 0, 0));
-		}
-
 		protected void add (&messages_t m, string user, string message) {
-			string s = m.input->text;
-			printf ("add message %s: %s\n", user, message);
-			*Label::label_t	l = Label::new(m.ui, sprintf ("<%s> %s", user, message));
-			l->justify = Label::justify_t.left;
-			if (dim(m.output) < m.max) {
-				m.output[dim(m.output)] = l;
-			} else {
-				int i;
-				Nichrome::remove(m.ui, m.output[0]);
-				for (i = 0; i < dim(m.output) - 1; i++)
-					m.output[i] = m.output[i+1];
-				m.output[i] = l;
-			}
-			set_boxes(&m);
+			Edit::insert(m.output, String::length(m.output->text),
+				     sprintf ("<%s> %s\n", user, message));
+			while (Edit::scroll_down(m.output))
+				;
 		}
 
 		void send(&messages_t m) {
@@ -73,13 +59,12 @@ extend namespace Client {
 			Nichrome::set_key_focus(m->ui, m->input);
 		}
 
-		protected *messages_t new(&nichrome_t ui, int lines, callback_t done_callback) {
+		protected *messages_t new(&nichrome_t ui, int lines, callback_t done_callback, string name) {
 			*messages_t m = &(messages_t) {
 				.ui = &ui,
-				.vbox = Box::new(Box::dir_t.vertical),
-				.output = {},
+				.output = Edit::new(&ui),
+				.name = Label::new(&ui, sprintf("%s: ", name)),
 				.input = Text::new(&ui, 40),
-				.max = lines,
 				.done_callback = done_callback
 			};
 			bool key_callback(&Text::text_t widget, string key) {
@@ -90,7 +75,15 @@ extend namespace Client {
 				return true;
 			}
 			m->input->callback = key_callback;
-			set_boxes(m);
+			m->scrollbar = Edit::scrollbar(m->output);
+			m->hbox = Box::new(Box::dir_t.horizontal,
+					   Box::widget_item(m->output, 1, 1),
+					   Box::widget_item(m->scrollbar, 0, 1));
+			m->vbox = Box::new(Box::dir_t.vertical,
+					   Box::box_item(m->hbox),
+					   Box::box_item(Box::new(Box::dir_t.horizontal,
+								  Box::widget_item(m->name, 0),
+								  Box::widget_item(m->input, 1, 0))));
 			return m;
 		}
 	}

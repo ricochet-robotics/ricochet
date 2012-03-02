@@ -207,7 +207,7 @@ Document Conventions
     
 	->
     
-	USERINFO <game> <playing> <score> <bid>
+	USERINFO <game> <playing> <games> <score> <bid>
     
 	<game> is any currently associated game, else "".  If the user
 	is not associated with any game, the remaining fields are
@@ -215,6 +215,8 @@ Document Conventions
 	
 	<playing> is true if the user is playing and false if watching.
     
+	<games> is the number of games won by this user
+
 	<score> is a number from 0 to 17 indicating this players score
     
 	<bid> is either "0" indicating no bid or a number indicating

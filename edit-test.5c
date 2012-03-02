@@ -1,0 +1,51 @@
+autoload Nichrome;
+autoload Nichrome::Edit;
+autoload Nichrome::Box;
+autoload Nichrome::Scrollbar;
+
+import Nichrome;
+
+string text = ("Fourscore and seven years ago our fathers brought forth on\n" +
+	"this continent a new nation, conceived in liberty and\n" +
+	"dedicated to the proposition that all men are created equal.\n" +
+	"\n" +
+	"Now we are engaged in a great civil war, testing whether that\n" +
+	"nation or any nation so conceived and so dedicated can long\n" +
+	"endure. We are met on a great battlefield of that war. We\n" +
+	"have come to dedicate a portion of it as a final resting\n" +
+	"place for those who died here that the nation might live.\n" +
+	"This we may, in all propriety do. But in a larger sense, we\n" +
+	"cannot dedicate, we cannot consecrate, we cannot hallow this\n" +
+	"ground. The brave men, living and dead who struggled here\n" +
+	"have hallowed it far above our poor power to add or detract.\n" +
+	"The world will little note nor long remember what we say here,\n" +
+	"but it can never forget what they did here.\n" +
+	"\n" +
+	"It is rather for us the living, we here be dedicated to the\n" +
+	"great task remaining before us--that from these honored\n" +
+	"dead we take increased devotion to that cause for which they\n" +
+	"here gave the last full measure of devotion--that we here\n" +
+	"highly resolve that these dead shall not have died in vain, that\n" +
+	"this nation shall have a new birth of freedom, and that\n" +
+	"government of the people, by the people, for the people shall\n" +
+	       "not perish from the earth.\n");
+
+
+public void main () {
+	&nichrome_t	ui;
+	&Box::box_t	box;
+	&Edit::edit_t		edit;
+	&Scrollbar::scrollbar_t	scrollbar;
+
+	&ui = Nichrome::new("Edit test", 200, 200);
+	&edit = Edit::new(&ui);
+	&scrollbar = Edit::scrollbar(&edit);
+	Edit::insert(&edit, 0, text);
+	&box = Box::new(Box::dir_t.horizontal,
+			Box::widget_item(&edit, 1),
+			Box::widget_item(&scrollbar, 0));
+	set_box(&ui, &box);
+	main_loop(&ui);
+}
+
+main();

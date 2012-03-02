@@ -30,6 +30,8 @@ extend namespace Client {
 			string		name;
 			*Label::label_t	name_label;
 			bool		playing;
+			int		games;
+			*Label::label_t	games_label;
 			int		score;
 			*Label::label_t	score_label;
 			int		bid;
@@ -53,6 +55,7 @@ extend namespace Client {
 			*nichrome_t		ui;
 			*Box::box_t		hbox;
 			column_t		name;
+			column_t		games;
 			column_t		score;
 			column_t		bid;
 			column_t		mode;
@@ -71,19 +74,26 @@ extend namespace Client {
 				Box::add_item(column->box, Box::widget_item(column->label, 1, 0));
 			}
 			init_box(&ul.name);
+			init_box(&ul.games);
 			init_box(&ul.score);
 			init_box(&ul.bid);
 			init_box(&ul.mode);
 			Skiplist::walk (ul.names, void func (*user_t user) {
 					Box::add_item(ul.name.box, Box::widget_item(user->name_label, 0, 0));
+					Box::add_item(ul.games.box, Box::widget_item(user->games_label, 0, 0));
 					Box::add_item(ul.score.box, Box::widget_item(user->score_label, 0, 0));
 					Box::add_item(ul.bid.box, Box::widget_item(user->bid_label, 0, 0));
 					Box::add_item(ul.mode.box, Box::widget_item(user->mode_label, 0, 0));
 				});
-			Box::add_item(ul.name.box, Box::glue_item(0, 1, ul.name.width));
-			Box::add_item(ul.score.box, Box::glue_item(0, 1, ul.score.width));
-			Box::add_item(ul.bid.box, Box::glue_item(0, 1, ul.bid.width));
-			Box::add_item(ul.mode.box, Box::glue_item(0, 1, ul.mode.width));
+			Box::add_item(ul.name.box, Box::glue_item(0, 0, ul.name.width));
+			Box::add_item(ul.games.box, Box::glue_item(0, 0, ul.score.width));
+			Box::add_item(ul.score.box, Box::glue_item(0, 0, ul.score.width));
+			Box::add_item(ul.bid.box, Box::glue_item(0, 0, ul.bid.width));
+			Box::add_item(ul.mode.box, Box::glue_item(0, 0, ul.mode.width));
+		}
+
+		string games_string(int games) {
+			return sprintf("%d", games);
 		}
 
 		string score_string(bool playing, int score) {
@@ -127,8 +137,16 @@ extend namespace Client {
 				});
 		}
 
+		public void clear_score(*userlist_t ul) {
+			Skiplist::walk (ul->names, void func (*user_t user) {
+					user->score = 0;
+					Label::relabel(user->score_label, score_string(user->playing, user->score));
+				});
+		}
+
 		void set_font(*user_t user, string font) {
 			user->name_label->font = font;
+			user->games_label->font = font;
 			user->score_label->font = font;
 			user->bid_label->font = font;
 			user->mode_label->font = font;
@@ -188,7 +206,7 @@ extend namespace Client {
 			}
 		}
 
-		public void add(*userlist_t ul, string name, bool playing, int score, int bid) {
+		public void add(*userlist_t ul, string name, bool playing, int games, int score, int bid) {
 			*user_t find = &(user_t) { .name = name };
 			try {
 				Skiplist::search(ul->names, find);
@@ -197,6 +215,8 @@ extend namespace Client {
 					.name = name,
 					.name_label = Label::new(ul->ui, name),
 					.playing = playing,
+					.games = games,
+					.games_label = Label::new(ul->ui, games_string(games)),
 					.score = score,
 					.score_label = Label::new(ul->ui, score_string(playing, score)),
 					.bid = bid,
@@ -209,6 +229,7 @@ extend namespace Client {
 					font = ul->italic_font;
 				user->name_label->font = font;
 				user->name_label->justify = Label::justify_t.left;
+				user->games_label->font = font;
 				user->score_label->font = font;
 				user->bid_label->font = font;
 				user->mode_label->font = font;
@@ -224,6 +245,8 @@ extend namespace Client {
 				Skiplist::delete(ul->names, user);
 				Nichrome::remove(ul->ui, user->name_label);
 				Nichrome::remove(ul->ui, user->score_label);
+				Nichrome::remove(ul->ui, user->bid_label);
+				Nichrome::remove(ul->ui, user->mode_label);
 				set_boxes(ul);
 			} catch Skiplist::not_found(string x) {
 			}
@@ -249,11 +272,13 @@ extend namespace Client {
 			}
 			init_column(&ul->name, "Player", 32);
 			ul->name.label->justify = Label::justify_t.left;
+			init_column(&ul->games, "Games", 3);
 			init_column(&ul->score, "Score", 2);
 			init_column(&ul->bid, "Bid", 3);
 			init_column(&ul->mode, "State", 12);
 			ul->hbox = Box::new(Box::dir_t.horizontal,
 					    Box::box_item(ul->name.box),
+					    Box::box_item(ul->games.box),
 					    Box::box_item(ul->score.box),
 					    Box::box_item(ul->bid.box),
 					    Box::box_item(ul->mode.box));
