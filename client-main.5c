@@ -335,22 +335,8 @@ extend namespace Client {
 			Link::command(link, "PASS\n");
 		}
 
-		void key_callback(string key) {
-			switch (key) {
-			case "m": case "slash":
-				go_message();
-				break;
-			case "BackSpace": case "u": case "U":
-				do_undo();
-				break;
-			case "p": case "P":
-				do_pass();
-				break;
-			case "Return": case "t": case "T":
-				if (current_state == RR::GameState.DONE)
-					do_turn();
-				break;
-			}
+		void do_reset() {
+			Link::command(link, "RESET\n");
 		}
 
 		void message_done(*Messages::messages_t m, string message) {
@@ -360,11 +346,52 @@ extend namespace Client {
 			done_message();
 		}
 			
+		bool global_key(&key_event_t key) {
+			if (key.type != key_type_t.press)
+				return false;
+
+			if (messages_active)
+				return false;
+
+			switch (key.key) {
+			case "m": case "slash":	go_message(); return true;
+			}
+			enum switch (current_state) {
+			case NEW:
+			case BID:
+				switch (key.key) {
+				case "b": case "Return": do_bid(); return true;
+				case "r": do_revoke(); return true;
+				case "a": do_abandon(); return true;
+				case "d": do_no_bid(); return true;
+				}
+				break;
+			case SHOW:
+				switch (key.key) {
+				case "p": case "P":
+					do_pass();
+					return true;
+				case "BackSpace": case "u": case "U":
+					do_undo();
+					return true;
+				}
+				break;
+			case DONE:
+				switch (key.key) {
+				case "Return": case "t": case "T":
+					do_turn(); return true;
+				}
+				break;
+			}
+			return false;
+		}
+
 		public void main () {
 			ParseArgs::parseargs(&argd, &argv);
 
 			&ui = Nichrome::new("Ricochet Robots", board_width, board_height);
-			&rrboard = RRboard::new(&ui, move_callback, do_undo, key_callback);
+			Nichrome::set_global_key(&ui, global_key);
+			&rrboard = RRboard::new(&ui, move_callback);
 			&userlist = Userlist::new(&ui);
 			&messages = Messages::new(&ui, 20, message_done);
 
@@ -388,17 +415,6 @@ extend namespace Client {
 					   });
 
 			&bid_value = Text::new(&ui, 6);
-			bid_value.callback = bool func (&widget_t w, string key) {
-				switch (key) {
-				case "b": case "Return": do_bid(); break;
-				case "m": case "slash": go_message(); break;
-				case "r": do_revoke(); break;
-				case "a": do_abandon(); break;
-				case "d": do_no_bid(); break;
-				default: printf ("unknown key %s\n", key); return false;
-				}
-				return true;
-			};
 			clear_bid();
 
 			&revoke = Button::new(&ui, "Revoke",
@@ -438,7 +454,7 @@ extend namespace Client {
 			&reset = Button::new(&ui, "Reset Robots",
 					     void func (&widget_t w, bool state) {
 						     if (state)
-							     Link::command(link, "RESET\n");
+							     do_reset();
 					     });
 			&pass = Button::new(&ui, "Pass",
 					    void func (&widget_t w, bool state) {
