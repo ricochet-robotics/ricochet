@@ -16,6 +16,7 @@
  */
 
 autoload Client;
+autoload Client::Link;
 autoload Nichrome;
 autoload Nichrome::Box;
 autoload Nichrome::Label;
@@ -64,6 +65,7 @@ extend namespace Client {
 			string			font;
 			string			bold_font;
 			string			italic_font;
+			Link::link_t		link;
 		} userlist_t;
 
 		bool user_greater(*user_t a, *user_t b)  = a->name > b->name;
@@ -120,6 +122,18 @@ extend namespace Client {
 			}
 		}
 
+		void update_user(*userlist_t ul, *user_t user) {
+			Link::message_t	r = Link::command(ul->link, "USERINFO \"%s\"\n", user->name);
+			printf ("update user reply %v\n", r);
+			user->playing = RR::boolean(r->reply[2]);
+			user->games = string_to_integer(r->reply[3]);
+			Label::relabel(user->games_label, games_string(user->games));
+			user->score = string_to_integer(r->reply[4]);
+			Label::relabel(user->score_label, score_string(user->playing, user->score));
+			user->bid = string_to_integer(r->reply[5]);
+			Label::relabel(user->bid_label, bid_string(user->playing, user->bid));
+		}
+
 		public void bid(*userlist_t ul, string name, int bid) {
 			try {
 				*user_t user = Skiplist::search(ul->names,
@@ -140,6 +154,7 @@ extend namespace Client {
 		public void clear_score(*userlist_t ul) {
 			Skiplist::walk (ul->names, void func (*user_t user) {
 					user->score = 0;
+					
 					Label::relabel(user->score_label, score_string(user->playing, user->score));
 				});
 		}
@@ -206,6 +221,12 @@ extend namespace Client {
 			}
 		}
 
+		public void update(*userlist_t ul) {
+			Skiplist::walk(ul->names, void func (*user_t user) {
+					update_user(ul, user);
+				});
+		}
+
 		public void add(*userlist_t ul, string name, bool playing, int games, int score, int bid) {
 			*user_t find = &(user_t) { .name = name };
 			try {
@@ -244,6 +265,7 @@ extend namespace Client {
 				*user_t user = Skiplist::search(ul->names, find);
 				Skiplist::delete(ul->names, user);
 				Nichrome::remove(ul->ui, user->name_label);
+				Nichrome::remove(ul->ui, user->games_label);
 				Nichrome::remove(ul->ui, user->score_label);
 				Nichrome::remove(ul->ui, user->bid_label);
 				Nichrome::remove(ul->ui, user->mode_label);
@@ -253,8 +275,10 @@ extend namespace Client {
 		}
 
 		protected void init (*userlist_t ul,
-				     *nichrome_t ui) {
+				     *nichrome_t ui,
+				     Link::link_t link) {
 			ul->ui = ui;
+			ul->link = link;
 			ul->font = Widget::default_font;
 			ul->bold_font = sprintf("%s:bold", Widget::default_font);
 			ul->italic_font = sprintf("%s:italic", Widget::default_font);
@@ -286,9 +310,9 @@ extend namespace Client {
 			set_boxes(ul);
 		}
 
-		public *userlist_t new (*nichrome_t ui) {
+		public *userlist_t new (*nichrome_t ui, Link::link_t link) {
 			*userlist_t	ul = &(userlist_t) {};
-			init(ul, ui);
+			init(ul, ui, link);
 			return ul;
 		}
 	}

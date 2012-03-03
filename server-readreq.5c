@@ -32,28 +32,10 @@ extend namespace Server {
 	import RR;
 	import Lex;
 
-	string[] read_unlocked (file f) {
-
-	    string[*]	words = {};
-
-	    void add (string w) {
-		words = (string[dim(words)+1]) { 
-		    [i] = i == dim(words) ? w :	words[i]
-		};
-	    }
-
-	    string w = firstword (f);
-	    add (w);
-	    while (!eol (f))
-	        add (word(f));
-	    return words;
-	}
-
 	public string[] read (file f) {
 	    try {
 		twixt (unlock (); lock ())
-		    twixt (true; skipline (f))
-			return read_unlocked (f);
+		    return recv (f);
 	    } catch syntax () {
 		raise rr_error (Error.SYNTAX);
 	    }

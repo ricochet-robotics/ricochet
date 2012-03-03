@@ -15,8 +15,10 @@
  * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
  */
 
+autoload RR;
+autoload RR::Lex;
+autoload RR::Send;
 autoload Client;
-autoload Client::Parse;
 autoload Client::Net;
 autoload Mutex;
 autoload List;
@@ -38,19 +40,24 @@ extend namespace Client {
 			semaphore	replies_sem;
 			List::list_t	notices;
 			semaphore	notices_sem;
-			Mutex::mutex	lock;
+			bool		closing;
+			Mutex::mutex	command_lock;
+			Mutex::mutex	notice_lock;
+			Mutex::mutex	reply_lock;
 			thread		reader;
 		} link_struct;
 
 		public typedef *link_struct link_t;
 
+		public exception link_closing();
+
 		void read_replies(link_t l) {
 			try {
 				for (;;) {
-					message_t m = &(message_struct) { .reply = Parse::reply(l->f) };
+					message_t m = &(message_struct) { .reply = RR::Lex::recv(l->f) };
 					if (dim(m->reply) == 0)
 						continue;
-					twixt (Mutex::acquire(l->lock); Mutex::release(l->lock)) {
+					twixt (Mutex::acquire(l->reply_lock); Mutex::release(l->reply_lock)) {
 						if (m->reply[0] == "NOTICE") {
 							List::append(m, &l->notices);
 							Semaphore::signal(l->notices_sem);
@@ -61,43 +68,71 @@ extend namespace Client {
 					}
 				}
 			} catch Thread::signal(int sig) {
-			} catch Parse::server_gone() {
+				printf ("closing link\n");
+			} catch File::io_eof(file f) {
+				l->closing = true;
+				printf ("server closed\n");
+				exit(0);
+			} catch File::io_error(string reason, File::error_type error, file f) {
+				l->closing = true;
 				printf ("server gone\n");
 				exit(0);
 			}
+			while (Semaphore::count(l->notices_sem) < 0)
+				Semaphore::signal(l->notices_sem);
+			while (Semaphore::count(l->replies_sem) < 0)
+				Semaphore::signal(l->replies_sem);
 		}
 
 		public message_t command(link_t l, string format, poly args...) {
-			File::fprintf(l->f, format, args...);
-			File::flush(l->f);
-			Semaphore::wait(l->replies_sem);
 			message_t reply;
-			twixt(Mutex::acquire(l->lock); Mutex::release(l->lock)) {
-				reply = List::first(&l->replies);
-				List::remove(reply);
+			twixt (Mutex::acquire(l->command_lock); Mutex::release(l->command_lock)) {
+				try {
+					RR::Send::send(l->f, format, args...);
+					File::flush(l->f);
+				} catch File::io_error(string reason, File::error_type error, file f) {
+					printf ("I/O error on link: %s\n", reason);
+					exit(0);
+				}
+				Semaphore::wait(l->replies_sem);
+				twixt(Mutex::acquire(l->reply_lock); Mutex::release(l->reply_lock)) {
+					if (l->closing)
+						raise link_closing();
+					reply = List::first(&l->replies);
+					List::remove(reply);
+				}
 			}
 			return reply;
 		}
 
 		public message_t notice(link_t l) {
-			Semaphore::wait(l->notices_sem);
 			message_t notice;
-			twixt(Mutex::acquire(l->lock); Mutex::release(l->lock)) {
-				notice = List::first(&l->notices);
-				List::remove(notice);
+			twixt (Mutex::acquire(l->notice_lock); Mutex::release(l->notice_lock)) {
+				Semaphore::wait(l->notices_sem);
+				twixt(Mutex::acquire(l->reply_lock); Mutex::release(l->reply_lock)) {
+					if (l->closing)
+						raise link_closing();
+					notice = List::first(&l->notices);
+					List::remove(notice);
+				}
 			}
 			return notice;
 		}
 
 		public link_t new (string host, int port) {
-			link_t	l = &(link_struct) { .host = host, .port = port };
-			l->lock = Mutex::new();
+			link_t	l = &(link_struct) {
+				.host = host,
+				.port = port,
+				.closing = false,
+				.command_lock = Mutex::new(),
+				.notice_lock = Mutex::new(),
+				.reply_lock = Mutex::new(),
+				.replies_sem = Semaphore::new(),
+				.notices_sem = Semaphore::new(),
+			};
 
 			List::init(&l->replies);
-			l->replies_sem = Semaphore::new();
-
 			List::init(&l->notices);
-			l->notices_sem = Semaphore::new();
 
 			l->f = Net::connect (l->host, l->port);
 			l->reader = fork read_replies(l);
@@ -105,6 +140,7 @@ extend namespace Client {
 		}
 
 		public void close(link_t l) {
+			l->closing = true;
 			Thread::send_signal(l->reader, 1);
 			Thread::join(l->reader);
 			File::close(l->f);

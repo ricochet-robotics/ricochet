@@ -433,12 +433,14 @@ extend namespace Server {
 	}
 	
 	void next_game (&Game g) {
+	    printf ("next_game\n");
 	    ClientRef	winner = ClientRef.none;
 	    void find_winner (&Client c) {
 		if (c.score > 0 &&
 		    (winner == ClientRef.none || c.score >
 		    winner.client.score))
 		    winner = (ClientRef.client) (&c);
+		c.score = 0;
 	    }
 	    iterate_client (&g, find_winner, true, false);
 	    if (winner != ClientRef.none)

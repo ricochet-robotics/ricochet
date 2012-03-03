@@ -36,12 +36,13 @@ extend namespace RR {
 	    } catch File::io_error (string reason, File::error_type error, file f) {
 		switch (error) {
 		case File::error_type.UTF8:
-		    return lexc (f);
+		    printf ("invalid utf\n");
+		    break;
 		default:
 		    raise File::io_error (reason, error, f);
 		}
 	    }
-	    return -1;
+	    return lexc (f);
 	}
 
 	bool skipwhite (file f, bool allow_newline) {
@@ -110,14 +111,34 @@ extend namespace RR {
 	}
 
 	public string word (file f) {
-	    if (skipwhite (f, false))
+	    if (skipwhite (f, false)) {
+		skipline(f);
 		raise syntax ();
+	    }
 	    return next_word (f);
 	}
 
 	public string firstword (file f) {
     	    skipwhite (f, true);
     	    return next_word (f);
+	}
+
+	public string[] recv(file f) {
+
+	    string[...]	words = {};
+
+	    try {
+		void add (string w) {
+		    words[dim(words)] = w;
+		}
+
+		string w = firstword (f);
+		add (w);
+		while (!eol (f))
+		    add (word(f));
+		skipline(f);
+	    }
+	    return words;
 	}
     }
 }
