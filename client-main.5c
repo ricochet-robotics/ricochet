@@ -173,12 +173,12 @@ extend namespace Client {
 				RRboard::stop_timer(&rrboard);
 				clear_bid();
 				Userlist::clear_bid(&userlist);
+				Userlist::clear_modes(&userlist);
 				/* fall through ... */
 			case BID:
 				set_focus(&bid_value, false);
 				Box::set_active(&bid_box, true);
 				Userlist::clear_showing(&userlist);
-				Userlist::clear_modes(&userlist);
 				break;
 			case SHOW:
 				RRboard::stop_timer(&rrboard);
