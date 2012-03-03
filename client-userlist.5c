@@ -123,8 +123,9 @@ extend namespace Client {
 		}
 
 		void update_user(*userlist_t ul, *user_t user) {
-			Link::message_t	r = Link::command(ul->link, "USERINFO \"%s\"\n", user->name);
-			printf ("update user reply %v\n", r);
+			Link::message_t	r = Link::command(ul->link, "USERINFO %s\n", user->name);
+			if (r->reply[0] == "ERROR")
+				return;
 			user->playing = RR::boolean(r->reply[2]);
 			user->games = string_to_integer(r->reply[3]);
 			Label::relabel(user->games_label, games_string(user->games));

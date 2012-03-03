@@ -297,31 +297,15 @@ extend namespace Client {
 		}
 
 		void move_callback(RR::Color color, RR::Direction dir) {
-			string c;
-			enum switch (color) {
-			case Red:	c = "red"; break;
-			case Yellow:	c = "yellow"; break;
-			case Green:	c = "green"; break;
-			case Blue:	c = "blue"; break;
-			case Whirl:	return;
-			}
-			string d;
-			enum switch (dir) {
-			case North:	d = "north"; break;
-			case East:	d = "east"; break;
-			case South:	d = "south"; break;
-			case West:	d = "west"; break;
-			}
-			Link::command(link, "move %s %s\n", c, d);
+			Link::command(link, "MOVE %C %D\n", color, dir);
 		}
 
 		void do_undo() {
-			Link::command(link, "undo\n");
+			Link::command(link, "UNDO\n");
 		}
 
 		void do_bid() {
-			Link::command(link, "BID %s\n",
-				      bid_value.text);
+			Link::command(link, "BID %s\n", bid_value.text);
 		}
 
 		void do_revoke() {
@@ -334,6 +318,10 @@ extend namespace Client {
 
 		void do_no_bid() {
 			Link::command(link, "NOBID\n");
+		}
+
+		void do_pass() {
+			Link::command(link, "PASS\n");
 		}
 
 		void go_message() {
@@ -469,7 +457,7 @@ extend namespace Client {
 			&undo = Button::new(&ui, "Undo Move",
 					    void func (&widget_t w, bool state) {
 						    if (state)
-							    Link::command(link, "UNDO\n");
+							    do_undo();
 					    });
 
 			&reset = Button::new(&ui, "Reset Robots",
@@ -480,7 +468,7 @@ extend namespace Client {
 			&pass = Button::new(&ui, "Pass",
 					    void func (&widget_t w, bool state) {
 						    if (state)
-							    Link::command(link, "PASS\n");
+							    do_pass();
 					    });
 			&show_box = Box::new(Box::dir_t.horizontal,
 					     Box::widget_item(&moves, 0),
@@ -524,16 +512,34 @@ extend namespace Client {
 
 			Link::message_t r = Link::command(link, "%s %s\n", watch ? "WATCH" : "JOIN", game);
 
-			if (r->reply[0] == "ERROR" && r->reply[1] == "NOGAME")
-				Link::message_t r = Link::command(link, "new %s\n", game);
+			if (r->reply[0] == "ERROR") {
+				if (r->reply[1] == "NOGAME") {
+					Link::message_t r = Link::command(link, "NEW %s\n", game);
+					if (r->reply[0] == "ERROR") {
+						printf ("Cannot create game %s: %s\n", game, r->reply[1]);
+						do_quit();
+					}
+				} else {
+					printf ("Cannot join game %s: %s\n", game, r->reply[1]);
+				}
+			}
 
 			Link::message_t r = Link::command(link, "PLAYERS %s\n", game);
+
+			if (r->reply[0] == "ERROR") {
+				printf ("Cannot enumerate players: %s\n", r->reply[1]);
+				do_quit();
+			}
 
 			for (int i = 1; i < dim(r->reply); i += 2)
 				add_user(r->reply[i]);
 
 			Link::message_t r = Link::command(link, "GAMEINFO %s\n", game);
 
+			if (r->reply[0] == "ERROR") {
+				printf ("Cannot get game info for %s: %s\n", game, r->reply[1]);
+				do_quit();
+			}
 			update_turn(string_to_integer(r->reply[1]));
 
 			update_state(r->reply[4]);
@@ -542,6 +548,11 @@ extend namespace Client {
 				Userlist::showing(&userlist, r->reply[7], true);
 
 			Link::message_t r = Link::command(link, "SHOW\n");
+
+			if (r->reply[0] == "ERROR") {
+				printf ("Cannot show board: %s\n", r->reply[1]);
+				do_quit();
+			}
 
 			update_board(r->reply[1]);
 
