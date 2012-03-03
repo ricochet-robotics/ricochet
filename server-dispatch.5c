@@ -123,6 +123,7 @@ extend namespace Server {
 				 Sockets::addr_to_string (s.addr),
 				 s.port);
 			Clients::server_send ("NOTICE USER %s\n", username);
+			File::fprintf(stderr, "Client connect %s\n", username);
 		    }
 		},
 		{
@@ -658,10 +659,8 @@ extend namespace Server {
 				   c.user, msg);
 		    return;
 		} catch File::io_eof (file f) {
-		    File::fprintf (stderr, "%v: closed\n", c.user);
 		    return;
 		} catch closed () {
-		    File::fprintf (stderr, "%v: closed\n", c.user);
 		    return;
 		}
 	    }

@@ -89,9 +89,11 @@ extend namespace Server {
 	}
 
 	public void dispose (&Client c) {
-	    File::fprintf (stderr, "Client closed %v\n", c.user);
-	    if (c.user != User.none)
+	    if (c.user != User.none) {
+		File::fprintf (stderr, "Client disconnect %s\n", c.user.username);
 		Clients::server_send ("NOTICE QUIT %s\n", c.user.username);
+	    } else
+		File::fprintf (stderr, "Client disconnect <unnamed client>\n");
 	    Array::remove (&clients, &c);
 	    File::close (c.f);
 	}

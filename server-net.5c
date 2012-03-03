@@ -40,7 +40,6 @@ extend namespace Server {
 	    for (;;)
 	    {
 		file	a = Sockets::accept (f);
-		File::fprintf (stderr, "accept succeeds\n");
 		fork accept (a);
 	    }
 	}
