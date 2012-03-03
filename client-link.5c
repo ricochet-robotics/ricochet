@@ -68,14 +68,11 @@ extend namespace Client {
 					}
 				}
 			} catch Thread::signal(int sig) {
-				printf ("closing link\n");
 			} catch File::io_eof(file f) {
 				l->closing = true;
-				printf ("server closed\n");
 				exit(0);
 			} catch File::io_error(string reason, File::error_type error, file f) {
 				l->closing = true;
-				printf ("server gone\n");
 				exit(0);
 			}
 			while (Semaphore::count(l->notices_sem) < 0)

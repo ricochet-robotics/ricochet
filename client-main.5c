@@ -215,7 +215,6 @@ extend namespace Client {
 				} catch Link::link_closing() {
 					break;
 				}
-				printf("notice %v\n", notice->reply);
 				switch (notice->reply[1]) {
 
 				/* Global game notices */
