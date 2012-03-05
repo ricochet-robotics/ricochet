@@ -27,64 +27,110 @@ extend namespace Client {
 		import Cairo::Rsvg;
 		import RR;
 
-		rsvg_t[2]	cell = { new_from_string(Client::SVG::cell1),
-					 new_from_string(Client::SVG::cell2) };
+		public typedef struct {
+			int	xoff, yoff;
+			real	xscale, yscale;
+		} transform_t;
 
-		rsvg_t[Color]	robots = {
-			Color.Red => new_from_string(Client::SVG::robot_red),
-			Color.Blue => new_from_string(Client::SVG::robot_blue),
-			Color.Yellow => new_from_string(Client::SVG::robot_yellow),
-			Color.Green => new_from_string(Client::SVG::robot_green) };
+		typedef struct {
+			Cairo::surface_t	surface;
+			int			width, height;
+			rsvg_t			svg;
+		} sprite_t;
 
-		rsvg_t robot_shadow = new_from_string(Client::SVG::robot_shadow);
+		sprite_t sprite_from_string(string xml) = (sprite_t) {
+			.svg = Cairo::Rsvg::new_from_string(xml),
+			.width = -1,
+			.height = -1
+		};
 
-		rsvg_t[Color][Shape]	targets = {
+		sprite_t[2]	cell = { sprite_from_string(Client::SVG::cell1),
+					 sprite_from_string(Client::SVG::cell2) };
+
+		sprite_t[Color]	robots = {
+			Color.Red => sprite_from_string(Client::SVG::robot_red),
+			Color.Blue => sprite_from_string(Client::SVG::robot_blue),
+			Color.Yellow => sprite_from_string(Client::SVG::robot_yellow),
+			Color.Green => sprite_from_string(Client::SVG::robot_green) };
+
+		sprite_t robot_shadow = sprite_from_string(Client::SVG::robot_shadow);
+
+		sprite_t[Color][Shape]	targets = {
 			Color.Red => {
-				Shape.Triangle => new_from_string(Client::SVG::target_red_triangle),
-				Shape.Square => new_from_string(Client::SVG::target_red_square),
-				Shape.Octagon => new_from_string(Client::SVG::target_red_octagon),
-				Shape.Circle => new_from_string(Client::SVG::target_red_circle),
+				Shape.Triangle => sprite_from_string(Client::SVG::target_red_triangle),
+				Shape.Square => sprite_from_string(Client::SVG::target_red_square),
+				Shape.Octagon => sprite_from_string(Client::SVG::target_red_octagon),
+				Shape.Circle => sprite_from_string(Client::SVG::target_red_circle),
 			},
 			Color.Yellow => {
-				Shape.Triangle => new_from_string(Client::SVG::target_yellow_triangle),
-				Shape.Square => new_from_string(Client::SVG::target_yellow_square),
-				Shape.Octagon => new_from_string(Client::SVG::target_yellow_octagon),
-				Shape.Circle => new_from_string(Client::SVG::target_yellow_circle),
+				Shape.Triangle => sprite_from_string(Client::SVG::target_yellow_triangle),
+				Shape.Square => sprite_from_string(Client::SVG::target_yellow_square),
+				Shape.Octagon => sprite_from_string(Client::SVG::target_yellow_octagon),
+				Shape.Circle => sprite_from_string(Client::SVG::target_yellow_circle),
 			},
 			Color.Green => {
-				Shape.Triangle => new_from_string(Client::SVG::target_green_triangle),
-				Shape.Square => new_from_string(Client::SVG::target_green_square),
-				Shape.Octagon => new_from_string(Client::SVG::target_green_octagon),
-				Shape.Circle => new_from_string(Client::SVG::target_green_circle),
+				Shape.Triangle => sprite_from_string(Client::SVG::target_green_triangle),
+				Shape.Square => sprite_from_string(Client::SVG::target_green_square),
+				Shape.Octagon => sprite_from_string(Client::SVG::target_green_octagon),
+				Shape.Circle => sprite_from_string(Client::SVG::target_green_circle),
 			},
 			Color.Blue => {
-				Shape.Triangle => new_from_string(Client::SVG::target_blue_triangle),
-				Shape.Square => new_from_string(Client::SVG::target_blue_square),
-				Shape.Octagon => new_from_string(Client::SVG::target_blue_octagon),
-				Shape.Circle => new_from_string(Client::SVG::target_blue_circle),
+				Shape.Triangle => sprite_from_string(Client::SVG::target_blue_triangle),
+				Shape.Square => sprite_from_string(Client::SVG::target_blue_square),
+				Shape.Octagon => sprite_from_string(Client::SVG::target_blue_octagon),
+				Shape.Circle => sprite_from_string(Client::SVG::target_blue_circle),
 			},
 			Color.Whirl => {
-				Shape.Whirl => new_from_string(Client::SVG::target_whirl),
+				Shape.Whirl => sprite_from_string(Client::SVG::target_whirl),
 			},
 		};
 
-		rsvg_t 		wall = new_from_string(Client::SVG::wall);
+		sprite_t 		wall = sprite_from_string(Client::SVG::wall);
 
-		dimensions_t cell_dim  = get_dimensions(cell[0]);
+		void draw_sprite(&sprite_t sprite, cairo_t cr) {
+			render(sprite.svg, cr);
+		}
+
+		dimensions_t cell_dim  = get_dimensions(cell[0].svg);
 
 		public int cell_width = cell_dim.width;
 		public int cell_height = cell_dim.height;
 
-		public void background (cairo_t cr, int x, int y, RR::Object object) {
-			save(cr);
-			translate(cr, x * cell_width, y * cell_height);
+		void draw_cached_sprite(&sprite_t sprite, cairo_t cr, &transform_t t) {
+			int	width = ceil(cell_width * t.xscale);
+			int	height = ceil(cell_width * t.yscale);
 
-			render(cell[x+y & 1], cr);
+			save(cr);
+			if (width != sprite.width || height != sprite.height) {
+				if (!is_uninit(&sprite.surface))
+					Cairo::Surface::destroy(sprite.surface);
+				sprite.surface = Cairo::Surface::create_similar(Cairo::get_target(cr),
+										Cairo::content_t.COLOR_ALPHA,
+										width, height);
+				sprite.width = width;
+				sprite.height = height;
+				cairo_t scr = Cairo::create(sprite.surface);
+				scale(scr, t.xscale, t.yscale);
+				draw_sprite(&sprite, scr);
+				Cairo::destroy(scr);
+			}
+			set_source_surface(cr, sprite.surface, 0, 0);
+			paint(cr);
+			restore(cr);
+		}
+
+		public void background (cairo_t cr, int x, int y, RR::Object object, &transform_t t) {
+			save(cr);
+			translate(cr, x * cell_width * t.xscale + t.xoff, y * cell_height * t.yscale + t.yoff);
+
+			draw_cached_sprite(&cell[x+y & 1], cr, &t);
 			restore(cr);
 		}
 		
-		public void walls(cairo_t cr, int x, int y, RR::Object object) {
+		public void walls(cairo_t cr, int x, int y, RR::Object object, &transform_t t) {
 			save(cr);
+			translate(cr, t.xoff, t.yoff);
+			scale(cr, t.xscale, t.yscale);
 			translate(cr, x * cell_width, y * cell_height);
 			rectangle(cr, 0, 0, cell_width, cell_height);
 			clip(cr);
@@ -98,7 +144,7 @@ extend namespace Client {
 						translate(cr, 0, -cell_height);
 				} else if (shift)
 						translate(cr, 0, cell_height);
-				render(wall, cr);
+				draw_sprite(&wall, cr);
 				restore(cr);
 			}
 			draw_wall (object.walls.left, true, false);
@@ -108,15 +154,16 @@ extend namespace Client {
 			restore(cr);
 		}
 		
-		public void contents (cairo_t cr, int x, int y, RR::Object object, RR::RobotOrNone active_robot) {
+		public void contents (cairo_t cr, int x, int y, RR::Object object, RR::RobotOrNone active_robot,
+				      &transform_t t) {
 			save(cr);
-			translate(cr, x * cell_width, y * cell_height);
+			translate(cr, x * cell_width * t.xscale + t.xoff, y * cell_height * t.yscale + t.yoff);
 
 			union switch (object.target) {
 			case none:
 				break;
-			case target t:
-				render(targets[t.color][t.shape], cr);
+			case target target:
+				draw_cached_sprite(&targets[target.color][target.shape], cr, &t);
 				break;
 			}
 			union switch(object.robot) {
@@ -127,27 +174,28 @@ extend namespace Client {
 				case robot a:
 					if (a.color == r.color) {
 						save(cr);
+						scale(cr, t.xscale, t.yscale);
 						translate(cr, 5, 1);
 						scale(cr, 1.1, 1.1);
-						render(robot_shadow, cr);
+						draw_sprite(&robot_shadow, cr);
 						restore(cr);
 					}
 					break;
 				default:
 				}
-				render(robots[r.color], cr);
+				draw_cached_sprite(&robots[r.color], cr, &t);
 				break;
 			}
 			restore(cr);
 		}
 
-		public void target (cairo_t cr, real x, real y, TargetOrNone target) {
+		public void target (cairo_t cr, real x, real y, TargetOrNone target, &transform_t t) {
 			save(cr);
-			translate(cr, x * cell_width, y * cell_height);
-			scale(cr, 2, 2);
+			translate(cr, x * cell_width * t.xscale + t.xoff, y * cell_height * t.yscale + t.yoff);
+			scale(cr, 2 * t.xscale, 2 *t.yscale);
 			union switch (target) {
 			case target t:
-				render(targets[t.color][t.shape], cr);
+				draw_sprite(&targets[t.color][t.shape], cr);
 				break;
 			default:
 				break;

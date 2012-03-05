@@ -42,18 +42,13 @@ extend namespace Nichrome {
 			int			button_x, button_y;
 		} rrboard_widget_t;
 
-		typedef struct {
-			real	xoff, yoff;
-			real	xscale, yscale;
-		} transform_t;
-
-		transform_t transform(&rrboard_widget_t widget) {
+		Draw::transform_t transform(&rrboard_widget_t widget) {
 			real	dim = min (widget.geometry.width, widget.geometry.height);
-			return (transform_t) {
+			return (Draw::transform_t) {
 				.xscale = dim / board_width,
 				.yscale = dim / board_height,
-				.xoff = (widget.geometry.width - dim) / 2,
-				.yoff = (widget.geometry.height - dim) / 2
+				.xoff = (widget.geometry.width - dim) // 2,
+				.yoff = (widget.geometry.height - dim) // 2
 				};
 		}
 
@@ -121,26 +116,27 @@ extend namespace Nichrome {
 		}
 
 		void draw (cairo_t cr, &rrboard_widget_t widget) {
-			transform_t	t = transform(&widget);
+			Draw::transform_t	t = transform(&widget);
 
 			save(cr);
-			translate(cr, t.xoff, t.yoff);
-			scale(cr, t.xscale, t.yscale);
 			for (int y = 0; y < RR::Height; y++)
 				for (int x = 0; x < RR::Width; x++) {
-					Draw::background(cr, x, y, widget.board[x,y]);
-					Draw::walls(cr, x, y, widget.board[x,y]);
-					Draw::contents(cr, x, y, widget.board[x,y], widget.active_robot);
+					Draw::background(cr, x, y, widget.board[x,y], &t);
+					Draw::walls(cr, x, y, widget.board[x,y], &t);
+					Draw::contents(cr, x, y, widget.board[x,y], widget.active_robot, &t);
 				}
 			for (int y = RR::Height / 2 - 1; y < RR::Height/2 + 1; y++)
 				for (int x = RR::Width / 2 - 1; x < RR::Width/2 + 1; x++) {
-					Draw::background(cr, x, y, widget.board[x,y]);
-					Draw::walls(cr, x, y, widget.board[x,y]);
+					Draw::background(cr, x, y, widget.board[x,y], &t);
+					Draw::walls(cr, x, y, widget.board[x,y], &t);
 				}
 			Draw::target(cr, RR::Width / 2 - 1, RR::Height / 2 - 1,
-				     RR::active_target(&widget.board));
-			if (widget.time >= 0)
+				     RR::active_target(&widget.board), &t);
+			if (widget.time >= 0) {
+				translate(cr, t.xoff, t.yoff);
+				scale(cr, t.xscale, t.yscale);
 				draw_clock(cr, &widget);
+			}
 			restore(cr);
 		}
 
@@ -224,7 +220,7 @@ extend namespace Nichrome {
 		}
 
 		protected void button (&rrboard_widget_t widget, &button_event_t event) {
-			transform_t	t = transform(&widget);
+			Draw::transform_t	t = transform(&widget);
 			int		x = floor ((event.x - t.xoff) / t.xscale / Draw::cell_width);
 			int		y = floor ((event.y - t.yoff) / t.yscale / Draw::cell_height);
 
