@@ -104,18 +104,22 @@ extend namespace Client {
 			if (width != sprite.width || height != sprite.height) {
 				if (!is_uninit(&sprite.surface))
 					Cairo::Surface::destroy(sprite.surface);
-				sprite.surface = Cairo::Surface::create_similar(Cairo::get_target(cr),
-										Cairo::content_t.COLOR_ALPHA,
-										width, height);
 				sprite.width = width;
 				sprite.height = height;
-				cairo_t scr = Cairo::create(sprite.surface);
-				scale(scr, t.xscale, t.yscale);
-				draw_sprite(&sprite, scr);
-				Cairo::destroy(scr);
+				if (width > 0 && height > 0) {
+					sprite.surface = Cairo::Surface::create_similar(Cairo::get_target(cr),
+											Cairo::content_t.COLOR_ALPHA,
+											width, height);
+					cairo_t scr = Cairo::create(sprite.surface);
+					scale(scr, t.xscale, t.yscale);
+					draw_sprite(&sprite, scr);
+					Cairo::destroy(scr);
+				}
 			}
-			set_source_surface(cr, sprite.surface, 0, 0);
-			paint(cr);
+			if (sprite.width > 0 && sprite.height > 0) {
+				set_source_surface(cr, sprite.surface, 0, 0);
+				paint(cr);
+			}
 			restore(cr);
 		}
 
