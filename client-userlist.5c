@@ -48,13 +48,12 @@ extend namespace Client {
 
 		typedef struct {
 			*Label::label_t		label;
-			*Box::box_t		box;
 			int			width;
 		} column_t;
 
 		public typedef struct {
 			*nichrome_t		ui;
-			*Box::box_t		hbox;
+			*Box::box_t		box;
 			column_t		name;
 			column_t		games;
 			column_t		score;
@@ -71,27 +70,25 @@ extend namespace Client {
 		bool user_greater(*user_t a, *user_t b)  = a->name > b->name;
 
 		protected void set_boxes(&userlist_t ul) {
-			void init_box(*column_t column) {
-				column->box->items = (Box::item_t[...]) {};
-				Box::add_item(column->box, Box::widget_item(column->label, 1, 0));
-			}
-			init_box(&ul.name);
-			init_box(&ul.games);
-			init_box(&ul.score);
-			init_box(&ul.bid);
-			init_box(&ul.mode);
+			Box::suspend(ul.box);
+			/*
+			 * Remove all existing entries
+			 */
+			int y = 2;
+			/*
+			 * Add all entries back
+			 */
 			Skiplist::walk (ul.names, void func (*user_t user) {
-					Box::add_item(ul.name.box, Box::widget_item(user->name_label, 0, 0));
-					Box::add_item(ul.games.box, Box::widget_item(user->games_label, 0, 0));
-					Box::add_item(ul.score.box, Box::widget_item(user->score_label, 0, 0));
-					Box::add_item(ul.bid.box, Box::widget_item(user->bid_label, 0, 0));
-					Box::add_item(ul.mode.box, Box::widget_item(user->mode_label, 0, 0));
+					Box::add_row(ul.box, 0, y,
+						     Box::widget_item(user->name_label, 1, 0),
+						     Box::widget_item(user->games_label, 1, 0),
+						     Box::widget_item(user->score_label, 1, 0),
+						     Box::widget_item(user->bid_label, 1, 0),
+						     Box::widget_item(user->mode_label, 1, 0));
+					y++;
 				});
-			Box::add_item(ul.name.box, Box::glue_item(0, 0, ul.name.width));
-			Box::add_item(ul.games.box, Box::glue_item(0, 0, ul.score.width));
-			Box::add_item(ul.score.box, Box::glue_item(0, 0, ul.score.width));
-			Box::add_item(ul.bid.box, Box::glue_item(0, 0, ul.bid.width));
-			Box::add_item(ul.mode.box, Box::glue_item(0, 0, ul.mode.width));
+			Box::clear(ul.box, 0, y, 0, 0);
+			Box::release(ul.box);
 		}
 
 		string games_string(int games) {
@@ -292,7 +289,6 @@ extend namespace Client {
 			void init_column(*column_t column, string label, int width) {
 				column->label = Label::new(ui, label);
 				column->label->font = ul->bold_font;
-				column->box = Box::new(Box::dir_t.vertical);
 				column->width = ceil(width * x_width);
 			}
 			init_column(&ul->name, "Player", 32);
@@ -301,12 +297,19 @@ extend namespace Client {
 			init_column(&ul->score, "Score", 2);
 			init_column(&ul->bid, "Bid", 3);
 			init_column(&ul->mode, "State", 12);
-			ul->hbox = Box::new(Box::dir_t.horizontal,
-					    Box::box_item(ul->name.box),
-					    Box::box_item(ul->games.box),
-					    Box::box_item(ul->score.box),
-					    Box::box_item(ul->bid.box),
-					    Box::box_item(ul->mode.box));
+			ul->box = Box::new(Box::dir_t.horizontal,
+					   Box::widget_item(ul->name.label, 0),
+					   Box::widget_item(ul->games.label, 0),
+					   Box::widget_item(ul->score.label, 0),
+					   Box::widget_item(ul->bid.label, 0),
+					   Box::widget_item(ul->mode.label, 0));
+			Box::add_row(ul->box, 0, 1,
+				     Box::glue_item(ul->name.width, 0, 0, 0),
+				     Box::glue_item(ul->games.width, 0, 0, 0),
+				     Box::glue_item(ul->score.width, 0, 0, 0),
+				     Box::glue_item(ul->bid.width, 0, 0, 0),
+				     Box::glue_item(ul->mode.width, 0, 0, 0));
+
 			ul->showing = user_or_none_t.none;
 			set_boxes(ul);
 		}

@@ -1,6 +1,9 @@
 #!/usr/bin/env nickle
 
-#Command::nickle_path = ".:/home/keithp/src/cairo/cairo-5c/nichrome:" + Command::nickle_path;
+if (dim(argv) == 0)
+	argv = (string[*]) { "rrclient" };
+
+Command::nickle_path = ".:/home/keithp/src/cairo/cairo-5c/nichrome:" + Command::nickle_path;
 
 autoload Client::Main
 

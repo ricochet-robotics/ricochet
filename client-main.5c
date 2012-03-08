@@ -493,7 +493,7 @@ extend namespace Client {
 								Box::glue_item(1),
 								Box::widget_item(&quit, 0));
 			&box_t			rbox = Box::new (Box::dir_t.vertical,
-								 Box::box_item(userlist.hbox),
+								 Box::box_item(userlist.box),
 								 Box::box_item(messages.vbox));
 			&box_t			hbox = Box::new (Box::dir_t.horizontal,
 								 Box::widget_item(&rrboard, 1),

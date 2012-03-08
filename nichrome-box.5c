@@ -1,0 +1,696 @@
+/*
+ * Copyright © 2012 Keith Packard <keithp@keithp.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 2 of the License.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
+ */
+
+autoload Nichrome;
+autoload Mutex;
+
+extend namespace Nichrome {
+	public namespace Box {
+
+		protected typedef enum { horizontal, vertical } dir_t;
+
+		int	box_id = 0;
+
+		public typedef box_t;
+
+		protected typedef contained_t + struct {
+			int	strut_width;
+			int	struct_height;
+		} glue_t;
+
+		protected exception unknown_contained (&box_t box,
+						       &contained_t contained);
+
+		/*
+		 * Each item in the layout has a natural size and stretch factor
+		 */
+		protected typedef struct {
+			real	natural_width;
+			real	natural_height;
+			real	stretch_width;
+			real	stretch_height;
+		} layout_t;
+
+		protected typedef struct {
+			real	natural;
+			real	stretch;
+			real	actual;
+			real	pos;
+		} size_t;
+			
+		typedef void (&contained_t item, &layout_t layout) query_t;
+
+		typedef void (&contained_t  item,
+			      layout_t	    layout,
+			      rect_t	    geometry) configure_t;
+
+		protected typedef struct {
+			*contained_t	contained;
+			layout_t	layout;
+			query_t	    	query;
+			configure_t	configure;
+		} item_contents_t;
+
+		protected typedef *item_contents_t item_t;
+
+		public typedef container_t + contained_t + struct {
+			*nichrome_t	nichrome;
+			item_t[...,...]	items;
+			size_t[...]	widths;
+			size_t[...]	heights;
+			bool		realized;
+			int		suspend;
+			rect_t		geometry;
+			Mutex::mutex	query_lock;
+			int		id;
+		} box_t;
+
+		container_t no_container;
+
+		protected bool present(&(item_t[*,*]) items, int x, int y) {
+			int[2]	d = dims(items);
+			if (x >= d[0] || y >= d[1])
+				return false;
+			if (is_uninit(&items[x,y]))
+				return false;
+			if (is_uninit(&items[x,y]->contained))
+				return false;
+			return true;
+		}
+
+		protected bool active(*(item_t[*,*]) items, int x, int y) {
+			if (!present(items, x, y))
+				return false;
+			if (!(*items)[x,y]->contained->active)
+				return false;
+			return true;
+		}
+
+		void not_present(&item_t[*,*] items, int x, int y) {
+			make_uninit(&(items[x,y]));
+		}
+		       
+		/*
+		 * contained layout has changed, get the new layout
+		 * and notify our container that our layout has also
+		 * changed
+		 */
+		void box_resize_container(*box_t box) {
+			if (&box->container == &no_container) {
+				if (box->realized)
+					box->nichrome->resize = true;
+			} else
+				box->container.resize (&box->container, box);
+		}
+
+		void box_resize (*box_t box, *contained_t contained) {
+			int[2] d = dims(box->items);
+			for (int y = 0; y < d[1]; y++) {
+				for (int x = 0; x < d[0]; x++) {
+					if (!active(&box->items, x, y))
+						continue;
+					item_t	item = box->items[x,y];
+					if (item->contained == contained) {
+						if (!is_uninit (&item->query))
+							item->query (item->contained, &item->layout);
+						break;
+					}
+				}
+			}
+			if (box->suspend == 0)
+				box_resize_container(box);
+		}
+
+		protected void suspend(&box_t box) {
+			++box.suspend;
+		}
+
+		protected void release(&box_t box) {
+			assert(box.suspend > 0, "Underflow box suspend\n");
+			if (--box.suspend == 0)
+				box_resize_container(&box);
+		}
+
+		public void box_print (&box_t box, int indent) {
+			do_indent(indent);
+			printf ("box %d %v [%d,%d]\n", box.id, box.geometry, dims(box.items)...);
+			int[2] d = dims(box.items);
+			for (int y = 0; y < d[1]; y++) {
+				do_indent(indent+4);
+				printf("{\n");
+				for (int x = 0; x < d[0]; x++) {
+					if (present(&box.items, x, y)) {
+						&item_t	item = &box.items[x,y];
+						item->contained->print (item->contained, indent + 8);
+						do_indent(indent + 12);
+						printf ("active %v layout %v\n", item->contained->active, item->layout);
+					}
+				}
+				do_indent(indent+4);
+				printf("},\n");
+			}
+			do_indent(indent);
+			printf ("}\n");
+	    
+		}
+		/*
+		 * Construct a new box, computing the layout of the inserted items
+		 */
+		protected *box_t new_empty () {
+			&box_t  box = &(box_t) {
+				container = &no_container,
+				resize = box_resize,
+				items = (item_t[...,...]) {},
+				widths = (size_t[...]) {},
+				heights = (size_t[...]) {},
+				realized = false,
+				print = box_print,
+				active = true,
+				suspend = 0,
+				query_lock = Mutex::new(),
+				id = ++box_id
+			};
+			return &box;
+		}
+
+		protected add(*box_t box, int x, int y, item_t item) {
+			&(item->contained->container) = box;
+			box->items[x,y] = item;
+			if (!is_uninit(&item->query)) {
+				item->query(item->contained, &item->layout);
+			}
+		}
+
+		protected remove(&box_t box, int x, int y) {
+			if (present(&box.items, x, y))
+				not_present(&box.items, x, y);
+		}
+
+		protected clear(&box_t box, int x, int y, int width, int height) {
+			int[2] d = dims(box.items);
+			if (width == 0)
+				width = d[0] - x;
+			if (height == 0)
+				height = d[1] - y;
+			for (int j = 0; j < height; j++)
+				for (int i = 0; i < width; i++)
+					remove(&box, x + i, y + j);
+		}
+
+		void copy_item(&item_t[*,*] items, int ox, int oy, int nx, int ny) {
+			if (!present(&items, ox, oy))
+				not_present(&items, nx, ny);
+			else
+				items[nx,ny] = items[ox,oy];
+		}
+
+		protected insert_column(&box_t box, int col) {
+			int[2]	d = dims(box.items);
+			setdims(box.items, (int[2]) { d[0] + 1, d[1] });
+			for (int x = d[0]; x >= col; x--)
+				for (int y = 0; y < d[1]; y++)
+					copy_item(&box.items, x, y, x+1, y);
+			for (int y = 0; y < d[1]; y++)
+				make_uninit(&box.items[col, y]);
+		}
+
+		protected delete_column(&box_t box, int col) {
+			int[2]	d = dims(box.items);
+			for (int x = col; x < d[0] - 1; x++)
+				for (int y = 0; y < d[1]; y++)
+					copy_item(&box.items, x+1, y, x, y);
+			setdims(box.items, (int[2]) { d[0] - 1, d[1] });
+		}
+
+		protected insert_row(&box_t box, int row) {
+			int[2]	d = dims(box.items);
+			setdims(box.items, (int[2]) { d[0], d[1] + 1 });
+			for (int y = d[1]; y >= row; y--)
+				for (int x = 0; x < d[0]; x++)
+					copy_item(&box.items, x, y, x, y+1);
+			for (int x = 0; x < d[0]; x++)
+				make_uninit(&box.items[x,row]);
+		}
+
+		protected delete_row(&box_t box, int col) {
+			int[2]	d = dims(box.items);
+			for (int x = col; x < d[0] - 1; x++)
+				for (int y = 0; y < d[1]; y++)
+					copy_item(&box.items, x+1, y, x, y);
+			setdims(box.items, (int[2]) { d[0] - 1, d[1] });
+		}
+
+		protected *box_t new_horizontal(item_t items...) {
+			*box_t	box = new_empty();
+			for (int x = 0; x < dim(items); x++)
+				add(box, x, 0, items[x]);
+			return box;
+		}
+
+		protected *box_t new_vertical(item_t items...) {
+			*box_t	box = new_empty();
+			for (int y = 0; y < dim(items); y++)
+				add(box, 0, y, items[y]);
+			return box;
+		}
+
+		protected *box_t new(dir_t dir, item_t items...) {
+			*box_t	box;
+			enum switch (dir) {
+			case horizontal:
+				box = new_horizontal(items...);
+				break;
+			case vertical:
+				box = new_vertical(items...);
+				break;
+			}
+			return box;
+		}
+
+		/*
+		 * Allow stretch to be specified as one or two numbers
+		 */
+		void get_stretches (&real[*] stretch,
+				    &real stretch_width,
+				    &real stretch_height) {
+			switch (dim (stretch)) {
+			case 0:
+				stretch_width = stretch_height = 1;
+				break;
+			case 1:
+				stretch_width = stretch_height = stretch[0];
+				break;
+			default:
+				stretch_width = stretch[0];
+				stretch_height= stretch[1];
+				break;
+			}
+		}
+
+		/*
+		 * Handle widgets inside of boxes
+		 */
+
+		/* find the natural bounding box of a widget */
+		rect_t widget_rect (&widget_t widget) {
+			cairo_t cr = cairo (&widget.nichrome);
+			widget.natural (cr, &widget);
+			rect_t r = fill_extents (cr);
+			Cairo::destroy (cr);
+			return r;
+		}
+
+		/*
+		 * Widget layout follows natural size
+		 */
+		void widget_query (&widget_t widget, &layout_t layout) {
+			rect_t  natural = widget_rect (&widget);
+			layout.natural_width = natural.width;
+			layout.natural_height = natural.height;
+		}
+
+		/*
+		 * Set the geometry of the contained
+		 */
+		void widget_configure (&widget_t widget,
+				       layout_t layout,
+				       rect_t geometry)
+		{
+			widget.configure (&widget, geometry);
+		}
+
+		/*
+		 * Construct a new widget item for a box
+		 */
+		protected item_t widget_item (&widget_t widget, real stretch...)
+		{
+			get_stretches (&stretch,
+				       &(real stretch_width), &(real stretch_height));
+			return &(item_contents_t) {
+				layout = {
+					stretch_width = stretch_width,
+					stretch_height = stretch_height
+				},
+				query = widget_query,
+				configure = widget_configure,
+				contained = &widget
+			};
+		}
+
+		/*
+		 * Compute the layout for this box by
+		 * walking through the items in the box
+		 */
+		protected void box_query (&box_t box, &layout_t layout) {
+			if (!box.active)
+				return;
+
+			int[2] d = dims(box.items);
+
+			size_t[...]	widths = (size_t[...]) {};
+			size_t[...]	heights = (size_t[...]) {};
+
+			int	max_x = 0, max_y = 0;
+			for (int y = 0; y < d[1]; y++) {
+				for (int x = 0; x < d[0]; x++) {
+					if (present (&box.items, x, y)) {
+						max_x = max(x+1, max_x);
+						max_y = max(y+1, max_y);
+					}
+					if (!active(&box.items, x, y))
+						continue;
+
+					&layout_t child = &box.items[x,y]->layout;
+					
+					if (dim(widths) <= x || is_uninit(&widths[x].natural)) {
+						widths[x] = (size_t) {
+							.natural = child.natural_width,
+							.stretch = child.stretch_width };
+					} else {
+						if (child.stretch_width < widths[x].stretch) {
+							widths[x].natural = child.natural_width;
+							widths[x].stretch = child.stretch_width;
+						} else if (child.stretch_width == widths[x].stretch) {
+							widths[x].natural = max (widths[x].natural, child.natural_width);
+						}
+					}
+
+					if (dim(heights) <= y || is_uninit(&heights[y].natural)) {
+						heights[y] = (size_t) {
+							.natural = child.natural_height,
+							.stretch = child.stretch_height };
+					} else {
+						if (child.stretch_height < heights[y].stretch) {
+							heights[y].natural = child.natural_height;
+							heights[y].stretch = child.stretch_height;
+						} else if (child.stretch_height == heights[y].stretch) {
+							heights[y].natural = max (heights[y].natural, child.natural_height);
+						}
+					}
+				}
+			}
+
+			setdims(box.items, (int[2]) { max_x, max_y });
+			
+			layout.natural_width = 0;
+			layout.natural_height = 0;
+			layout.stretch_width = 0;
+			layout.stretch_height = 0;
+
+			for (int x = 0; x < dim(widths); x++) {
+				if (!is_uninit(&widths[x].natural)) {
+					layout.natural_width += widths[x].natural;
+					layout.stretch_width += widths[x].stretch;
+				}
+			}
+
+			for (int y = 0; y < dim(heights); y++) {
+				if (!is_uninit(&heights[y].natural)) {
+					layout.natural_height += heights[y].natural;
+					layout.stretch_height += heights[y].stretch;
+				}
+			}
+			twixt(Mutex::acquire(box.query_lock); Mutex::release(box.query_lock)) {
+				box.widths = widths;
+				box.heights = heights;
+			}
+		}
+
+		/*
+		 * Configure a box
+		 */
+		protected void box_configure (*box_t box, layout_t layout, rect_t geometry) {
+
+			void layout_size (&size_t[*] sizes, real actual, real pref, real stretch) {
+
+				if (stretch == 0) stretch = 1;
+
+				real delta = (real delta_remain) = actual - pref;
+				real pos = 0;
+
+				for (int i = 0; i < dim(sizes); i++) {
+					&size_t	size = &sizes[i];
+
+					if (is_uninit(&size.natural))
+						continue;
+
+					real	delta_this;
+
+					if (i == dim(sizes) - 1)
+						delta_this = delta_remain;
+					else
+						delta_this = delta * sizes[i].stretch / stretch;
+					if (delta_remain < 0) {
+						if (delta_this < delta_remain)
+							delta_this = delta_remain;
+					} else {
+						if (delta_this > delta_remain)
+							delta_this = delta_remain;
+					}
+					delta_remain -= delta_this;
+					sizes[i].pos = pos;
+					sizes[i].actual = sizes[i].natural + delta_this;
+					pos += sizes[i].actual;
+				}
+			}
+
+			twixt(Mutex::acquire(box->query_lock); Mutex::release(box->query_lock)) {
+				layout_size(&box->widths, geometry.width,
+					    layout.natural_width, layout.stretch_width);
+				layout_size(&box->heights, geometry.height,
+					    layout.natural_height, layout.stretch_height);
+
+				box->realized = true;
+				
+				for (int y = 0; y < dim(box->heights); y++) {
+
+					if (is_uninit(&box->heights[y].natural))
+						continue;
+
+					for (int x = 0; x < dim(box->widths); x++) {
+
+						if (is_uninit(&box->widths[x].natural))
+							continue;
+
+						if (!active (&box->items, x, y))
+							continue;
+
+						item_t	item = box->items[x,y];
+
+						/* Span this item across empty space */
+						real width = box->widths[x].actual;
+						for (int nx = x + 1; nx < dim(box->widths); nx++) {
+							if (active(&box->items, nx, y))
+								break;
+							if (!is_uninit(&box->widths[nx].actual))
+								width += box->widths[nx].actual;
+						}
+
+						real height = box->heights[y].actual;
+						for (int ny = y + 1; ny < dim(box->heights); ny++) {
+							if (active(&box->items, x,ny))
+								break;
+							if (!is_uninit(&box->heights[ny].actual))
+								height += box->heights[ny].actual;
+						}
+
+						rect_t child_geometry = (rect_t) {
+							.x = geometry.x + box->widths[x].pos,
+							.y = geometry.y + box->heights[y].pos,
+							.width = width,
+							.height = height };
+
+						if (!is_uninit (&item->configure))
+							item->configure (item->contained,
+									 item->layout, child_geometry);
+					}
+				}
+				box->geometry = geometry;
+			}
+		}
+
+		protected item_t box_item (&box_t box)
+		{
+			return &(item_contents_t) {
+				contained = &box,
+				query = box_query,
+				configure = box_configure,
+				};
+		}
+
+		/*
+		 * Glue in boxes
+		 */
+
+		void glue_query (&glue_t glue, &layout_t layout) {
+		}
+
+		/*
+		 * Allow applications to specify size and stretch, just stretch
+		 * or neither
+		 */
+		void get_glue (&real[*] param, &layout_t layout) {
+			switch (dim (param)) {
+			case 0:
+				layout.natural_width = 0;
+				layout.natural_height = 0;
+				layout.stretch_width = 1;
+				layout.stretch_height = 1;
+				break;
+			case 1:
+				layout.natural_width = 0;
+				layout.natural_height = 0;
+				layout.stretch_width = param[0];
+				layout.stretch_height = param[0];
+				break;
+			case 2:
+				layout.natural_width = param[0];
+				layout.natural_height = param[0];
+				layout.stretch_width = param[1];
+				layout.stretch_height = param[1];
+				break;
+			case 3:
+				layout.natural_width = param[0];
+				layout.natural_height = 0;
+				layout.stretch_width = param[1];
+				layout.stretch_height = param[2];
+				break;
+			default:
+				layout.natural_width = param[0];
+				layout.natural_height = param[2];
+				layout.stretch_width = param[1];
+				layout.stretch_height = param[3];
+				break;
+			}
+		}
+
+		void glue_print(&glue_t glue, int indent) {
+			do_indent(indent);
+			printf ("glue\n");
+		}
+
+		protected item_t glue_item (real param...)
+		{
+			get_glue (&param, &((layout_t) layout));
+			return &(item_contents_t) {
+				contained = &(glue_t) { .print = glue_print, .active = true },
+					.layout = layout,
+					.query = glue_query };
+		}
+
+		protected void add_widget (&box_t box,
+					   int x, int y,
+					   &widget_t widget,
+					   real stretch ...)
+		{
+			add (&box, x, y, widget_item (&widget, stretch ...));
+		}
+
+		protected void add_box (&box_t box, int x, int y, &box_t t)
+		{
+			add (&box, x, y, box_item (&t));
+		}
+
+		protected void add_glue (&box_t box, int x, int y, real param ...)
+		{
+			add (&box, x, y, glue_item (param ...));
+		}
+
+		protected void add_row (&box_t box, int x, int y, item_t items...) {
+			suspend(&box);
+			for (int i = 0; i < dim(items); i++)
+				add (&box, x + i, y, items[i]);
+			release(&box);
+		}
+
+		protected void add_column (&box_t box, int x, int y, item_t items...) {
+			suspend(&box);
+			for (int i = 0; i < dim(items); i++)
+				add (&box, x, y + i, items[i]);
+			release(&box);
+		}
+
+		protected void set_active (*contained_t contained, bool active) {
+			*contained_t top = contained;
+
+			while (&top->container != &no_container) {
+				*box_t	container = &top->container;
+				top = container;
+			}
+			*box_t top_box = top;
+
+			void set_all_active (&contained_t contained) {
+				contained.active = active;
+				if (is_type (contained, box_t)) {
+					*box_t	box = &contained;
+					int[2]	d = dims(box->items);
+					for (int y = 0; y < d[1]; y++)
+						for (int x = 0; x < d[0]; x++)
+							if (present(&box->items, x, y))
+								set_all_active(box->items[x,y]->contained);
+				} else
+					box_resize(&contained.container, &contained);
+			}
+
+			suspend(top_box);
+			set_all_active(contained);
+			release(top_box);
+		}
+	}
+
+	/*
+	 * When the top level geometry manager is a box,
+	 * set the nichrome configure function to relayout
+	 * the box
+	 */
+	void configure (&nichrome_t nichrome, &Box::box_t box)
+	{
+		cairo_t cr = cairo (&nichrome);
+
+		rect_t	geometry = {
+			x = 0,
+			y = 0,
+			width = width (cr),
+			height = height (cr)
+		};
+		Cairo::destroy (cr);
+
+		/*
+		 * Get box preferred size
+		 */
+		Box::layout_t	layout;
+		Box::box_query (&box, &layout);
+
+		/*
+		 * Layout box
+		 */
+		Box::box_configure (&box, layout, geometry);
+	}
+
+	public void set_box (&nichrome_t nichrome, *Box::box_t box)
+	{
+		box->nichrome = &nichrome;
+		Box::layout_t layout;
+		Box::box_query (box, &layout);
+		Nichrome::resize (&nichrome, layout.natural_width, layout.natural_height);
+		Nichrome::configure (&nichrome, box);
+		nichrome.configure = void func (&nichrome_t nichrome) {
+			Nichrome::configure (&nichrome, box);
+		};
+#	box.print(&box, 0);
+	}
+}
