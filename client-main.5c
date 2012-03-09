@@ -21,6 +21,7 @@ autoload Client::Link;
 autoload Client::Update;
 autoload Client::Userlist;
 autoload Client::Messages;
+autoload Client::Games;
 autoload ParseArgs;
 autoload RR;
 autoload Cairo;
@@ -109,6 +110,7 @@ extend namespace Client {
 		&Box::box_t		done_box;
 		&Button::button_t	next_turn;
 
+		&Button::button_t	select_game;
 		&Button::button_t	quit;
 		&rrboard_widget_t	rrboard;
 		&userlist_t		userlist;
@@ -388,6 +390,15 @@ extend namespace Client {
 			return false;
 		}
 
+		public void select_game_callback(string[*] args) {
+			printf ("select_game_callback %v\n", args);
+		}
+
+		public void do_select_game() {
+			*Games::games_t games = Games::new(link, select_game_callback);
+			fork Games::run(games);
+		}
+
 		public void do_quit() {
 			Link::close(link);
 			ui.running = false;
@@ -405,6 +416,12 @@ extend namespace Client {
 			&rrboard = RRboard::new(&ui, move_callback);
 			&userlist = Userlist::new(&ui, link);
 			&messages = Messages::new(&ui, 20, message_done, name);
+
+			&select_game = Button::new(&ui, "Select Game",
+						   void func (&widget_t w, bool state) {
+							   if (state)
+								   do_select_game();
+						   });
 
 			&quit = Button::new(&ui, "Quit",
 					    void func (&widget_t w, bool state) {
@@ -491,6 +508,7 @@ extend namespace Client {
 								Box::box_item(&bid_box),
 								Box::box_item(&done_box),
 								Box::glue_item(1),
+								Box::widget_item(&select_game, 0),
 								Box::widget_item(&quit, 0));
 			&box_t			rbox = Box::new (Box::dir_t.vertical,
 								 Box::box_item(userlist.box),

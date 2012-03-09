@@ -1,0 +1,78 @@
+/*
+ * Copyright © 2012 Keith Packard <keithp@keithp.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 2 of the License.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
+ */
+
+autoload Client;
+autoload Client::Link;
+autoload Nichrome;
+autoload Nichrome::Box;
+autoload Nichrome::Label;
+autoload Nichrome::Button;
+autoload Skiplist;
+
+extend namespace Client {
+	public namespace Games {
+		import Nichrome;
+
+		public typedef games_t;
+
+		typedef struct {
+			string		name;
+			string[*]	players;
+		} game_t;
+
+		public typedef struct {
+			*nichrome_t		ui;
+			*Box::box_t		box;
+			*Label::label_t		title;
+			*Button::button_t	done;
+			Link::link_t		link;
+			void (string[*] args)	callback;
+			Skiplist::Skip		games;
+		} games_t;
+
+		void get_games(Link::link_t link) {
+			Link::message_t	r = Link::command(link, "GAMES\n");
+			for (int i = 1; i < dim(r->reply); i++) {
+				printf ("game %s\n", r->reply[i]);
+			}
+		}
+
+		public *games_t new(Link::link_t link, void (string[*] args) callback) {
+			*games_t	games = &(games_t) {};
+			get_games(link);
+			games->ui = Nichrome::new("Ricochet Robots Games", 100, 100);
+			games->title = Label::new(games->ui, "Games");
+			games->done = Button::new(games->ui, "Done",
+						  void func (&widget_t w, bool state) {
+							  if (state)
+								  Nichrome::destroy(games->ui);
+						  });
+			games->box = Box::new(Box::dir_t.vertical,
+					      Box::widget_item(games->title, 1),
+					      Box::widget_item(games->done, 1));
+			games->link = link;
+			games->callback = callback;
+			set_box(games->ui, games->box);
+			return games;
+		}
+
+		public void run(*games_t games) {
+			main_loop(games->ui);
+		}
+	}
+}
+	
