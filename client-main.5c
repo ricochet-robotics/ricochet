@@ -396,7 +396,7 @@ extend namespace Client {
 
 		public void do_select_game() {
 			*Games::games_t games = Games::new(link, select_game_callback);
-			fork Games::run(games);
+			Games::run(games);
 		}
 
 		public void do_quit() {
@@ -411,6 +411,15 @@ extend namespace Client {
 
 			link = Link::new(host, port);
 
+			Link::message_t r = Link::command(link, "helo %s\n", name);
+
+			if (r->reply[0] == "ERROR") {
+				printf ("%s %s\n", r->reply[1], name);
+				do_quit();
+			}
+
+			do_select_game();
+			exit(0);
 			&ui = Nichrome::new("Ricochet Robots", board_width, board_height);
 			Nichrome::set_global_key(&ui, global_key);
 			&rrboard = RRboard::new(&ui, move_callback);
@@ -519,13 +528,6 @@ extend namespace Client {
 			&box_t			vbox = Box::new (Box::dir_t.vertical,
 								 Box::box_item(&top),
 								 Box::box_item(&hbox));
-
-			Link::message_t r = Link::command(link, "helo %s\n", name);
-
-			if (r->reply[0] == "ERROR") {
-				printf ("%s %s\n", r->reply[1], name);
-				do_quit();
-			}
 
 			Link::message_t r = Link::command(link, "%s %s\n", watch ? "WATCH" : "JOIN", game);
 

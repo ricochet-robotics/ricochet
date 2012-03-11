@@ -21,7 +21,8 @@ autoload Nichrome;
 autoload Nichrome::Box;
 autoload Nichrome::Label;
 autoload Nichrome::Button;
-autoload Skiplist;
+autoload Nichrome::Border;
+autoload Sort;
 
 extend namespace Client {
 	public namespace Games {
@@ -37,33 +38,100 @@ extend namespace Client {
 		public typedef struct {
 			*nichrome_t		ui;
 			*Box::box_t		box;
+			*Box::box_t		game_box;
 			*Label::label_t		title;
 			*Button::button_t	done;
 			Link::link_t		link;
 			void (string[*] args)	callback;
-			Skiplist::Skip		games;
+			game_t[*]		games;
 		} games_t;
 
-		void get_games(Link::link_t link) {
+		game_t[*] get_games(Link::link_t link) {
 			Link::message_t	r = Link::command(link, "GAMES\n");
+			if (dim(r->reply) == 0 || r->reply[0] != "GAMES")
+				return (game_t[0]){};
+			game_t[...]	games = {};
 			for (int i = 1; i < dim(r->reply); i++) {
-				printf ("game %s\n", r->reply[i]);
+				Link::message_t p = Link::command(link, "PLAYERS %s\n", r->reply[i]);
+				if (dim(p->reply) == 0 || p->reply[0] != "PLAYERS")
+					continue;
+				int nplayers = (dim(p->reply) - 1) // 2;
+				games[dim(games)] = (game_t) {
+					.name = r->reply[i],
+					.players = (string[nplayers]) { [n] = p->reply[1+2*n] }
+				};
 			}
+			Sort::qsort(&games, bool func(game_t a, game_t b) = a.name > b.name);
+			return games;
+		}
+
+		*Label::label_t new_left(*nichrome_t ui, string label) {
+			*Label::label_t	l = Label::new(ui, label);
+			l->justify = Label::justify_t.left;
+			return l;
+		}
+
+		*Label::label_t new_bold(*nichrome_t ui, string label, Label::justify_t justify) {
+			*Label::label_t l = Label::new(ui, label);
+			l->font = l->font + ":bold";
+			l->justify = justify;
+			return l;
+		}
+
+		*widget_t top(*widget_t child) {
+			return Border::new(child, 0, 0, 1, 0);
 		}
 
 		public *games_t new(Link::link_t link, void (string[*] args) callback) {
 			*games_t	games = &(games_t) {};
-			get_games(link);
+			games->games = get_games(link);
 			games->ui = Nichrome::new("Ricochet Robots Games", 100, 100);
-			games->title = Label::new(games->ui, "Games");
+			games->title = new_bold(games->ui, "Games", Label::justify_t.center);
 			games->done = Button::new(games->ui, "Done",
 						  void func (&widget_t w, bool state) {
 							  if (state)
 								  Nichrome::destroy(games->ui);
 						  });
+			games->game_box = Box::new(Box::dir_t.horizontal,
+						   Box::widget_item(new_bold(games->ui, "Game Name", Label::justify_t.left), 0),
+						   Box::widget_item(new_bold(games->ui, "Players", Label::justify_t.left), 0),
+						   Box::glue_item(1));
+			int r = 1;
+			for (int g = 0; g < dim(games->games); g++) {
+				Box::add_widget(games->game_box, 0, r, top(new_left(games->ui, games->games[g].name)), 0);
+				Box::add_widget(games->game_box, 2, r, top(Button::new(games->ui, "Join Game",
+										       void func (&widget_t w, bool state) {
+											       static int num = g;
+											       if (state)
+												       printf ("join %s\n",
+													       games->games[num].name);
+										       })), 0);
+				if (dim(games->games[g].players) > 0) {
+					for (int p = 0; p < dim(games->games[g].players); p++) {
+						*widget_t	widget = new_left(games->ui,
+										  games->games[g].players[p]);;
+						if (p == 0)
+							widget = top(widget);
+						Box::add_widget(games->game_box, 1, r, widget, 0);
+						if (p > 0) {
+							Box::add_glue(games->game_box, 0, r, 1);
+							Box::add_glue(games->game_box, 2, r, 1);
+						}
+						r++;
+					}
+				} else {
+					Box::add_glue(games->game_box, 1, r, 1);
+					r++;
+				}
+			}
+
 			games->box = Box::new(Box::dir_t.vertical,
-					      Box::widget_item(games->title, 1),
-					      Box::widget_item(games->done, 1));
+					      Box::widget_item(games->title, 0),
+					      Box::box_item(games->game_box),
+					      Box::box_item(Box::new(Box::dir_t.horizontal,
+								     Box::glue_item(1),
+								     Box::widget_item(games->done, 0))),
+					      Box::glue_item(1));
 			games->link = link;
 			games->callback = callback;
 			set_box(games->ui, games->box);
