@@ -46,6 +46,9 @@ extend namespace Client {
 		string	host = "localhost";
 		int	port = RR::Port;
 		string	name;
+
+		string	font = Widget::default_font;
+
 		try {
 			name = Environ::get("USER");
 		} catch invalid_argument(string message, int id, poly value) {
@@ -79,6 +82,11 @@ extend namespace Client {
 				  .name = "game",
 				  .expr_name = "gamename",
 				  .desc = "proposed game name" },
+				{ .var = { .arg_string = &font },
+				  .abbr = 'f',
+				  .name = "font",
+				  .expr_name = "font name",
+				  .desc = "default font name" },
 				{ .var = { .arg_flag = &watch },
 				  .abbr = 'w',
 				  .name = "watch",
@@ -475,6 +483,9 @@ extend namespace Client {
 
 		public void main () {
 			ParseArgs::parseargs(&argd, &argv);
+
+			if (!is_uninit(&font))
+				Widget::default_font = font;
 
 			link = Link::new(host, port);
 
