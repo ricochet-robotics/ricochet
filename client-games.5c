@@ -105,7 +105,6 @@ extend namespace Client {
 			}
 			Box::add_widget(games->game_box, 1, row, top(Button::new(games->ui, "Dispose Game",
 										 dispose_game)), 0);
-			
 		}
 
 		void remove_user(*games_t games, string game, string name) {
@@ -118,12 +117,14 @@ extend namespace Client {
 						return;
 					for (int q = p; q < dim(game->players) - 1; q++)
 						game->players[q] = game->players[q+1];
+					setdim(game->players, dim(game->players) - 1);
 					int r = row + p;
 					if (dim (game->players) == 0) {
 						add_dispose_game(games, game, r);
 					} else {
 						Box::delete_row(games->game_box, r);
 					}
+					Nichrome::redraw(games->ui);
 				});
 		}
 
@@ -139,14 +140,24 @@ extend namespace Client {
 					game->players[p] = name;
 					*widget_t w = new_left(games->ui, name);
 					if (dim (game->players) > 1) {
-						Box::insert_row(games->game_box, r);
-						Box::add_glue(games->game_box, 0, r, 1);
-						Box::add_glue(games->game_box, 2, r, 1);
-						Box::add_glue(games->game_box, 3, r, 1);
+						if (p == 0) {
+							w = top(w);
+							Box::insert_row(games->game_box, r+1);
+							Box::add_widget(games->game_box, 1, r+1,
+									new_left(games->ui, game->players[1]));
+							Box::add_glue(games->game_box, 0, r+1, 1);
+							Box::add_glue(games->game_box, 2, r+1, 1);
+							Box::add_glue(games->game_box, 3, r+1, 1);
+						} else {
+							Box::insert_row(games->game_box, r);
+							Box::add_glue(games->game_box, 0, r, 1);
+							Box::add_glue(games->game_box, 2, r, 1);
+							Box::add_glue(games->game_box, 3, r, 1);
+						}
 					} else
 						w = top(w);
 					Box::add_widget(games->game_box, 1, r, w, 0);
-					
+					Nichrome::redraw(games->ui);
 				});
 		}
 
@@ -287,6 +298,7 @@ extend namespace Client {
 					add_user(global_games, notice->reply[3], notice->reply[2]);
 					break;
 				case "PART":
+					printf ("Remove user %s from %s\n", notice->reply[3], notice->reply[2]);
 					remove_user(global_games, notice->reply[3], notice->reply[2]);
 					break;
 				}

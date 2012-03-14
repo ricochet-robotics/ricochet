@@ -247,13 +247,13 @@ extend namespace Client {
 				case "JOIN":
 				case "WATCH":
 					if (dim(notice->reply) > 3)
-						if (notice->reply[3] != Games::current_game)
+						if (!is_uninit(&Games::current_game) && notice->reply[3] != Games::current_game)
 							break;
 					add_user(notice->reply[2]);
 					break;
 				case "PART":
 					if (dim(notice->reply) > 3)
-						if (notice->reply[3] != Games::current_game)
+						if (!is_uninit(&Games::current_game) && notice->reply[3] != Games::current_game)
 							break;
 					Userlist::remove(&userlist, notice->reply[2]);
 					break;
