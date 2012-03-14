@@ -605,6 +605,8 @@ extend namespace Client {
 				Games::wait();
 			}
 
+			if (is_uninit(&Games::current_game))
+				do_quit();
 			set_box(&ui, &vbox);
 
 			Nichrome::show(&ui);
