@@ -98,9 +98,10 @@ extend namespace Client {
 		
 		void add_dispose_game(*games_t games, *game_t game, int row) {
 			void dispose_game(&widget_t w, bool state) {
+				static string name = game->name;
 				if (state)
 					Link::command(games->link,
-						      "DISPOSE %s\n", game->name);
+						      "DISPOSE %s\n", name);
 			}
 			Box::add_widget(games->game_box, 1, row, top(Button::new(games->ui, "Dispose Game",
 										 dispose_game)), 0);
