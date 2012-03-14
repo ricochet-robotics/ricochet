@@ -20,7 +20,7 @@ autoload Client::Link;
 autoload Nichrome;
 autoload Nichrome::Box;
 autoload Nichrome::Label;
-autoload Skiplist;
+autoload Mutex;
 
 extend namespace Client {
 	public namespace Userlist {
@@ -59,37 +59,16 @@ extend namespace Client {
 			column_t		score;
 			column_t		bid;
 			column_t		mode;
-			Skiplist::Skip		names;
+			(*user_t)[...]		names;
 			user_or_none_t		showing;
 			string			font;
 			string			bold_font;
 			string			italic_font;
 			Link::link_t		link;
+			Mutex::mutex		lock;
 		} userlist_t;
 
 		bool user_greater(*user_t a, *user_t b)  = a->name > b->name;
-
-		protected void set_boxes(&userlist_t ul) {
-			Box::suspend(ul.box);
-			/*
-			 * Remove all existing entries
-			 */
-			int y = 2;
-			/*
-			 * Add all entries back
-			 */
-			Skiplist::walk (ul.names, void func (*user_t user) {
-					Box::add_row(ul.box, 0, y,
-						     Box::widget_item(user->name_label, 1, 0),
-						     Box::widget_item(user->games_label, 1, 0),
-						     Box::widget_item(user->score_label, 1, 0),
-						     Box::widget_item(user->bid_label, 1, 0),
-						     Box::widget_item(user->mode_label, 1, 0));
-					y++;
-				});
-			Box::clear(ul.box, 0, y, 0, 0);
-			Box::release(ul.box);
-		}
 
 		string games_string(int games) {
 			return sprintf("%d", games);
@@ -107,16 +86,28 @@ extend namespace Client {
 			return "";
 		}
 
-		public void score(*userlist_t ul, string name, int score) {
-			*user_t find = &(user_t) {
-				.name = name
-			};
-			try {
-				*user_t user = Skiplist::search(ul->names, find);
-				user->score = score;
-				Label::relabel(user->score_label, score_string(user->playing, user->score));
-			} catch Skiplist::not_found(*user_t x) {
+		void forname(*userlist_t ul, string name, void (*user_t, int u) doit) {
+			twixt(Mutex::acquire(ul->lock); Mutex::release(ul->lock)) {
+				for (int u = 0; u < dim(ul->names); u++)
+					if (ul->names[u]->name == name) {
+						doit (ul->names[u], u);
+						break;
+					}
 			}
+		}
+
+		void foreach(*userlist_t ul, void (*user_t, int u) doit) {
+			twixt(Mutex::acquire(ul->lock); Mutex::release(ul->lock)) {
+				for (int u = 0; u < dim(ul->names); u++)
+					doit (ul->names[u], u);
+			}
+		}
+
+		public void score(*userlist_t ul, string name, int score) {
+			forname(ul, name, void func (*user_t user, int u) {
+					user->score = score;
+					Label::relabel(user->score_label, score_string(user->playing, user->score));
+				});
 		}
 
 		void update_user(*userlist_t ul, *user_t user) {
@@ -133,26 +124,22 @@ extend namespace Client {
 		}
 
 		public void bid(*userlist_t ul, string name, int bid) {
-			try {
-				*user_t user = Skiplist::search(ul->names,
-								&(user_t) { .name = name });
-				user->bid = bid;
-				Label::relabel(user->bid_label, bid_string(user->playing, user->bid));
-			} catch Skiplist::not_found(*user_t x) {
-			}
+			forname(ul, name, void func (*user_t user, int u) {
+					user->bid = bid;
+					Label::relabel(user->bid_label, bid_string(user->playing, user->bid));
+				});
 		}
 
 		public void clear_bid(*userlist_t ul) {
-			Skiplist::walk (ul->names, void func (*user_t user) {
+			foreach(ul, void func (*user_t user, int u) {
 					user->bid = 0;
 					Label::relabel(user->bid_label, bid_string(user->playing, user->bid));
 				});
 		}
 
 		public void clear_score(*userlist_t ul) {
-			Skiplist::walk (ul->names, void func (*user_t user) {
+			foreach(ul, void func (*user_t user, int u) {
 					user->score = 0;
-					
 					Label::relabel(user->score_label, score_string(user->playing, user->score));
 				});
 		}
@@ -186,50 +173,55 @@ extend namespace Client {
 		}
 
 		public void showing(*userlist_t ul, string name, bool showing) {
-			try {
-				*user_t user = Skiplist::search(ul->names,
-								&(user_t) { .name = name });
-				set_showing (ul, user, showing);
-			} catch Skiplist::not_found(*user_t x) {
-			}
+			forname(ul, name, void func (*user_t user, int u) {
+					set_showing (ul, user, showing);
+				});
 		}
 
 		public void clear_showing(*userlist_t ul) {
-			union switch (ul->showing) {
-			case user u:
-				set_showing (ul, u, false);
-				break;
-			default:
+			twixt(Mutex::acquire(ul->lock); Mutex::release(ul->lock)) {
+				union switch (ul->showing) {
+				case user u:
+					set_showing (ul, u, false);
+					break;
+				default:
+				}
 			}
 		}
 
 		public void clear_modes(*userlist_t ul) {
-			Skiplist::walk (ul->names, void func (*user_t user) {
+			foreach (ul, void func (*user_t user, int u) {
 					Label::relabel(user->mode_label, "");
 				});
 		}
 
 		public void set_mode(*userlist_t ul, string name, string mode) {
-			try {
-				*user_t user = Skiplist::search(ul->names,
-								&(user_t) { .name = name });
-				user->mode = mode;
-				Label::relabel(user->mode_label, user->mode);
-			} catch Skiplist::not_found(*user_t x) {
-			}
+			forname (ul, name, void func (*user_t user, int u) {
+					user->mode = mode;
+					Label::relabel(user->mode_label, user->mode);
+				});
 		}
 
 		public void update(*userlist_t ul) {
-			Skiplist::walk(ul->names, void func (*user_t user) {
+			foreach (ul, void func (*user_t user, int u) {
 					update_user(ul, user);
 				});
 		}
 
+		bool user_gt(*user_t a, *user_t b) {
+			if (!a->playing && b->playing)
+				return true;
+			if (a->playing && !b->playing)
+				return false;
+			return a->name > b->name;
+		}
+
 		public void add(*userlist_t ul, string name, bool playing, int games, int score, int bid) {
-			*user_t find = &(user_t) { .name = name };
-			try {
-				Skiplist::search(ul->names, find);
-			} catch Skiplist::not_found(*user_t x) {
+			twixt(Mutex::acquire(ul->lock); Mutex::release(ul->lock)) {
+				for (int u = 0; u < dim (ul->names); u++)
+					if (ul->names[u]->name == name)
+						return;
+
 				*user_t user = &(user_t) {
 					.name = name,
 					.name_label = Label::new(ul->ui, name),
@@ -243,6 +235,7 @@ extend namespace Client {
 					.mode = "",
 					.mode_label = Label::new(ul->ui, ""),
 				};
+
 				string font = ul->font;
 				if (!playing)
 					font = ul->italic_font;
@@ -252,23 +245,41 @@ extend namespace Client {
 				user->score_label->font = font;
 				user->bid_label->font = font;
 				user->mode_label->font = font;
-				Skiplist::insert(ul->names, user);
-				set_boxes(ul);
+
+				int u = 0;
+				for (; u < dim (ul->names); u++)
+					if (user_gt (ul->names[u], user))
+						break;
+
+				Box::suspend(ul->box);
+				Box::insert_row(ul->box, u+1);
+				Box::add_row(ul->box, 0, u + 1,
+					     Box::widget_item(user->name_label, 0, 0),
+					     Box::widget_item(user->games_label, 0, 0),
+					     Box::widget_item(user->score_label, 0, 0),
+					     Box::widget_item(user->bid_label, 0, 0),
+					     Box::widget_item(user->mode_label, 0, 0));
+				Box::release(ul->box);
+
+				for (int t = dim(ul->names); t > u; t--)
+					ul->names[t] = ul->names[t-1];
+
+				ul->names[u] = user;
 			}
 		}
 
 		public void remove(*userlist_t ul, string name) {
-			*user_t find = &(user_t) { .name = name };
-			try {
-				*user_t user = Skiplist::search(ul->names, find);
-				Skiplist::delete(ul->names, user);
-				Nichrome::remove(ul->ui, user->name_label);
-				Nichrome::remove(ul->ui, user->games_label);
-				Nichrome::remove(ul->ui, user->score_label);
-				Nichrome::remove(ul->ui, user->bid_label);
-				Nichrome::remove(ul->ui, user->mode_label);
-				set_boxes(ul);
-			} catch Skiplist::not_found(string x) {
+			forname(ul, name, void func (*user_t user, int u) {
+					Box::delete_row(ul->box, u + 1);
+					for (; u < dim(ul->names) - 1; u++)
+						ul->names[u] = ul->names[u+1];
+				});
+		}
+
+		public void clear(*userlist_t ul) {
+			twixt(Mutex::acquire(ul->lock); Mutex::release(ul->lock)) {
+				Box::clear(ul->box, 0, 1, 0, dim(ul->names));
+				setdim(ul->names, 0);
 			}
 		}
 
@@ -281,7 +292,8 @@ extend namespace Client {
 			ul->bold_font = sprintf("%s:bold", Widget::default_font);
 			ul->italic_font = sprintf("%s:italic", Widget::default_font);
 
-			ul->names = Skiplist::new(user_greater);
+			ul->names = ((*user_t)[...]) {};
+			ul->lock = Mutex::new();
 			Cairo::cairo_t	cr = Nichrome::cairo(ui);
 			Cairo::set_font(cr, ul->font);
 			Cairo::text_extents_t x = Cairo::text_extents(cr, "x");
@@ -311,7 +323,6 @@ extend namespace Client {
 				     Box::glue_item(ul->mode.width, 0, 0, 0));
 
 			ul->showing = user_or_none_t.none;
-			set_boxes(ul);
 		}
 
 		public *userlist_t new (*nichrome_t ui, Link::link_t link) {

@@ -53,8 +53,8 @@ extend namespace Nichrome {
 			rectangle (cr,
 				   widget->left,
 				   widget->top,
-				   widget->geometry.width - widget->right,
-				   widget->geometry.height - widget->bottom);
+				   widget->geometry.width - widget->right - widget->left,
+				   widget->geometry.height - widget->bottom - widget->top);
 			fill (cr);
 			restore(cr);
 		}
@@ -67,6 +67,11 @@ extend namespace Nichrome {
 					.width = geometry.width - widget->left - widget->right,
 					.height = geometry.height - widget->top - widget->bottom
 						});
+		}
+
+		protected void remove (*border_t widget) {
+			widget->child->remove (widget->child);
+			Widget::remove(widget);
 		}
 
 		protected void print (*border_t widget, int indent) {
@@ -102,6 +107,7 @@ extend namespace Nichrome {
 			widget->outline = outline;
 			widget->natural = natural;
 			widget->configure = configure;
+			widget->remove = remove;
 			widget->print = print;
 			widget->color = (rgba_color_t) {
 				red = 0, green = 0, blue = 0, alpha = 1

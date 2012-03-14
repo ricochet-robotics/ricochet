@@ -27,10 +27,7 @@ extend namespace Nichrome {
 
 		public typedef box_t;
 
-		protected typedef contained_t + struct {
-			int	strut_width;
-			int	struct_height;
-		} glue_t;
+		protected typedef contained_t glue_t;
 
 		protected exception unknown_contained (&box_t box,
 						       &contained_t contained);
@@ -118,16 +115,18 @@ extend namespace Nichrome {
 		}
 
 		void box_resize (*box_t box, *contained_t contained) {
-			int[2] d = dims(box->items);
-			for (int y = 0; y < d[1]; y++) {
-				for (int x = 0; x < d[0]; x++) {
-					if (!active(&box->items, x, y))
-						continue;
-					item_t	item = box->items[x,y];
-					if (item->contained == contained) {
-						if (!is_uninit (&item->query))
-							item->query (item->contained, &item->layout);
-						break;
+			twixt(Mutex::acquire(box->query_lock); Mutex::release(box->query_lock)) {
+				int[2] d = dims(box->items);
+				for (int y = 0; y < d[1]; y++) {
+					for (int x = 0; x < d[0]; x++) {
+						if (!active(&box->items, x, y))
+							continue;
+						item_t	item = box->items[x,y];
+						if (item->contained == contained) {
+							if (!is_uninit (&item->query))
+								item->query (item->contained, &item->layout);
+							break;
+						}
 					}
 				}
 			}
@@ -143,6 +142,28 @@ extend namespace Nichrome {
 			assert(box.suspend > 0, "Underflow box suspend\n");
 			if (--box.suspend == 0)
 				box_resize_container(&box);
+		}
+
+		protected remove(*box_t box, int x, int y) {
+			if (present(&box->items, x, y)) {
+				&item_t item = &box->items[x,y];
+				item->contained->remove(item->contained);
+				not_present(&box->items, x, y);
+			}
+		}
+
+		protected add(*box_t box, int x, int y, item_t item) {
+			remove(box, x, y);
+			&(item->contained->container) = box;
+			box->items[x,y] = item;
+			box_resize (box, item->contained);
+		}
+
+		public void box_remove(&box_t box) {
+			int[2] d = dims(box.items);
+			for (int y = 0; y < d[1]; y++)
+				for (int x = 0; x < d[0]; x++)
+					remove(&box, x, y);
 		}
 
 		public void box_print (&box_t box, int indent) {
@@ -179,25 +200,13 @@ extend namespace Nichrome {
 				heights = (size_t[...]) {},
 				realized = false,
 				print = box_print,
+				remove = box_remove,
 				active = true,
 				suspend = 0,
 				query_lock = Mutex::new(),
-				id = ++box_id
+				id = ++box_id,
 			};
 			return &box;
-		}
-
-		protected add(*box_t box, int x, int y, item_t item) {
-			&(item->contained->container) = box;
-			box->items[x,y] = item;
-			if (!is_uninit(&item->query)) {
-				item->query(item->contained, &item->layout);
-			}
-		}
-
-		protected remove(&box_t box, int x, int y) {
-			if (present(&box.items, x, y))
-				not_present(&box.items, x, y);
 		}
 
 		protected clear(&box_t box, int x, int y, int width, int height) {
@@ -221,37 +230,45 @@ extend namespace Nichrome {
 		protected insert_column(&box_t box, int col) {
 			int[2]	d = dims(box.items);
 			setdims(box.items, (int[2]) { d[0] + 1, d[1] });
-			for (int x = d[0]; x >= col; x--)
+			for (int x = d[0] - 1; x >= col; x--)
 				for (int y = 0; y < d[1]; y++)
 					copy_item(&box.items, x, y, x+1, y);
 			for (int y = 0; y < d[1]; y++)
 				make_uninit(&box.items[col, y]);
+			box_resize_container(&box);
 		}
 
 		protected delete_column(&box_t box, int col) {
 			int[2]	d = dims(box.items);
+			for (int y = 0; y < d[1]; y++)
+				remove(&box, col, y);
 			for (int x = col; x < d[0] - 1; x++)
 				for (int y = 0; y < d[1]; y++)
 					copy_item(&box.items, x+1, y, x, y);
 			setdims(box.items, (int[2]) { d[0] - 1, d[1] });
+			box_resize_container(&box);
 		}
 
 		protected insert_row(&box_t box, int row) {
 			int[2]	d = dims(box.items);
 			setdims(box.items, (int[2]) { d[0], d[1] + 1 });
-			for (int y = d[1]; y >= row; y--)
+			for (int y = d[1] - 1; y >= row; y--)
 				for (int x = 0; x < d[0]; x++)
 					copy_item(&box.items, x, y, x, y+1);
 			for (int x = 0; x < d[0]; x++)
 				make_uninit(&box.items[x,row]);
+			box_resize_container(&box);
 		}
 
-		protected delete_row(&box_t box, int col) {
+		protected delete_row(&box_t box, int row) {
 			int[2]	d = dims(box.items);
-			for (int x = col; x < d[0] - 1; x++)
-				for (int y = 0; y < d[1]; y++)
-					copy_item(&box.items, x+1, y, x, y);
-			setdims(box.items, (int[2]) { d[0] - 1, d[1] });
+			for (int x = 0; x < d[0]; x++)
+				remove(&box, x, row);
+			for (int y = row; y < d[1] - 1; y++)
+				for (int x = 0; x < d[0]; x++)
+					copy_item(&box.items, x, y+1, x, y);
+			setdims(box.items, (int[2]) { d[0], d[1] - 1 });
+			box_resize_container(&box);
 		}
 
 		protected *box_t new_horizontal(item_t items...) {
@@ -331,6 +348,18 @@ extend namespace Nichrome {
 				       rect_t geometry)
 		{
 			widget.configure (&widget, geometry);
+		}
+
+		/*
+		 * Remove a widget from nichrome when it is removed from the box
+		 */
+		void widget_remove (&widget_t widget)
+		{
+			widget.print(&widget, 8);
+			try {
+				Nichrome::remove(&widget.nichrome, &widget);
+			} catch Nichrome::unknown_widget(&nichrome_t nichrome, &widget_t widget) {
+			}
 		}
 
 		/*
@@ -578,6 +607,9 @@ extend namespace Nichrome {
 			}
 		}
 
+		void glue_remove(&glue_t glue) {
+		}
+
 		void glue_print(&glue_t glue, int indent) {
 			do_indent(indent);
 			printf ("glue\n");
@@ -587,7 +619,7 @@ extend namespace Nichrome {
 		{
 			get_glue (&param, &((layout_t) layout));
 			return &(item_contents_t) {
-				contained = &(glue_t) { .print = glue_print, .active = true },
+				contained = &(glue_t) { .print = glue_print, .active = true, .remove = glue_remove },
 					.layout = layout,
 					.query = glue_query };
 		}

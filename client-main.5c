@@ -51,7 +51,7 @@ extend namespace Client {
 		} catch invalid_argument(string message, int id, poly value) {
 			name = "user";
 		}
-		string	game = "game";
+
 		Mutex::mutex	board_lock = Mutex::new();
 
 		Link::link_t	link;
@@ -74,7 +74,7 @@ extend namespace Client {
 				  .name = "name",
 				  .expr_name = "username",
 				  .desc = "user name" },
-				{ .var = { .arg_string = &game },
+				{ .var = { .arg_string = &Games::current_game },
 				  .abbr = 'g',
 				  .name = "game",
 				  .expr_name = "gamename",
@@ -88,6 +88,7 @@ extend namespace Client {
 		};
 
 		&nichrome_t		ui;
+		&Label::label_t		game_name;
 		&Label::label_t		turn;
 		&Label::label_t		state;
 
@@ -141,6 +142,11 @@ extend namespace Client {
 		}
 
 		int 	current_turn = 0;
+
+		void update_game(string new_game) {
+			Games::current_game = new_game;
+			Label::relabel(&game_name, sprintf("Game: %s", Games::current_game));
+		}
 
 		void update_turn(int new_turn) {
 			current_turn = new_turn;
@@ -240,9 +246,15 @@ extend namespace Client {
 					break;
 				case "JOIN":
 				case "WATCH":
+					if (dim(notice->reply) > 3)
+						if (notice->reply[3] != Games::current_game)
+							break;
 					add_user(notice->reply[2]);
 					break;
 				case "PART":
+					if (dim(notice->reply) > 3)
+						if (notice->reply[3] != Games::current_game)
+							break;
 					Userlist::remove(&userlist, notice->reply[2]);
 					break;
 				case "MESSAGE":
@@ -294,6 +306,7 @@ extend namespace Client {
 					break;
 				}
 				Nichrome::redraw(&ui);
+				Games::handle_notice(notice);
 			}
 		}
 
@@ -390,20 +403,74 @@ extend namespace Client {
 			return false;
 		}
 
-		public void select_game_callback(string[*] args) {
-			printf ("select_game_callback %v\n", args);
-		}
-
-		public void do_select_game() {
-			*Games::games_t games = Games::new(link, select_game_callback);
-			Games::run(games);
-		}
-
 		public void do_quit() {
 			Link::close(link);
 			ui.running = false;
 			RRboard::stop_timer(&rrboard);
 			exit(0);
+		}
+
+		public void do_join(string game, bool watch) {
+			Userlist::clear(&userlist);
+
+			Games::current_game = game;
+
+			Link::message_t r = Link::command(link, "%s %s\n", watch ? "WATCH" : "JOIN", game);
+
+			if (r->reply[0] == "ERROR") {
+				if (r->reply[1] == "NOGAME") {
+					Link::message_t r = Link::command(link, "NEW %s\n", game);
+					if (r->reply[0] == "ERROR") {
+						printf ("Cannot create game %s: %s\n", game, r->reply[1]);
+						do_quit();
+					}
+				} else {
+					printf ("Cannot join game %s: %s\n", game, r->reply[1]);
+				}
+			}
+
+			update_game(game);
+
+			Link::message_t r = Link::command(link, "PLAYERS %s\n", game);
+
+			if (r->reply[0] == "ERROR") {
+				printf ("Cannot enumerate players: %s\n", r->reply[1]);
+				do_quit();
+			}
+
+			for (int i = 1; i < dim(r->reply); i += 2)
+				add_user(r->reply[i]);
+
+			Link::message_t r = Link::command(link, "GAMEINFO %s\n", game);
+
+			if (r->reply[0] == "ERROR") {
+				printf ("Cannot get game info for %s: %s\n", game, r->reply[1]);
+				do_quit();
+			}
+			update_turn(string_to_integer(r->reply[1]));
+
+			update_state(r->reply[4]);
+
+			if (current_state == RR::GameState.SHOW)
+				Userlist::showing(&userlist, r->reply[7], true);
+
+			Link::message_t r = Link::command(link, "SHOW\n");
+
+			if (r->reply[0] == "ERROR") {
+				printf ("Cannot show board: %s\n", r->reply[1]);
+				do_quit();
+			}
+
+			update_board(r->reply[1]);
+		}
+
+		public void select_game_callback(string game, bool watch) {
+			do_join (game, watch);
+			Nichrome::redraw(&ui);
+		}
+
+		public void do_select_game() {
+			Games::start(link, select_game_callback);
 		}
 
 		public void main () {
@@ -418,15 +485,14 @@ extend namespace Client {
 				do_quit();
 			}
 
-			do_select_game();
-			exit(0);
 			&ui = Nichrome::new("Ricochet Robots", board_width, board_height);
+			Nichrome::hide(&ui);
 			Nichrome::set_global_key(&ui, global_key);
 			&rrboard = RRboard::new(&ui, move_callback);
 			&userlist = Userlist::new(&ui, link);
 			&messages = Messages::new(&ui, 20, message_done, name);
 
-			&select_game = Button::new(&ui, "Select Game",
+			&select_game = Button::new(&ui, "Switch Game",
 						   void func (&widget_t w, bool state) {
 							   if (state)
 								   do_select_game();
@@ -436,6 +502,8 @@ extend namespace Client {
 					    void func (&widget_t w, bool state) {
 						    do_quit();
 					    });
+
+			&game_name = Label::new(&ui, "game");
 
 			&turn = Label::new(&ui, "turn");
 
@@ -511,6 +579,7 @@ extend namespace Client {
 					     Box::widget_item(&next_turn, 0));
 
 			&box_t			top = Box::new (Box::dir_t.horizontal,
+								Box::widget_item(&game_name, 0),
 								Box::widget_item(&turn, 0),
 								Box::widget_item(&state, 0),
 								Box::box_item(&show_box),
@@ -529,55 +598,16 @@ extend namespace Client {
 								 Box::box_item(&top),
 								 Box::box_item(&hbox));
 
-			Link::message_t r = Link::command(link, "%s %s\n", watch ? "WATCH" : "JOIN", game);
+			fork handle_notice();
 
-			if (r->reply[0] == "ERROR") {
-				if (r->reply[1] == "NOGAME") {
-					Link::message_t r = Link::command(link, "NEW %s\n", game);
-					if (r->reply[0] == "ERROR") {
-						printf ("Cannot create game %s: %s\n", game, r->reply[1]);
-						do_quit();
-					}
-				} else {
-					printf ("Cannot join game %s: %s\n", game, r->reply[1]);
-				}
+			if (is_uninit(&Games::current_game)) {
+				do_select_game();
+				Games::wait();
 			}
-
-			Link::message_t r = Link::command(link, "PLAYERS %s\n", game);
-
-			if (r->reply[0] == "ERROR") {
-				printf ("Cannot enumerate players: %s\n", r->reply[1]);
-				do_quit();
-			}
-
-			for (int i = 1; i < dim(r->reply); i += 2)
-				add_user(r->reply[i]);
-
-			Link::message_t r = Link::command(link, "GAMEINFO %s\n", game);
-
-			if (r->reply[0] == "ERROR") {
-				printf ("Cannot get game info for %s: %s\n", game, r->reply[1]);
-				do_quit();
-			}
-			update_turn(string_to_integer(r->reply[1]));
-
-			update_state(r->reply[4]);
-
-			if (current_state == RR::GameState.SHOW)
-				Userlist::showing(&userlist, r->reply[7], true);
-
-			Link::message_t r = Link::command(link, "SHOW\n");
-
-			if (r->reply[0] == "ERROR") {
-				printf ("Cannot show board: %s\n", r->reply[1]);
-				do_quit();
-			}
-
-			update_board(r->reply[1]);
 
 			set_box(&ui, &vbox);
 
-			fork handle_notice();
+			Nichrome::show(&ui);
 
 			main_loop(&ui);
 		}
