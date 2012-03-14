@@ -103,7 +103,14 @@ extend namespace Server {
 	    } else
 		File::fprintf (stderr, "Client disconnect <unnamed client>\n");
 	    Array::remove (&clients, &c);
-	    File::close (c.f);
+	    try {
+		File::close (c.f);
+	    } catch File::io_error (string msg, 
+				    File::error_type error,
+				    file f) {
+		File::fprintf (stderr, "%v: %s\n",
+			       c.user, msg);
+	    }
 	}
 
 	public void print (&Client c) {
