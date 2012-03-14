@@ -603,8 +603,9 @@ extend namespace Client {
 								 Box::box_item(userlist.box),
 								 Box::box_item(messages.vbox));
 			&box_t			hbox = Box::new (Box::dir_t.horizontal,
-								 Box::widget_item(&rrboard, 1),
+								 Box::widget_item(&rrboard, 1, 1, 1),
 								 Box::box_item(&rbox));
+
 			&box_t			vbox = Box::new (Box::dir_t.vertical,
 								 Box::box_item(&top),
 								 Box::box_item(&hbox));

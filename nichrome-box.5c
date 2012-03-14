@@ -40,6 +40,7 @@ extend namespace Nichrome {
 			real	natural_height;
 			real	stretch_width;
 			real	stretch_height;
+			rational	aspect;
 		} layout_t;
 
 		protected typedef struct {
@@ -74,6 +75,8 @@ extend namespace Nichrome {
 			rect_t		geometry;
 			Mutex::mutex	query_lock;
 			int		id;
+			int		aspect_x, aspect_y;
+			rational	aspect;
 		} box_t;
 
 		container_t no_container;
@@ -148,6 +151,8 @@ extend namespace Nichrome {
 			if (present(&box->items, x, y)) {
 				&item_t item = &box->items[x,y];
 				item->contained->remove(item->contained);
+				if (x == box->aspect_x && y == box->aspect_y)
+					make_uninit(&box->aspect);
 				not_present(&box->items, x, y);
 			}
 		}
@@ -156,6 +161,11 @@ extend namespace Nichrome {
 			remove(box, x, y);
 			&(item->contained->container) = box;
 			box->items[x,y] = item;
+			if (!is_uninit(&item->layout.aspect) && item->layout.aspect != 0) {
+				box.aspect_x = x;
+				box.aspect_y = y;
+				box.aspect = aspect;
+			}
 			box_resize (box, item->contained);
 		}
 
@@ -205,6 +215,9 @@ extend namespace Nichrome {
 				suspend = 0,
 				query_lock = Mutex::new(),
 				id = ++box_id,
+				aspect_x = 0,
+				aspect_y = 0,
+				aspect = 0
 			};
 			return &box;
 		}
@@ -303,7 +316,9 @@ extend namespace Nichrome {
 		 */
 		void get_stretches (&real[*] stretch,
 				    &real stretch_width,
-				    &real stretch_height) {
+				    &real stretch_height,
+				    &real aspect) {
+			aspect = 0;
 			switch (dim (stretch)) {
 			case 0:
 				stretch_width = stretch_height = 1;
@@ -311,9 +326,14 @@ extend namespace Nichrome {
 			case 1:
 				stretch_width = stretch_height = stretch[0];
 				break;
+			case 2:
+				stretch_width = stretch[0];
+				stretch_height= stretch[1];
+				break;
 			default:
 				stretch_width = stretch[0];
 				stretch_height= stretch[1];
+				aspect = stretch[2];
 				break;
 			}
 		}
@@ -368,11 +388,12 @@ extend namespace Nichrome {
 		protected item_t widget_item (&widget_t widget, real stretch...)
 		{
 			get_stretches (&stretch,
-				       &(real stretch_width), &(real stretch_height));
+				       &(real stretch_width), &(real stretch_height), &(real aspect));
 			return &(item_contents_t) {
 				layout = {
 					stretch_width = stretch_width,
-					stretch_height = stretch_height
+					stretch_height = stretch_height,
+					aspect = aspect
 				},
 				query = widget_query,
 				configure = widget_configure,
@@ -439,6 +460,7 @@ extend namespace Nichrome {
 			layout.natural_height = 0;
 			layout.stretch_width = 0;
 			layout.stretch_height = 0;
+			layout.aspect = 0;
 
 			for (int x = 0; x < dim(widths); x++) {
 				if (!is_uninit(&widths[x].natural)) {
@@ -464,7 +486,7 @@ extend namespace Nichrome {
 		 */
 		protected void box_configure (*box_t box, layout_t layout, rect_t geometry) {
 
-			void layout_size (&size_t[*] sizes, real actual, real pref, real stretch) {
+			void layout_size (&size_t[*] sizes, real actual, real pref, real stretch, int fix_id, real fix) {
 
 				if (stretch == 0) stretch = 1;
 
@@ -479,7 +501,9 @@ extend namespace Nichrome {
 
 					real	delta_this;
 
-					if (i == dim(sizes) - 1)
+					if (i == fix_id)
+						delta_this = fix - sizes[i].natural;
+					else if (i == dim(sizes) - 1)
 						delta_this = delta_remain;
 					else
 						delta_this = delta * sizes[i].stretch / stretch;
@@ -497,11 +521,39 @@ extend namespace Nichrome {
 				}
 			}
 
+			void adjust_aspect() {
+				if (is_uninit(&box->aspect) || box->aspect == 0)
+					return;
+
+				int x = box->aspect_x;
+				int y = box->aspect_y;
+				item_t	item = box->items[x,y];
+
+				real	x_actual = box->widths[x].actual;
+				real	y_actual = box->heights[y].actual;
+				real	x_desired = y_actual / box->aspect;
+				real	y_desired = x_actual * box->aspect;
+
+				if (x_desired < x_actual) {
+					layout_size(&box->widths, geometry.width,
+						    layout.natural_width,
+						    layout.stretch_width - item->layout.stretch_width,
+						    x, x_desired);
+				} else if (y_desired < y_actual) {
+					layout_size(&box->heights, geometry.height,
+						    layout.natural_height,
+						    layout.stretch_height - item->layout.stretch_height,
+						    y, y_desired);
+				}
+			}
+
 			twixt(Mutex::acquire(box->query_lock); Mutex::release(box->query_lock)) {
 				layout_size(&box->widths, geometry.width,
-					    layout.natural_width, layout.stretch_width);
+					    layout.natural_width, layout.stretch_width, -1, 0);
 				layout_size(&box->heights, geometry.height,
-					    layout.natural_height, layout.stretch_height);
+					    layout.natural_height, layout.stretch_height, -1, 0);
+
+				adjust_aspect();
 
 				box->realized = true;
 				
