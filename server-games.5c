@@ -502,7 +502,7 @@ extend namespace Server {
 	    &Game g = &c.game.game;
 	    Array::remove (&g.clients, &c);
 	    c.game = GameRef.none;
-	    game_send (&g, "NOTICE PART %s\n", c.user.username);
+	    Clients::server_send ("NOTICE PART %s %s\n", c.user.username, g.name);
 	    /* correct the state if necessary */
 	    switch (g.state) {
 	    case GameState.NEW:
@@ -531,9 +531,10 @@ extend namespace Server {
 	    c.abandon = false;
 	    c.nobid = false;
 	    Array::append (&g.clients, &c);
-	    game_send (&g, "NOTICE %s %s\n", 
-		       playing ? "JOIN" : "WATCH",
-		       c.user.username);
+	    Clients::server_send ("NOTICE %s %s %s\n", 
+				  playing ? "JOIN" : "WATCH",
+				  c.user.username,
+				  g.name);
 	    return &c;
 	}
 

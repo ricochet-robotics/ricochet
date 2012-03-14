@@ -44,7 +44,15 @@ extend namespace Server {
 
 	public void server_send (string fmt, poly args...) {
 	    void	message_client (&Client o) {
-		client_send (&o, fmt, args...);
+		try {
+		    client_send (&o, fmt, args...);
+		} catch File::io_error (string msg, 
+					File::error_type error,
+					file f) {
+		    File::fprintf (stderr, "%v: %s\n",
+				   o.user, msg);
+		    return;
+		}
 	    }
 	    Clients::iterate (message_client);
 	}

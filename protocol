@@ -427,6 +427,18 @@ Document Conventions
 
 	NOTICE MESSAGE <username> <text>
 
+    2.1.6. Join game (game)
+	
+	    NOTICE JOIN <username> <game>
+	
+    2.1.7. Watch game (game)
+	
+	    NOTICE WATCH <username> <game>
+	
+    2.1.8. User departed game (game)
+	
+	    NOTICE PART <username> <game>
+
 2.2. Game notices
 
     These notices are sent to all players and watchers in
@@ -457,18 +469,6 @@ Document Conventions
 	2.2.1.4. Next game (game)
 
 	    NOTICE GAMEOVER
-
-	2.2.1.5. Join game (game)
-	
-	    NOTICE JOIN <username>
-	
-	2.2.1.6. Watch game (game)
-	
-	    NOTICE WATCH <username>
-	
-	2.2.1.7. User departed game (game)
-	
-	    NOTICE PART <username>
 
     2.2.2. Bid notices
 
