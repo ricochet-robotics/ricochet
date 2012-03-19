@@ -18,8 +18,8 @@
 autoload Client;
 autoload Nichrome;
 autoload Nichrome::Box;
-autoload Nichrome::Edit;
 autoload Nichrome::Text;
+autoload Nichrome::Textline;
 autoload Nichrome::Label;
 autoload Nichrome::Scrollbar;
 
@@ -35,23 +35,23 @@ extend namespace Client {
 			*nichrome_t		ui;
 			*Box::box_t		hbox;
 			*Box::box_t		vbox;
-			*Edit::edit_t		output;
+			*Text::text_t		output;
 			*Scrollbar::scrollbar_t	scrollbar;
 			*Label::label_t		name;
-			*Text::text_t		input;
+			*Textline::textline_t	input;
 			callback_t		done_callback;
 		} messages_t;
 
 		protected void add (&messages_t m, string user, string message) {
-			Edit::insert(m.output, String::length(m.output->text),
+			Text::insert(m.output, String::length(m.output->text),
 				     sprintf ("<%s> %s\n", user, message));
-			while (Edit::scroll_down(m.output))
+			while (Text::scroll_down(m.output))
 				;
 		}
 
 		void send(&messages_t m) {
 			string s = m.input->text;
-			Text::set_text(m.input, "");
+			Textline::set_text(m.input, "");
 			m.done_callback(&m, s);
 		}
 
@@ -62,12 +62,12 @@ extend namespace Client {
 		protected *messages_t new(&nichrome_t ui, int lines, callback_t done_callback, string name) {
 			*messages_t m = &(messages_t) {
 				.ui = &ui,
-				.output = Edit::new(&ui),
+				.output = Text::new(&ui),
 				.name = Label::new(&ui, sprintf("%s: ", name)),
-				.input = Text::new(&ui, 40),
+				.input = Textline::new(&ui, 40),
 				.done_callback = done_callback
 			};
-			bool key_callback(&Text::text_t widget, string key) {
+			bool key_callback(&Textline::textline_t widget, string key) {
 				switch (key) {
 				case "Return": send(m); break;
 				default: return false;
@@ -75,7 +75,7 @@ extend namespace Client {
 				return true;
 			}
 			m->input->callback = key_callback;
-			m->scrollbar = Edit::scrollbar(m->output);
+			m->scrollbar = Text::scrollbar(m->output);
 			m->hbox = Box::new(Box::dir_t.horizontal,
 					   Box::widget_item(m->output, 1, 1),
 					   Box::widget_item(m->scrollbar, 0, 1));

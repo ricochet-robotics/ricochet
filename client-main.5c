@@ -30,7 +30,7 @@ autoload Nichrome::Button;
 autoload Nichrome::Box;
 autoload Nichrome::Label;
 autoload Nichrome::Toggle;
-autoload Nichrome::Text;
+autoload Nichrome::Textline;
 autoload Nichrome::RRboard;
 autoload Mutex;
 
@@ -103,7 +103,7 @@ extend namespace Client {
 		/* New/Bid mode items */
 		&Box::box_t		bid_box;
 		&Button::button_t	bid;
-		&Text::text_t		bid_value;
+		&Textline::textline_t	bid_value;
 		&Button::button_t	revoke;
 		&Button::button_t	abandon;
 		&Button::button_t	nobid;
@@ -162,7 +162,7 @@ extend namespace Client {
 		}
 
 		void clear_bid() {
-			Text::set_text(&bid_value, "");
+			Textline::set_text(&bid_value, "");
 		}
 			
 		bool messages_active() {
@@ -527,7 +527,7 @@ extend namespace Client {
 							   do_bid();
 					   });
 
-			&bid_value = Text::new(&ui, 6);
+			&bid_value = Textline::new(&ui, 6);
 			clear_bid();
 
 			&revoke = Button::new(&ui, "Revoke",

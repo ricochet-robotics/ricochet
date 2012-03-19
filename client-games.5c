@@ -22,7 +22,7 @@ autoload Nichrome::Box;
 autoload Nichrome::Label;
 autoload Nichrome::Button;
 autoload Nichrome::Border;
-autoload Nichrome::Text;
+autoload Nichrome::Textline;
 autoload Sort;
 
 extend namespace Client {
@@ -46,7 +46,7 @@ extend namespace Client {
 			*Box::box_t		game_box;
 			*Label::label_t		title;
 			*Button::button_t	close;
-			*Text::text_t		game_name;
+			*Textline::textline_t	game_name;
 			Link::link_t		link;
 			callback_t		callback;
 			game_t[*]		games;
@@ -249,7 +249,7 @@ extend namespace Client {
 						   Box::glue_item(1));
 
 			int r = 1;
-			games->game_name = Text::new(games->ui, 40);
+			games->game_name = Textline::new(games->ui, 40);
 			Box::add_widget(games->game_box, 0, r, top(games->game_name), 0);
 			Box::add_widget(games->game_box, 1, r, top(Label::new(games->ui, "")), 0);
 			Box::add_widget(games->game_box, 2, r, top(Button::new(games->ui, "New Game",
