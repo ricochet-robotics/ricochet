@@ -1,0 +1,120 @@
+/*
+ * Copyright © 2012 Keith Packard <keithp@keithp.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 2 of the License.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
+ */
+
+autoload Nichrome;
+autoload Mutex;
+
+extend namespace Nichrome {
+	public namespace Timer {
+
+		public typedef widget_t + struct {
+			Mutex::mutex		lock;
+			bool			running;
+			int			end;
+			thread			timer;
+		} timer_t;
+
+		void draw (cairo_t cr, &timer_t widget) {
+			real	left;
+			if (widget.running) {
+				left = (widget.end - millis()) / 1000;
+
+				if (left < 0)
+					left = 0;
+				if (left > 60)
+					left = 60;
+			} else
+				left = 0;
+			save (cr);
+			scale (cr, widget.geometry.width / 2, widget.geometry.height / 2);
+			move_to (cr, 1, 1);
+			arc (cr,
+			     1, 1,				/* center */
+			     0.9,				/* radius */
+			     - π / 2,				/* start angle */
+			     2 * π * (left) / 60.0 - π/2);	/* end angle */
+			close_path (cr);
+			set_source_rgba (cr, 0.0, 0.0, 0.0, 0.5);
+			fill (cr);
+			restore (cr);
+		}
+
+		void run_timer (&timer_t widget) {
+			twixt(Mutex::acquire(widget.lock); Mutex::release(widget.lock)) {
+				while ((int now = millis()) <= widget.end) {
+					int	delay = (widget.end - now) % 100;
+					if (delay == 0)
+						delay = 100;
+					twixt(Mutex::release(widget.lock); Mutex::acquire(widget.lock)) {
+						sleep(delay);
+						Widget::redraw(&widget);
+					}
+				}
+				widget.running = false;
+			}
+		}
+
+		void start_timer (&timer_t widget) {
+			twixt(Mutex::acquire(widget.lock); Mutex::release(widget.lock)) {
+			}
+		}
+
+		protected void set_timer (&timer_t widget, real time) {
+			twixt(Mutex::acquire(widget.lock); Mutex::release(widget.lock)) {
+				widget.end = millis() + floor (time * 1000 + 0.5);
+				if (!widget.running) {
+					widget.running = true;
+					widget.timer = fork run_timer(&widget);
+				}
+			}
+		}
+
+		protected void stop_timer (&timer_t widget) {
+			widget.end = millis();
+			twixt(Mutex::acquire(widget.lock); Mutex::release(widget.lock)) {
+				if (!is_uninit(&widget.timer)) {
+					Thread::kill(widget.timer);
+					make_uninit(&widget.timer);
+				}
+			}
+		}
+
+		void outline (cairo_t cr, &timer_t widget) {
+			rectangle(cr, 0, 0, 0, 0);
+		}
+
+		void natural (cairo_t cr, &timer_t widget) {
+			rectangle(cr, 0, 0, 100, 100);
+		}
+
+		protected void init(*nichrome_t nichrome, &timer_t widget) {
+			Widget::init(nichrome, &widget);
+			widget.draw = draw;
+			widget.outline = outline;
+			widget.natural = natural;
+			widget.lock = Mutex::new();
+			widget.running = false;
+		}
+
+		protected *timer_t new(*nichrome_t nichrome) {
+			&timer_t	widget = &(timer_t) {};
+
+			init(nichrome, &widget);
+			return &widget;
+		}
+	}
+}

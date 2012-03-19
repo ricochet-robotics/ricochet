@@ -20,6 +20,7 @@ autoload RR;
 autoload Client;
 autoload Client::Draw;
 autoload Mutex;
+autoload Nichrome::Timer;
 
 extend namespace Nichrome {
 
@@ -33,86 +34,23 @@ extend namespace Nichrome {
 
 		public typedef widget_t + struct {
 			RR::Board		board;
-			Mutex::mutex		timer_mutex;
-			real			time;
-			thread			timer;
 			RR::RobotOrNone		active_robot;
+			*Timer::timer_t		timer;
 			void (RR::Color color,
 			      RR::Direction direction) move_callback;
 			int			button_x, button_y;
 		} rrboard_widget_t;
 
+		real dimension(&rrboard_widget_t widget) = min (widget.geometry.width, widget.geometry.height);
+
 		Draw::transform_t transform(&rrboard_widget_t widget) {
-			real	dim = min (widget.geometry.width, widget.geometry.height);
+			real	dim = dimension(&widget);
 			return (Draw::transform_t) {
 				.xscale = dim / board_width,
 				.yscale = dim / board_height,
 				.xoff = (widget.geometry.width - dim) // 2,
 				.yoff = (widget.geometry.height - dim) // 2
 				};
-		}
-
-		void draw_clock (cairo_t cr, &rrboard_widget_t widget) {
-			save (cr);
-			new_path (cr);
-			move_to (cr,
-				 board_width / 2,
-				 board_height / 2);
-			arc (cr,
-			     board_width / 2,
-			     board_height / 2,
-			     0.9 * Draw::cell_width,
-			     - π / 2,
-			     2 * π * (60.0 - widget.time) / 60.0 - π/2);
-			close_path (cr);
-			set_source_rgba (cr, 0.0, 0.0, 0.0, 0.5);
-			fill (cr);
-
-			restore (cr);
-		}
-
-		void run_timer (&rrboard_widget_t widget) {
-			twixt(Mutex::acquire(widget.timer_mutex); Mutex::release(widget.timer_mutex)) {
-				real	start = millis() / 1000;
-				real	end = start + widget.time;
-
-				while (widget.time >= 0) {
-					real delay = 1;
-
-					if (delay > widget.time)
-						delay = widget.time;
-					twixt(Mutex::release(widget.timer_mutex);
-					      Mutex::acquire(widget.timer_mutex)) {
-						sleep(floor (delay * 1000));
-						Widget::redraw(&widget);
-					}
-					widget.time = end - millis() / 1000;
-				}
-				make_uninit(&widget.timer);
-			}
-		}
-
-		void start_timer (&rrboard_widget_t widget) {
-			twixt(Mutex::acquire(widget.timer_mutex); Mutex::release(widget.timer_mutex)) {
-				if (is_uninit(&widget.timer)) {
-					widget.timer = fork run_timer(&widget);
-				}
-			}
-		}
-
-		protected void set_timer (&rrboard_widget_t widget, real time) {
-			widget.time = time;
-			start_timer(&widget);
-		}
-
-		protected void stop_timer (&rrboard_widget_t widget) {
-			widget.time = -1;
-			twixt(Mutex::acquire(widget.timer_mutex); Mutex::release(widget.timer_mutex)) {
-				if (!is_uninit(&widget.timer)) {
-					Thread::kill(widget.timer);
-					make_uninit(&widget.timer);
-				}
-			}
 		}
 
 		void draw (cairo_t cr, &rrboard_widget_t widget) {
@@ -132,11 +70,6 @@ extend namespace Nichrome {
 				}
 			Draw::target(cr, RR::Width / 2 - 1, RR::Height / 2 - 1,
 				     RR::active_target(&widget.board), &t);
-			if (widget.time >= 0) {
-				translate(cr, t.xoff, t.yoff);
-				scale(cr, t.xscale, t.yscale);
-				draw_clock(cr, &widget);
-			}
 			restore(cr);
 		}
 
@@ -146,6 +79,27 @@ extend namespace Nichrome {
 
 		void natural (cairo_t cr, &rrboard_widget_t widget) {
 			rectangle(cr, 0, 0, board_width, board_height);
+		}
+
+		/* Override default widget configure function to also reposition
+		 * the timer widget
+		 */
+		void configure (&rrboard_widget_t widget, rect_t geometry) {
+			Widget::configure(&widget, geometry);
+
+			/* Configure timer to sit over the central
+			 * region of the board
+			 */
+			real board_dim = dimension(&widget);
+			real timer_dim = board_dim * 2 / RR::Width;
+			real timer_pos = board_dim / RR::Width * 7;
+			widget.timer->configure (widget.timer,
+					 (rect_t) {
+						 .x = geometry.x + timer_pos,
+						 .y = geometry.y + timer_pos,
+						 .width = timer_dim,
+						 .height = timer_dim
+						 });
 		}
 
 		void set_active_robot(&rrboard_widget_t widget, RR::Robot robot) {
@@ -205,6 +159,10 @@ extend namespace Nichrome {
 
 		typedef struct { int x, y; } position_t;
 
+		/*
+		 * A bit expensive, but it's more reliable than trying to
+		 * keep track of robot positions separately
+		 */
 		position_t find_robot (&rrboard_widget_t widget, RR::Robot robot) {
 			for (int y = 0; y < RR::Height; y++)
 				for (int x = 0; x < RR::Width; x++) {
@@ -220,13 +178,18 @@ extend namespace Nichrome {
 		}
 
 		protected void button (&rrboard_widget_t widget, &button_event_t event) {
+
+			/* Convert button position to board location */
 			Draw::transform_t	t = transform(&widget);
-			int		x = floor ((event.x - t.xoff) / t.xscale / Draw::cell_width);
-			int		y = floor ((event.y - t.yoff) / t.yscale / Draw::cell_height);
+			int			x = floor ((event.x - t.xoff) / t.xscale / Draw::cell_width);
+			int			y = floor ((event.y - t.yoff) / t.yscale / Draw::cell_height);
 
 			enum switch (event.type) {
 			case press:
 				RR::Object	object = widget.board[x,y];
+
+				/* Clicking on a robot selects that robot
+				 */
 				union switch (object.robot) {
 				case robot r:
 					set_active_robot(&widget, r);
@@ -235,6 +198,10 @@ extend namespace Nichrome {
 				}
 				break;
 			case release:
+
+				/* Releasing with an active robot moves the robot
+				 * towards the point of release
+				 */
 				union switch (widget.active_robot) {
 				case robot r:
 					position_t	robot_pos = find_robot(&widget, r);
@@ -261,16 +228,24 @@ extend namespace Nichrome {
 			}
 		}
 
+		protected void set_timer (&rrboard_widget_t widget, real time) {
+			Timer::set_timer(widget.timer, time);
+		}
+		
+		protected void stop_timer (&rrboard_widget_t widget) {
+			Timer::stop_timer(widget.timer);
+		}
+
 		public *rrboard_widget_t new(&nichrome_t nichrome,
 					     void(RR::Color color, RR::Direction dir) move_callback){
-			rrboard_widget_t	widget;
+			&rrboard_widget_t	widget = &(rrboard_widget_t) {};
 
+			widget.timer = Timer::new(&nichrome);	/* make sure timer is above rrboard */
 			Widget::init(&nichrome, &widget);
 			widget.draw = draw;
 			widget.outline = outline;
 			widget.natural = natural;
-			widget.timer_mutex = Mutex::new();
-			widget.time = -1;
+			widget.configure = configure;
 			widget.key = key;
 			widget.button = button;
 			widget.active_robot = RobotOrNone.none;
