@@ -1,7 +1,0 @@
-#!/usr/bin/env nickle
-
-Command::nickle_path = ".:" + Command::nickle_path;
-
-autoload Server::Main
-
-Server::Main::main();
