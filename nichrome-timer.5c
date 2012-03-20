@@ -55,14 +55,17 @@ extend namespace Nichrome {
 
 		void run_timer (&timer_t widget) {
 			twixt(Mutex::acquire(widget.lock); Mutex::release(widget.lock)) {
-				while ((int now = millis()) <= widget.end) {
-					int	delay = (widget.end - now) % 100;
-					if (delay == 0)
-						delay = 100;
-					twixt(Mutex::release(widget.lock); Mutex::acquire(widget.lock)) {
-						sleep(delay);
-						Widget::redraw(&widget);
+				try {
+					while ((int now = millis()) <= widget.end) {
+						int	delay = (widget.end - now) % 100;
+						if (delay == 0)
+							delay = 100;
+						twixt(Mutex::release(widget.lock); Mutex::acquire(widget.lock)) {
+							sleep(delay);
+							Widget::redraw(&widget);
+						}
 					}
+				} catch Thread::signal (int sig) {
 				}
 				widget.running = false;
 			}
@@ -86,10 +89,8 @@ extend namespace Nichrome {
 		protected void stop_timer (&timer_t widget) {
 			widget.end = millis();
 			twixt(Mutex::acquire(widget.lock); Mutex::release(widget.lock)) {
-				if (!is_uninit(&widget.timer)) {
-					Thread::kill(widget.timer);
-					make_uninit(&widget.timer);
-				}
+				if (widget.running)
+					Thread::send_signal(widget.timer, 0);
 			}
 		}
 
