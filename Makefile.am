@@ -18,18 +18,18 @@ AUTOMAKE_OPTIONS = foreign
 
 ricochetlibdir=@ricochetlibdir@
 
-UTILFILES = \
+UTILSRC = \
 	array.5c		\
 	list.5c			\
 	shuffle.5c		\
 	timer.5c
 
-RRFILES = \
+RRSRC = \
 	rr.5c			\
 	rr-lex.5c		\
 	rr-send.5c
 
-CLIENTFILES = \
+CLIENTSRC = \
 	client.5c		\
 	client-board.5c		\
 	client-draw.5c		\
@@ -38,14 +38,17 @@ CLIENTFILES = \
 	client-main.5c		\
 	client-messages.5c	\
 	client-net.5c		\
-	client-svg.5c		\
 	client-update.5c	\
 	client-userlist.5c	\
 	client-window.5c	\
 	nichrome-rrboard.5c	\
 	nichrome-timer.5c
 
-SERVERFILES = \
+CLIENTBUILT = \
+	client-svg.5c
+
+
+SERVERSRC = \
 	server.5c		\
 	server-boards.5c	\
 	server-clients.5c	\
@@ -56,36 +59,49 @@ SERVERFILES = \
 	server-readreq.5c	\
 	server-show.5c
 
+if GAMEMAN
+man6_MANS = rrclient.man rrserve.man
+else
+man1_MANS = rrclient.man rrserve.man
+endif
+
+MANSRC=rrclient.man.in rrserve.man.in
+
 SVG=\
-	svg/cell1.svg \
-	svg/cell2.svg \
-	svg/robot_blue.svg \
-	svg/robot_green.svg \
-	svg/robot_red.svg \
-	svg/robot_yellow.svg \
-	svg/target_blue_circle.svg \
-	svg/target_blue_octagon.svg \
-	svg/target_blue_square.svg \
-	svg/target_blue_triangle.svg \
-	svg/target_green_circle.svg \
-	svg/target_green_octagon.svg \
-	svg/target_green_square.svg \
-	svg/target_green_triangle.svg \
-	svg/target_red_circle.svg \
-	svg/target_red_octagon.svg \
-	svg/target_red_square.svg \
-	svg/target_red_triangle.svg \
-	svg/target_whirl.svg \
-	svg/target_yellow_circle.svg \
-	svg/target_yellow_octagon.svg \
-	svg/target_yellow_square.svg \
-	svg/target_yellow_triangle.svg \
-	svg/wall.svg \
-	svg/robot_shadow.svg
+	$(top_srcdir)/svg/cell1.svg \
+	$(top_srcdir)/svg/cell2.svg \
+	$(top_srcdir)/svg/robot_blue.svg \
+	$(top_srcdir)/svg/robot_green.svg \
+	$(top_srcdir)/svg/robot_red.svg \
+	$(top_srcdir)/svg/robot_yellow.svg \
+	$(top_srcdir)/svg/target_blue_circle.svg \
+	$(top_srcdir)/svg/target_blue_octagon.svg \
+	$(top_srcdir)/svg/target_blue_square.svg \
+	$(top_srcdir)/svg/target_blue_triangle.svg \
+	$(top_srcdir)/svg/target_green_circle.svg \
+	$(top_srcdir)/svg/target_green_octagon.svg \
+	$(top_srcdir)/svg/target_green_square.svg \
+	$(top_srcdir)/svg/target_green_triangle.svg \
+	$(top_srcdir)/svg/target_red_circle.svg \
+	$(top_srcdir)/svg/target_red_octagon.svg \
+	$(top_srcdir)/svg/target_red_square.svg \
+	$(top_srcdir)/svg/target_red_triangle.svg \
+	$(top_srcdir)/svg/target_whirl.svg \
+	$(top_srcdir)/svg/target_yellow_circle.svg \
+	$(top_srcdir)/svg/target_yellow_octagon.svg \
+	$(top_srcdir)/svg/target_yellow_square.svg \
+	$(top_srcdir)/svg/target_yellow_triangle.svg \
+	$(top_srcdir)/svg/wall.svg \
+	$(top_srcdir)/svg/robot_shadow.svg
 
-NICKLEFILES = $(UTILFILES) $(RRFILES) $(CLIENTFILES) $(SERVERFILES)
+NICKLESRC = $(UTILSRC) $(RRSRC) $(CLIENTSRC) $(SERVERSRC)
 
-EXTRA_DIST = protocol $(NICKLEFILES) rrclient.in rrserve.in svg/bin2cstring.5c $(SVG)
+NICKLEFILES = $(NICKLESRC) $(CLIENTBUILT)
+
+DEBIAN = debian/changelog debian/compat \
+	 debian/control debian/copyright debian/rules
+
+EXTRA_DIST = protocol $(NICKLESRC) rrclient.in rrserve.in svg/bin2cstring.5c $(SVG) $(DEBIAN) $(LICENSE) $(MANSRC)
 
 ricochetlib_DATA = $(NICKLEFILES)
 
@@ -99,7 +115,39 @@ rrserve: rrserve.in
 
 client-svg.5c: $(SVG) svg/bin2cstring.5c
 	$(RM) $@
-	nickle svg/bin2cstring.5c $(SVG) > $@
+	nickle $(top_srcdir)/svg/bin2cstring.5c $(SVG) > $@
 
 clean-local:
 	$(RM) client-svg.5c rrclient rrserve
+
+TARFILE=$(PACKAGE)-$(VERSION).tar.gz
+DEBFILE=$(PACKAGE)_$(VERSION)-1_all.deb
+SRPMFILE=$(RPMDIR)/SRPMS/$(PACKAGE)-$(VERSION)-1.src.rpm
+RPMFILE=$(RPMDIR)/RPMS/$(PACKAGE)-$(VERSION)-1.all.rpm
+RELEASE_FILES = $(TARFILE) $(DEBFILE) $(SRPMFILE) $(RPMFILE)
+DEB_TAR_DIR=$(PACKAGE)_$(VERSION).orig
+DEB_TAR=$(DEB_TAR_DIR).tar.gz
+
+debuild: $(DEBFILE)
+
+$(DEBFILE): $(DEB_TAR) $(TARFILE)
+	tar xzf $(TARFILE)
+#	(cd $(distdir) && pdebuild --buildresult $(abs_top_builddir) --auto-debsign)
+	(cd $(distdir) && debuild)
+
+debuild-unsigned: $(DEB_TAR) $(TARFILE)
+	tar xzf $(distdir).tar.gz
+	(cd $(distdir)/debian && debuild -us -uc)
+
+$(DEB_TAR): $(TARFILE)
+	rm -f $(DEB_TAR)
+	rm -rf $(DEB_TAR_DIR)
+	tar xzf $(TARFILE)
+	mv $(distdir) $(DEB_TAR_DIR)
+	rm -rf $(DEB_TAR_DIR)/debian
+	tar czf $(DEB_TAR) $(DEB_TAR_DIR)
+
+$(TARFILE): dist-gzip $(DISTFILES)
+	touch $(TARFILE)
+	echo $(TARFILE) ready
+

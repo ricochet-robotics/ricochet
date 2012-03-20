@@ -31,7 +31,32 @@ ricochetlibdir=`eval echo ${datadir}`/ricochet
 
 AC_SUBST(ricochetlibdir)
 
+AC_ARG_ENABLE([gameman],
+[  --enable-gameman  Install manual pages in section 6 rather than section 1],
+[case "${enableval}" in
+  yes) gameman=true ;;
+  no) gameman=false ;;
+  *) AC_MSG_ERROR([bad value ${enableval} for --enable-gameman]) ;;
+esac],[gameman=false])
+
+AM_CONDITIONAL([GAMEMAN], [test x$gameman = xtrue])
+
+if test x$gameman = xtrue; then
+	MAN_SECTION=6
+else
+	MAN_SECTION=1
+fi
+
+AC_SUBST(MAN_SECTION)
+
+BUILD_DATE=`date +%F`
+
+AC_SUBST(BUILD_DATE)
+
 AC_CONFIG_FILES(
- Makefile)
+ Makefile
+ rrclient.man
+ rrserve.man
+ )
 
 AC_OUTPUT
