@@ -99,7 +99,8 @@ NICKLESRC = $(UTILSRC) $(RRSRC) $(CLIENTSRC) $(SERVERSRC)
 NICKLEFILES = $(NICKLESRC) $(CLIENTBUILT)
 
 DEBIAN = debian/changelog debian/compat \
-	 debian/control debian/copyright debian/rules
+	 debian/control debian/copyright debian/rules \
+	 debian/source/format
 
 EXTRA_DIST = protocol $(NICKLESRC) rrclient.in rrserve.in svg/bin2cstring.5c $(SVG) $(DEBIAN) $(LICENSE) $(MANSRC)
 
