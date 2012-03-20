@@ -13,3 +13,5 @@ rrserve
 client-svg.5c
 rrclient.man
 rrserve.man
+ricochet_*
+ricochet-*
