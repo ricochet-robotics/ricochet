@@ -10,3 +10,6 @@ missing
 *.tar.gz
 rrclient
 rrserve
+client-svg.5c
+rrclient.man
+rrserve.man
