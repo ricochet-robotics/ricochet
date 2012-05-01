@@ -1,0 +1,47 @@
+Summary: Ricochet Robots network client and server
+Name: ricochet
+Version: @VERSION@
+Release: 1
+Group: Amusements/Games
+License: GPL-2
+URL: http://rr.nickle.org
+
+Source: http://nickle.org/release/ricochet-%{version}.tar.gz
+BuildArch: noarch
+Buildroot: %{_tmppath}/%{name}-%{version}-root
+
+%description
+Ricochet Robots was originally a board game. This version replicates
+the board game with a network server and client applications so that
+many people can play the game over the network.
+
+%prep
+
+%setup -q
+
+%build
+%configure --bindir=/usr/games --enable-gameman
+make
+
+%install
+[ "$RPM_BUILD_ROOT" != "/" ] && rm -rf $RPM_BUILD_ROOT
+#mkdir -p $RPM_BUILD_ROOT%{prefix}
+%makeinstall
+#make prefix=$RPM_BUILD_ROOT%{prefix} install
+
+%files
+%defattr(-,root,root)
+%doc LICENSE
+%attr(755,root,root) %{_bindir}/rrclient
+%attr(755,root,root) %{_bindir}/rrserve
+%dir %{_datadir}/ricochet
+%{_mandir}/man6/rrserve.6*
+%{_mandir}/man6/rrclient.6*
+%{_datadir}/ricochet/*
+
+%clean
+[ "$RPM_BUILD_ROOT" != "/" ] && rm -rf $RPM_BUILD_ROOT
+
+%changelog
+* Tue Mar 20 2012 Keith Packard <keithp@keithp.com>
+- Initial rpm spec file

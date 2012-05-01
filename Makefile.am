@@ -102,7 +102,11 @@ DEBIAN = debian/changelog debian/compat \
 	 debian/control debian/copyright debian/rules \
 	 debian/source/format
 
-EXTRA_DIST = protocol $(NICKLESRC) rrclient.in rrserve.in svg/bin2cstring.5c $(SVG) $(DEBIAN) $(LICENSE) $(MANSRC)
+EXTRA_DIST = protocol \
+	$(NICKLESRC) \
+	rrclient.in rrserve.in \
+	svg/bin2cstring.5c \
+	$(SVG) $(DEBIAN) LICENSE $(MANSRC)
 
 ricochetlib_DATA = $(NICKLEFILES)
 
@@ -152,3 +156,24 @@ $(TARFILE): dist-gzip $(DISTFILES)
 	touch $(TARFILE)
 	echo $(TARFILE) ready
 
+#
+# This assumes you've got Mike Harris's rpmbuild-nonroot stuff installed
+# using the defaults
+#
+RPMDIR=$(HOME)/rpmbuild
+
+rpm: $(RPMFILE) $(SRPMFILE)
+
+$(RPMFILE): $(TARFILE) ricochet.spec
+	mkdir -p $(RPMDIR)/$(PACKAGE)-$(VERSION)
+	cp $(TARFILE) $(RPMDIR)/$(PACKAGE)-$(VERSION)
+	rpmbuild -ba ricochet.spec
+
+$(SRPMFILE): $(RPMFILE)
+
+release-files: $(RELEASE_FILES)
+
+release: $(RELEASE_FILES)
+	scp $(RELEASE_FILES) nickle.org:/var/www/nickle/release
+
+.PHONY: debuild debuild-signed debuild-unsigned debuild-dirs rpm force
