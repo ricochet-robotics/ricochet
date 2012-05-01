@@ -27,7 +27,7 @@ AM_MAINTAINER_MODE
 
 AC_PROG_INSTALL
 
-ricochetlibdir=`eval echo ${datadir}`/ricochet
+ricochetlibdir='${datadir}'/ricochet
 
 AC_SUBST(ricochetlibdir)
 
@@ -57,6 +57,7 @@ AC_CONFIG_FILES(
  Makefile
  rrclient.man
  rrserve.man
+ ricochet.spec
  )
 
 AC_OUTPUT
