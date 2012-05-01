@@ -3,11 +3,11 @@ Section: games
 Priority: extra
 Maintainer: Keith Packard <keithp@keithp.com>
 Build-Depends: debhelper (>= 8.0.0), autotools-dev
-Standards-Version: 3.9.2
+Standards-Version: 3.9.3
 Homepage: http://rr.nickle.org
 
 Package: ricochet
 Architecture: all
-Depends: ${misc:Depends}, nickle (>= 2.74), cairo-5c (>= 1.6)
+Depends: ${misc:Depends}, nickle (>= 2.74), cairo-5c (>= 1.7)
 Description: multi-user networked version of the Ricochet Robots game
  Client and server programs written in nickle using the nichrome toolkit
