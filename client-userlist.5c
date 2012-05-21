@@ -20,6 +20,7 @@ autoload Client::Link;
 autoload Nichrome;
 autoload Nichrome::Box;
 autoload Nichrome::Label;
+autoload Nichrome::Solid;
 autoload Mutex;
 
 extend namespace Client {
@@ -252,8 +253,8 @@ extend namespace Client {
 						break;
 
 				Box::suspend(ul->box);
-				Box::insert_row(ul->box, u+1);
-				Box::add_row(ul->box, 0, u + 1,
+				Box::insert_row(ul->box, u+2);
+				Box::add_row(ul->box, 0, u+2,
 					     Box::widget_item(user->name_label, 0, 0),
 					     Box::widget_item(user->games_label, 0, 0),
 					     Box::widget_item(user->score_label, 0, 0),
@@ -270,7 +271,7 @@ extend namespace Client {
 
 		public void remove(*userlist_t ul, string name) {
 			forname(ul, name, void func (*user_t user, int u) {
-					Box::delete_row(ul->box, u + 1);
+					Box::delete_row(ul->box, u + 2);
 					for (; u < dim(ul->names) - 1; u++)
 						ul->names[u] = ul->names[u+1];
 				});
@@ -278,7 +279,7 @@ extend namespace Client {
 
 		public void clear(*userlist_t ul) {
 			twixt(Mutex::acquire(ul->lock); Mutex::release(ul->lock)) {
-				Box::clear(ul->box, 0, 1, 0, dim(ul->names));
+				Box::clear(ul->box, 0, 2, 0, dim(ul->names));
 				setdim(ul->names, 0);
 			}
 		}
@@ -316,6 +317,9 @@ extend namespace Client {
 					   Box::widget_item(ul->bid.label, 0),
 					   Box::widget_item(ul->mode.label, 0));
 			Box::add_row(ul->box, 0, 1,
+				     Box::widget_span_item(Solid::new(ui, 1, 1),
+							   100, 1, 1, 0));
+			Box::add_row(ul->box, 0, 2,
 				     Box::glue_item(ul->name.width, 0, 0, 0),
 				     Box::glue_item(ul->games.width, 0, 0, 0),
 				     Box::glue_item(ul->score.width, 0, 0, 0),
