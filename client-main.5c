@@ -22,6 +22,7 @@ autoload Client::Update;
 autoload Client::Userlist;
 autoload Client::Messages;
 autoload Client::Games;
+autoload Client::Host;
 autoload ParseArgs;
 autoload RR;
 autoload Cairo;
@@ -32,6 +33,8 @@ autoload Nichrome::Label;
 autoload Nichrome::Toggle;
 autoload Nichrome::Textline;
 autoload Nichrome::RRboard;
+autoload Nichrome::Solid;
+autoload Nichrome::Message;
 autoload Mutex;
 
 extend namespace Client {
@@ -43,7 +46,6 @@ extend namespace Client {
 		import RR;
 		import Userlist;
 
-		string	host = "localhost";
 		int	port = RR::Port;
 		string	name;
 
@@ -62,7 +64,7 @@ extend namespace Client {
 
 		ParseArgs::argdesc argd = {
 			.args = {
-				{ .var = { .arg_string = &host },
+				{ .var = { .arg_string = &Host::host },
 				  .abbr = 'h',
 				  .name = "host",
 				  .expr_name = "hostname",
@@ -246,8 +248,7 @@ extend namespace Client {
 					update_turn(current_turn + 1);
 					break;
 				case "GAMEOVER":
-					/* XXX start new game */
-					printf ("gameover\n");
+					/* start new game */
 					clear_score(&userlist);
 					Userlist::update(&userlist);
 					update_turn(0);
@@ -328,6 +329,7 @@ extend namespace Client {
 
 		void do_bid() {
 			Link::command(link, "BID %s\n", bid_value.text);
+			Textline::set_text(&bid_value, "");
 		}
 
 		void do_revoke() {
@@ -481,19 +483,34 @@ extend namespace Client {
 			Games::start(link, select_game_callback);
 		}
 
+		public void do_select_host() {
+			if (!Host::select())
+				exit(0);
+		}
+
 		public void main () {
 			ParseArgs::parseargs(&argd, &argv);
 
 			if (!is_uninit(&font))
 				Widget::default_font = font;
 
-			link = Link::new(host, port);
+			if (is_uninit(&Host::host))
+				do_select_host();
 
-			Link::message_t r = Link::command(link, "helo %s\n", name);
+			for (;;) {
+				try {
+					link = Link::new(Host::host, port);
 
-			if (r->reply[0] == "ERROR") {
-				printf ("%s %s\n", r->reply[1], name);
-				do_quit();
+					Link::message_t r = Link::command(link, "helo %s\n", name);
+
+					if (r->reply[0] == "ERROR")
+						raise Link::link_error(sprintf("%s %s", r->reply[1], name));
+					break;
+				} catch Link::link_error(string reason) {
+					Nichrome::Message::new("Connection failed",
+							       sprintf ("host \"%s\": %s", Host::host, reason));
+				}
+				do_select_host();
 			}
 
 			&ui = Nichrome::new("Ricochet Robots", board_width, board_height);
@@ -601,6 +618,8 @@ extend namespace Client {
 								Box::widget_item(&quit, 0));
 			&box_t			rbox = Box::new (Box::dir_t.vertical,
 								 Box::box_item(userlist.box),
+								 Box::widget_item(Solid::new(&ui, 1, 1),
+										  1, 0),
 								 Box::box_item(messages.vbox));
 			&box_t			hbox = Box::new (Box::dir_t.horizontal,
 								 Box::widget_item(&rrboard, 1, 1, 1),

@@ -32,6 +32,8 @@ extend namespace Client {
 
 		public typedef *message_struct message_t;
 
+		public exception link_error(string);
+
 		typedef struct {
 			file		f;
 			string		host;
@@ -70,10 +72,8 @@ extend namespace Client {
 			} catch Thread::signal(int sig) {
 			} catch File::io_eof(file f) {
 				l->closing = true;
-				exit(0);
 			} catch File::io_error(string reason, File::error_type error, file f) {
 				l->closing = true;
-				exit(0);
 			}
 			while (Semaphore::count(l->notices_sem) < 0)
 				Semaphore::signal(l->notices_sem);
@@ -88,8 +88,7 @@ extend namespace Client {
 					RR::Send::send(l->f, format, args...);
 					File::flush(l->f);
 				} catch File::io_error(string reason, File::error_type error, file f) {
-					printf ("I/O error on link: %s\n", reason);
-					exit(0);
+					raise link_error(sprintf("I/O error on link: %s", reason));
 				}
 				Semaphore::wait(l->replies_sem);
 				twixt(Mutex::acquire(l->reply_lock); Mutex::release(l->reply_lock)) {

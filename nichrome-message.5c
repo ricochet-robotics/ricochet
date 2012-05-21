@@ -1,0 +1,50 @@
+/*
+ * Copyright © 2012 Keith Packard <keithp@keithp.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 2 of the License.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
+ */
+
+autoload Nichrome;
+autoload Nichrome::Button;
+autoload Nichrome::Box;
+autoload Nichrome::Label;
+autoload Nichrome::Toggle;
+autoload Nichrome::Textline;
+autoload Nichrome::RRboard;
+autoload Nichrome::Solid;
+
+extend namespace Nichrome {
+	public namespace Message {
+		public typedef struct {
+			*nichrome_t	ui;
+		} message_t;
+
+		protected message_t new (string title, string contents) {
+			*message_t	message = &(message_t) {};
+			message->ui = Nichrome::new(title, 100, 100);
+
+			*Box::box_t	box = Box::new(Box::dir_t.vertical,
+						       Box::widget_item(Label::new(message->ui, contents), 1, 1),
+						       Box::box_item(Box::new(Box::dir_t.horizontal,
+									      Box::glue_item(1),
+									      Box::widget_item(Button::new(message->ui,
+													   "OK",
+													   void func (*widget_t w, bool state) {
+														   Nichrome::destroy(message->ui);
+													   }), 0, 0))));
+			Nichrome::set_box(message->ui, box);
+			main_loop(message->ui);
+		}
+	}
+}

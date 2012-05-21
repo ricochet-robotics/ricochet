@@ -1,0 +1,103 @@
+/*
+ * Copyright © 2012 Keith Packard <keithp@keithp.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 2 of the License.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
+ */
+
+autoload Client;
+autoload Client::Window;
+autoload Client::Link;
+autoload Client::Update;
+autoload Client::Userlist;
+autoload Client::Messages;
+autoload Client::Games;
+autoload ParseArgs;
+autoload RR;
+autoload Cairo;
+autoload Nichrome;
+autoload Nichrome::Button;
+autoload Nichrome::Box;
+autoload Nichrome::Label;
+autoload Nichrome::Toggle;
+autoload Nichrome::Textline;
+autoload Nichrome::RRboard;
+autoload Nichrome::Solid;
+autoload Mutex;
+
+extend namespace Client {
+	public namespace Host {
+		import Nichrome;
+		import Util;
+		import Box;
+
+		public string	host;
+
+		*Nichrome::nichrome_t	ui;
+		*Label::label_t		title;
+		*Textline::textline_t	hostname;
+		*Button::button_t	ok;
+		*Button::button_t	cancel;
+
+		bool	ret;
+
+		void stop (bool val) {
+			ret = val;
+			Nichrome::destroy(ui);
+		}
+
+		void do_ok(*widget_t w, bool state) {
+			if (state) {
+				host = hostname->text;
+				stop(true);
+			}
+		}
+
+		void do_cancel(*widget_t w, bool state) {
+			if (state) {
+				if (is_uninit(&host))
+					exit(0);
+				stop(false);
+			}
+		}
+
+		bool key_callback(*Textline::textline_t widget, string key) {
+			switch (key) {
+			case "Return": do_ok(widget, true); return true;
+			default:
+			}
+			return false;
+		}
+		
+		public bool select() {
+			ui = new("Ricochet Robots Servers", 100, 100);
+			title = new_bold(ui, "Server Hostname", Label::justify_t.center);
+			hostname = Textline::new(ui, 40);
+			hostname->callback = key_callback;
+			if (!is_uninit(&host))
+				Textline::set_text(hostname, host);
+			ok = Button::new(ui, "OK", do_ok);
+			cancel = Button::new(ui, "Cancel", do_cancel);
+			*Box::box_t	box = Box::new(Box::dir_t.vertical,
+						       Box::widget_item(title, 1, 0),
+						       Box::widget_item(hostname, 1, 0),
+						       Box::box_item(Box::new(Box::dir_t.horizontal,
+									      Box::widget_item(ok, 1, 0),
+									      Box::widget_item(cancel, 1, 0))));
+			Nichrome::set_box(ui, box);
+			set_key_focus(ui, hostname);
+			Nichrome::main_loop(ui);
+			return ret;
+		}
+	}
+}
