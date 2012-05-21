@@ -1,0 +1,35 @@
+/*
+ * Copyright © 2012 Keith Packard <keithp@keithp.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 2 of the License.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
+ */
+
+extend namespace Client {
+	public namespace Util {
+		import Nichrome;
+
+		public *Label::label_t new_left(*nichrome_t ui, string label) {
+			*Label::label_t	l = Label::new(ui, label);
+			l->justify = Label::justify_t.left;
+			return l;
+		}
+
+		public *Label::label_t new_bold(*nichrome_t ui, string label, Label::justify_t justify) {
+			*Label::label_t l = Label::new(ui, label);
+			l->font = l->font + ":bold";
+			l->justify = justify;
+			return l;
+		}
+	}
+}

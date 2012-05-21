@@ -17,6 +17,7 @@
 
 autoload Client;
 autoload Client::Link;
+autoload Client::Util;
 autoload Nichrome;
 autoload Nichrome::Box;
 autoload Nichrome::Label;
@@ -28,6 +29,7 @@ autoload Sort;
 extend namespace Client {
 	public namespace Games {
 		import Nichrome;
+		import Util;
 
 		public typedef games_t;
 
@@ -51,23 +53,6 @@ extend namespace Client {
 			callback_t		callback;
 			game_t[*]		games;
 		} games_t;
-
-		*Label::label_t new_left(*nichrome_t ui, string label) {
-			*Label::label_t	l = Label::new(ui, label);
-			l->justify = Label::justify_t.left;
-			return l;
-		}
-
-		*Label::label_t new_bold(*nichrome_t ui, string label, Label::justify_t justify) {
-			*Label::label_t l = Label::new(ui, label);
-			l->font = l->font + ":bold";
-			l->justify = justify;
-			return l;
-		}
-
-		*widget_t top(*widget_t child) {
-			return Border::new(child, 0, 0, 1, 0);
-		}
 
 		Mutex::mutex	games_mutex = Mutex::new();
 		bool		games_running = false;
