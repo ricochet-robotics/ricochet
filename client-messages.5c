@@ -22,6 +22,7 @@ autoload Nichrome::Text;
 autoload Nichrome::Textline;
 autoload Nichrome::Label;
 autoload Nichrome::Scrollbar;
+autoload Nichrome::Solid;
 
 extend namespace Client {
 	public namespace Messages {
@@ -81,6 +82,7 @@ extend namespace Client {
 					   Box::widget_item(m->scrollbar, 0, 1));
 			m->vbox = Box::new(Box::dir_t.vertical,
 					   Box::box_item(m->hbox),
+					   Box::widget_item(Solid::new(&ui, 1, 1), 1, 0),
 					   Box::box_item(Box::new(Box::dir_t.horizontal,
 								  Box::widget_item(m->name, 0),
 								  Box::widget_item(m->input, 1, 0))));
