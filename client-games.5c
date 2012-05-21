@@ -22,7 +22,7 @@ autoload Nichrome;
 autoload Nichrome::Box;
 autoload Nichrome::Label;
 autoload Nichrome::Button;
-autoload Nichrome::Border;
+autoload Nichrome::Solid;
 autoload Nichrome::Textline;
 autoload Sort;
 
@@ -68,11 +68,11 @@ extend namespace Client {
 		}
 
 		int rows(*game_t game) {
-			return max(1, dim(game->players));
+			return max(1, dim(game->players)) + 1;
 		}
 
 		void find_game(*games_t games, string name, void (*game_t game, int row) doit) {
-			int row = 1;
+			int row = 2;
 			for (int g = 0; g < dim(games->games); g++) {
 				if (games->games[g].name == name)
 					doit(&games->games[g], row);
@@ -88,8 +88,8 @@ extend namespace Client {
 					Link::command(games->link,
 						      "DISPOSE %s\n", name);
 			}
-			Box::add_widget(games->game_box, 1, row, top(Button::new(games->ui, "Dispose Game",
-										 dispose_game)), 0);
+			Box::add_widget(games->game_box, 1, row, Button::new(games->ui, "Dispose Game",
+									     dispose_game), 0);
 		}
 
 		void remove_user(*games_t games, string game, string name) {
@@ -123,10 +123,9 @@ extend namespace Client {
 						game->players[q] = game->players[q-1];
 					int r = row + p;
 					game->players[p] = name;
-					*widget_t w = new_left(games->ui, name);
+					*widget_t w = Util::new_left(games->ui, name);
 					if (dim (game->players) > 1) {
 						if (p == 0) {
-							w = top(w);
 							Box::insert_row(games->game_box, r+1);
 							Box::add_widget(games->game_box, 1, r+1,
 									new_left(games->ui, game->players[1]));
@@ -139,11 +138,14 @@ extend namespace Client {
 							Box::add_glue(games->game_box, 2, r, 1);
 							Box::add_glue(games->game_box, 3, r, 1);
 						}
-					} else
-						w = top(w);
+					}
 					Box::add_widget(games->game_box, 1, r, w, 0);
 					Nichrome::redraw(games->ui);
 				});
+		}
+
+		Box::item_t separator(*nichrome_t ui) {
+			return Box::widget_span_item(Solid::new(ui, 1, 1), 100, 1, 1, 0);
 		}
 
 		int add_game(*games_t games, string name) {
@@ -153,7 +155,7 @@ extend namespace Client {
 			int nplayers = (dim(players->reply) - 1) // 2;
 
 			int g;
-			int r = 1;
+			int r = 2;
 			for (g = 0; g < dim(games->games); g++) {
 				if (name < games->games[g].name)
 					break;
@@ -167,34 +169,37 @@ extend namespace Client {
 				.players = (string[...]) {}
 			};
 			Box::insert_row(games->game_box, r);
-			Box::add_widget(games->game_box, 0, r, top(new_left(games->ui, games->games[g].name)), 0);
+			Box::add_widget(games->game_box, 0, r, new_left(games->ui, games->games[g].name), 0);
 			if (!is_uninit(&current_game) && current_game == name) {
-				Box::add_widget(games->game_box, 2, r, top(Label::new(games->ui, "")), 0);
-				Box::add_widget(games->game_box, 3, r, top(Label::new(games->ui, "")), 0);
+				Box::add_widget(games->game_box, 2, r, Label::new(games->ui, ""), 0);
+				Box::add_widget(games->game_box, 3, r, Label::new(games->ui, ""), 0);
 			} else {
-				Box::add_widget(games->game_box, 2, r, top(Button::new(games->ui, "Join Game",
-										       void func (&widget_t w, bool state) {
-											       if (state) {
-												       games->callback(name, false);
-												       stop(games);
-											       }
-										       })), 0);
-				Box::add_widget(games->game_box, 3, r, top(Button::new(games->ui, "Watch Game",
-										       void func (&widget_t w, bool state) {
-											       if (state) {
-												       games->callback(name, true);
-												       stop(games);
-											       }
-										       })), 0);
+				Box::add_widget(games->game_box, 2, r, Button::new(games->ui, "Join Game",
+										   void func (&widget_t w, bool state) {
+											   if (state) {
+												   games->callback(name, false);
+												   stop(games);
+											   }
+										   }), 0);
+				Box::add_widget(games->game_box, 3, r, Button::new(games->ui, "Watch Game",
+										   void func (&widget_t w, bool state) {
+											   if (state) {
+												   games->callback(name, true);
+												   stop(games);
+											   }
+										   }), 0);
 			}
 			add_dispose_game(games, &games->games[g], r);
+			r++;
+			Box::insert_row(games->game_box, r);
+			Box::add(games->game_box, 0, r, separator(games->ui));
 			for (int p = 0; p < nplayers; p++)
 				add_user(games, name, players->reply[1+2*p]);
 			return g;
 		}
 
 		void remove_game(*games_t games, string name) {
-			int	row = 1;
+			int	row = 2;
 			for (int g = 0; g < dim(games->games); g++) {
 				int	rows = Games::rows(&games->games[g]);
 				if (games->games[g].name == name) {
@@ -233,18 +238,19 @@ extend namespace Client {
 						   Box::widget_item(new_bold(games->ui, "Players", Label::justify_t.left), 0),
 						   Box::glue_item(1));
 
-			int r = 1;
+			Box::add_row(games->game_box, 0, 1, separator(games->ui));
+			int r = 2;
 			games->game_name = Textline::new(games->ui, 40);
-			Box::add_widget(games->game_box, 0, r, top(games->game_name), 0);
-			Box::add_widget(games->game_box, 1, r, top(Label::new(games->ui, "")), 0);
-			Box::add_widget(games->game_box, 2, r, top(Button::new(games->ui, "New Game",
-									       void func (&widget_t w, bool state) {
-										       if (state) {
-											       callback(games->game_name->text, true);
-											       stop(games);
-										       }
-									       })), 0);
-			Box::add_widget(games->game_box, 3, r, top(Label::new(games->ui, "")), 0);
+			Box::add_widget(games->game_box, 0, r, games->game_name, 0);
+			Box::add_widget(games->game_box, 1, r, Label::new(games->ui, ""), 0);
+			Box::add_widget(games->game_box, 2, r, Button::new(games->ui, "New Game",
+									   void func (&widget_t w, bool state) {
+										   if (state) {
+											   callback(games->game_name->text, true);
+											   stop(games);
+										   }
+									   }), 0);
+			Box::add_widget(games->game_box, 3, r, Label::new(games->ui, ""), 0);
 			get_games(games);
 
 			games->box = Box::new(Box::dir_t.vertical,
