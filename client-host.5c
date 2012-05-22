@@ -47,10 +47,13 @@ extend namespace Client {
 
 		*Nichrome::nichrome_t	ui;
 		*Label::label_t		title;
+		*Label::label_t		master_label;
 		*Label::label_t		master;
 		*Button::button_t	master_connect;
+		*Label::label_t		remote_label;
 		*Textline::textline_t	hostname;
 		*Button::button_t	remote_connect;
+		*Label::label_t		local_label;
 		*Button::button_t	local;
 		*Button::button_t	local_connect;
 		*Button::button_t	cancel;
@@ -119,35 +122,43 @@ extend namespace Client {
 			ui = new("Ricochet Robots Servers", 100, 100);
 			title = new_bold(ui, "Select Server", Label::justify_t.center);
 
+			master_label = new_left (ui, "Master server:");
 			master = new_left(ui, master_host);
 			master_connect = Button::new(ui, "Connect", do_master);
 
+			remote_label = new_left (ui, "Another server:");
 			hostname = Textline::new(ui, 40);
 			hostname->callback = key_callback;
 			if (!is_uninit(&host))
 				Textline::set_text(hostname, host);
 			remote_connect = Button::new(ui, "Connect", do_remote);
 
-			local = Button::new(ui, "Start local server", do_start_local);
+			local_label = new_left (ui, "Local server:");
+			local = Button::new(ui, "Start", do_start_local);
 			local_connect = Button::new(ui, "Connect", do_local);
 
 			cancel = Button::new(ui, "Cancel", do_cancel);
-			*Box::box_t	box = Box::new(Box::dir_t.vertical,
-						       Box::widget_item(title, 1, 0),
-						       Box::box_item(Box::new(Box::dir_t.horizontal,
-									      Box::widget_item(master, 1, 0),
-									      Box::widget_item(master_connect))),
-						       Box::box_item(Box::new(Box::dir_t.horizontal,
-									      Box::widget_item(hostname, 1, 0),
-									      Box::widget_item(remote_connect))),
-						       Box::box_item(Box::new(Box::dir_t.horizontal,
-									      Box::widget_item(local, 1, 0),
-									      Box::widget_item(local_connect))),
-						       Box::box_item(Box::new(Box::dir_t.horizontal,
-									      Box::glue_item(1),
-									      Box::widget_item(cancel, 0, 0),
-									      Box::glue_item(1))),
-						       Box::glue_item(1));
+			*Box::box_t	box = Box::new_empty();
+			int row = 0;
+			Box::add_row(box, 0, row++,
+				     Box::widget_span_item(title, 4, 1, 1, 0));
+			Box::add_row(box, 0, row++,
+				     Box::widget_item(master_label, 0, 1),
+				     Box::glue_item(1),
+				     Box::widget_item(master, 1, 1),
+				     Box::widget_item(master_connect, 1, 0));
+			Box::add_row(box, 0, row++,
+				     Box::widget_item(remote_label, 0, 1),
+				     Box::glue_item(1),
+				     Box::widget_item(hostname, 1, 1),
+				     Box::widget_item(remote_connect, 1, 0));
+			Box::add_row(box, 0, row++,
+				     Box::widget_item(local_label, 0, 1),
+				     Box::glue_item(1),
+				     Box::widget_item(local, 1, 1),
+				     Box::widget_item(local_connect, 1, 0));
+			Box::add_row(box, 0, row++,
+				     Box::widget_item(cancel, 1, 0));
 			Nichrome::set_box(ui, box);
 			set_key_focus(ui, hostname);
 			Nichrome::main_loop(ui);
