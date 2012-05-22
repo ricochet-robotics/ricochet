@@ -1,3 +1,10 @@
+ricochet (0.2) unstable; urgency=low
+
+  * Rename 'rrclient' to 'ricochet'
+  * Add host selection dialog
+
+ -- Keith Packard <keithp@keithp.com>  Mon, 21 May 2012 19:44:18 -0700
+
 ricochet (0.1) unstable; urgency=low
 
   * Initial release
