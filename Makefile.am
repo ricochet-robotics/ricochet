@@ -34,13 +34,16 @@ CLIENTSRC = \
 	client-board.5c		\
 	client-draw.5c		\
 	client-games.5c		\
+	client-host.5c		\
 	client-link.5c		\
 	client-main.5c		\
 	client-messages.5c	\
 	client-net.5c		\
 	client-update.5c	\
 	client-userlist.5c	\
+	client-util.5c		\
 	client-window.5c	\
+	nichrome-message.5c	\
 	nichrome-rrboard.5c	\
 	nichrome-timer.5c
 
