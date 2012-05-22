@@ -32,11 +32,11 @@ make
 %files
 %defattr(-,root,root)
 %doc LICENSE
-%attr(755,root,root) %{_bindir}/rrclient
+%attr(755,root,root) %{_bindir}/ricochet
 %attr(755,root,root) %{_bindir}/rrserve
 %dir %{_datadir}/ricochet
 %{_mandir}/man6/rrserve.6*
-%{_mandir}/man6/rrclient.6*
+%{_mandir}/man6/ricochet.6*
 %{_datadir}/ricochet/*
 
 %clean

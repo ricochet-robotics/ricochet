@@ -8,10 +8,10 @@ configure
 install-sh
 missing
 *.tar.gz
-rrclient
+ricochet
 rrserve
 client-svg.5c
-rrclient.man
+ricochet.man
 rrserve.man
 ricochet_*
 ricochet-*

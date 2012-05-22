@@ -60,12 +60,12 @@ SERVERSRC = \
 	server-show.5c
 
 if GAMEMAN
-man6_MANS = rrclient.man rrserve.man
+man6_MANS = ricochet.man rrserve.man
 else
-man1_MANS = rrclient.man rrserve.man
+man1_MANS = ricochet.man rrserve.man
 endif
 
-MANSRC=rrclient.man.in rrserve.man.in
+MANSRC=ricochet.man.in rrserve.man.in
 
 SVG=\
 	$(top_srcdir)/svg/cell1.svg \
@@ -104,26 +104,26 @@ DEBIAN = debian/changelog debian/compat \
 
 EXTRA_DIST = protocol \
 	$(NICKLESRC) \
-	rrclient.in rrserve.in \
+	ricochet.in rrserve.in \
 	svg/bin2cstring.5c \
 	$(SVG) $(DEBIAN) LICENSE $(MANSRC)
 
 ricochetlib_DATA = $(NICKLEFILES)
 
-bin_SCRIPTS = rrclient rrserve
+bin_SCRIPTS = ricochet rrserve
 
-rrclient: rrclient.in
-	sed 's#%ricochetlibdir%#@ricochetlibdir@#' ${srcdir}/rrclient.in > $@ && chmod +x $@
+ricochet: ricochet.in
+	sed -e 's#%ricochetlibdir%#@ricochetlibdir@#' -e 's#%ricochetbindir%#$(bindir)#' ${srcdir}/ricochet.in > $@ && chmod +x $@
 
 rrserve: rrserve.in
-	sed 's#%ricochetlibdir%#@ricochetlibdir@#' ${srcdir}/rrserve.in > $@ && chmod +x $@
+	sed -e 's#%ricochetlibdir%#@ricochetlibdir@#' ${srcdir}/rrserve.in > $@ && chmod +x $@
 
 client-svg.5c: $(SVG) svg/bin2cstring.5c
 	$(RM) $@
 	nickle $(top_srcdir)/svg/bin2cstring.5c $(SVG) > $@
 
 clean-local:
-	$(RM) client-svg.5c rrclient rrserve
+	$(RM) client-svg.5c ricochet rrserve
 
 TARFILE=$(PACKAGE)-$(VERSION).tar.gz
 DEBFILE=$(PACKAGE)_$(VERSION)-1_all.deb

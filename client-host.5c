@@ -34,6 +34,7 @@ autoload Nichrome::Textline;
 autoload Nichrome::RRboard;
 autoload Nichrome::Solid;
 autoload Mutex;
+autoload Process;
 
 extend namespace Client {
 	public namespace Host {
@@ -42,11 +43,16 @@ extend namespace Client {
 		import Box;
 
 		public string	host;
+		public string	rrserve_path = "rrserve";
 
 		*Nichrome::nichrome_t	ui;
 		*Label::label_t		title;
+		*Label::label_t		master;
+		*Button::button_t	master_connect;
 		*Textline::textline_t	hostname;
-		*Button::button_t	ok;
+		*Button::button_t	remote_connect;
+		*Button::button_t	local;
+		*Button::button_t	local_connect;
 		*Button::button_t	cancel;
 
 		bool	ret;
@@ -79,21 +85,69 @@ extend namespace Client {
 			return false;
 		}
 		
+		string master_host = "rr.nickle.org";
+
+		void do_master(*Button::button_t w, bool state) {
+			if (state) {
+				host = master_host;
+				stop(true);
+			}
+		}
+
+		void do_remote(*Button::button_t w, bool state) {
+			if (state) {
+				host = hostname->text;
+				stop(true);
+			}
+		}
+
+
+		void do_local(*Button::button_t w, bool state) {
+			if (state) {
+				host = "localhost";
+				stop(true);
+			}
+		}
+
+		void do_start_local(*Button::button_t w, bool state) {
+			if (state) {
+				Process::system(rrserve_path, "rrserve");
+			}
+		}
+
 		public bool select() {
 			ui = new("Ricochet Robots Servers", 100, 100);
-			title = new_bold(ui, "Server Hostname", Label::justify_t.center);
+			title = new_bold(ui, "Select Server", Label::justify_t.center);
+
+			master = new_left(ui, master_host);
+			master_connect = Button::new(ui, "Connect", do_master);
+
 			hostname = Textline::new(ui, 40);
 			hostname->callback = key_callback;
 			if (!is_uninit(&host))
 				Textline::set_text(hostname, host);
-			ok = Button::new(ui, "OK", do_ok);
+			remote_connect = Button::new(ui, "Connect", do_remote);
+
+			local = Button::new(ui, "Start local server", do_start_local);
+			local_connect = Button::new(ui, "Connect", do_local);
+
 			cancel = Button::new(ui, "Cancel", do_cancel);
 			*Box::box_t	box = Box::new(Box::dir_t.vertical,
 						       Box::widget_item(title, 1, 0),
-						       Box::widget_item(hostname, 1, 0),
 						       Box::box_item(Box::new(Box::dir_t.horizontal,
-									      Box::widget_item(ok, 1, 0),
-									      Box::widget_item(cancel, 1, 0))));
+									      Box::widget_item(master, 1, 0),
+									      Box::widget_item(master_connect))),
+						       Box::box_item(Box::new(Box::dir_t.horizontal,
+									      Box::widget_item(hostname, 1, 0),
+									      Box::widget_item(remote_connect))),
+						       Box::box_item(Box::new(Box::dir_t.horizontal,
+									      Box::widget_item(local, 1, 0),
+									      Box::widget_item(local_connect))),
+						       Box::box_item(Box::new(Box::dir_t.horizontal,
+									      Box::glue_item(1),
+									      Box::widget_item(cancel, 0, 0),
+									      Box::glue_item(1))),
+						       Box::glue_item(1));
 			Nichrome::set_box(ui, box);
 			set_key_focus(ui, hostname);
 			Nichrome::main_loop(ui);

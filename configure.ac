@@ -55,7 +55,7 @@ AC_SUBST(BUILD_DATE)
 
 AC_CONFIG_FILES(
  Makefile
- rrclient.man
+ ricochet.man
  rrserve.man
  ricochet.spec
  )

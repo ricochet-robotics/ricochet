@@ -1,0 +1,13 @@
+#!/usr/bin/env nickle
+
+if (dim(argv) == 0)
+	argv = (string[*]) { "ricochet" };
+
+Command::nickle_path = "%ricochetlibdir%:" + Command::nickle_path;
+
+autoload Client::Main;
+autoload Client::Host;
+
+Client::Host::rrserve_path = "%ricochetbindir%" + "/rrserve";
+
+Client::Main::main();
