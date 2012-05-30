@@ -47,15 +47,8 @@ extend namespace Client {
 		import Userlist;
 
 		int	port = RR::Port;
-		string	name;
 
 		string	font = Widget::default_font;
-
-		try {
-			name = Environ::get("USER");
-		} catch invalid_argument(string message, int id, poly value) {
-			name = "user";
-		}
 
 		Mutex::mutex	board_lock = Mutex::new();
 
@@ -74,7 +67,7 @@ extend namespace Client {
 				  .name = "port",
 				  .expr_name = "port",
 				  .desc = "server port" },
-				{ .var = { .arg_string = &name },
+				{ .var = { .arg_string = &Host::name },
 				  .abbr = 'n',
 				  .name = "name",
 				  .expr_name = "username",
@@ -501,10 +494,10 @@ extend namespace Client {
 				try {
 					link = Link::new(Host::host, port);
 
-					Link::message_t r = Link::command(link, "helo %s\n", name);
+					Link::message_t r = Link::command(link, "helo %s\n", Host::name);
 
 					if (r->reply[0] == "ERROR")
-						raise Link::link_error(sprintf("%s %s", r->reply[1], name));
+						raise Link::link_error(sprintf("%s %s", r->reply[1], Host::name));
 					break;
 				} catch Link::link_error(string reason) {
 					Nichrome::Message::new("Connection failed",
@@ -518,7 +511,7 @@ extend namespace Client {
 			Nichrome::set_global_key(&ui, global_key);
 			&rrboard = RRboard::new(&ui, move_callback);
 			&userlist = Userlist::new(&ui, link);
-			&messages = Messages::new(&ui, 20, message_done, name);
+			&messages = Messages::new(&ui, 20, message_done, Host::name);
 
 			&select_game = Button::new(&ui, "Switch Game",
 						   void func (&widget_t w, bool state) {
