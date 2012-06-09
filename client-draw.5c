@@ -92,11 +92,14 @@ extend namespace Client {
 		}
 
 		dimensions_t cell_dim  = get_dimensions(cell[0].svg);
+		dimensions_t wall_dim  = get_dimensions(wall.svg);
 
 		public int cell_width = cell_dim.width;
 		public int cell_height = cell_dim.height;
 
-		void draw_cached_sprite(&sprite_t sprite, cairo_t cr, &transform_t t) {
+		public int wall_thickness = wall_dim.height;
+
+		void draw_cached_sprite(&sprite_t sprite, cairo_t cr, &transform_t t, real alpha) {
 			int	width = ceil(cell_width * t.xscale);
 			int	height = ceil(cell_width * t.yscale);
 
@@ -118,7 +121,10 @@ extend namespace Client {
 			}
 			if (sprite.width > 0 && sprite.height > 0) {
 				set_source_surface(cr, sprite.surface, 0, 0);
-				paint(cr);
+				if (alpha != 1)
+					paint_with_alpha(cr, alpha);
+				else
+					paint(cr);
 			}
 			restore(cr);
 		}
@@ -127,7 +133,7 @@ extend namespace Client {
 			save(cr);
 			translate(cr, x * cell_width * t.xscale + t.xoff, y * cell_height * t.yscale + t.yoff);
 
-			draw_cached_sprite(&cell[x+y & 1], cr, &t);
+			draw_cached_sprite(&cell[x+y & 1], cr, &t, 1);
 			restore(cr);
 		}
 		
@@ -136,8 +142,10 @@ extend namespace Client {
 			translate(cr, t.xoff, t.yoff);
 			scale(cr, t.xscale, t.yscale);
 			translate(cr, x * cell_width, y * cell_height);
+			/*
 			rectangle(cr, 0, 0, cell_width, cell_height);
 			clip(cr);
+			*/
 
 			void draw_wall (bool doit, bool vertical, bool shift) {
 				if (!doit) return;
@@ -153,12 +161,16 @@ extend namespace Client {
 			}
 			draw_wall (object.walls.left, true, false);
 			draw_wall (object.walls.above, false, false);
-			draw_wall (object.walls.right, true, true);
-			draw_wall (object.walls.below, false, true);
+			if (x == 15)
+				draw_wall (object.walls.right, true, true);
+			if (y == 15)
+				draw_wall (object.walls.below, false, true);
 			restore(cr);
 		}
 		
-		public void contents (cairo_t cr, int x, int y, RR::Object object, RR::RobotOrNone active_robot,
+		public void contents (cairo_t cr, int x, int y, RR::Object object,
+				      RR::TargetOrNone active_target,
+				      RR::RobotOrNone active_robot,
 				      &transform_t t) {
 			save(cr);
 			translate(cr, x * cell_width * t.xscale + t.xoff, y * cell_height * t.yscale + t.yoff);
@@ -167,7 +179,10 @@ extend namespace Client {
 			case none:
 				break;
 			case target target:
-				draw_cached_sprite(&targets[target.color][target.shape], cr, &t);
+				real alpha = 1;
+				if (object.target != active_target)
+					alpha = 0.5;
+				draw_cached_sprite(&targets[target.color][target.shape], cr, &t, alpha);
 				break;
 			}
 			union switch(object.robot) {
@@ -187,7 +202,7 @@ extend namespace Client {
 					break;
 				default:
 				}
-				draw_cached_sprite(&robots[r.color], cr, &t);
+				draw_cached_sprite(&robots[r.color], cr, &t, 1);
 				break;
 			}
 			restore(cr);

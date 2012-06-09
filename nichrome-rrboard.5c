@@ -29,8 +29,11 @@ extend namespace Nichrome {
 		import Client;
 		import RR;
 
+		public int	border_width = ceil(Draw::wall_thickness / 2);
 		public int	board_width = RR::Width * Draw::cell_width;
+		public int	total_width = board_width + border_width * 2;
 		public int	board_height = RR::Height * Draw::cell_height;
+		public int	total_height = board_height + border_width * 2;
 
 		public typedef widget_t + struct {
 			RR::Board		board;
@@ -45,31 +48,45 @@ extend namespace Nichrome {
 
 		Draw::transform_t transform(&rrboard_widget_t widget) {
 			real	dim = dimension(&widget);
+			real	xscale = dim / total_width;
+			real	yscale = dim / total_height;
 			return (Draw::transform_t) {
-				.xscale = dim / board_width,
-				.yscale = dim / board_height,
-				.xoff = (widget.geometry.width - dim) // 2,
-				.yoff = (widget.geometry.height - dim) // 2
+				.xscale = xscale,
+				.yscale = yscale,
+				.xoff = (widget.geometry.width - dim) // 2 + ceil(border_width * xscale),
+				.yoff = (widget.geometry.height - dim) // 2 + ceil(border_width * yscale)
 				};
+		}
+
+		bool is_middle(int x, int y) {
+			if (x < RR::Width / 2 - 1)
+				return false;
+			if (x >= RR::Width / 2 + 1)
+				return false;
+			if (y < RR::Height / 2 - 1)
+				return false;
+			if (y >= RR::Height / 2 + 1)
+				return false;
+			return true;
 		}
 
 		void draw (cairo_t cr, &rrboard_widget_t widget) {
 			Draw::transform_t	t = transform(&widget);
+			RR::TargetOrNone	active_target = RR::active_target(&widget.board);
 
 			save(cr);
 			for (int y = 0; y < RR::Height; y++)
+				for (int x = 0; x < RR::Width; x++)
+					if (!is_middle(x, y))
+						Draw::background(cr, x, y, widget.board[x,y], &t);
+			for (int y = 0; y < RR::Height; y++)
 				for (int x = 0; x < RR::Width; x++) {
-					Draw::background(cr, x, y, widget.board[x,y], &t);
 					Draw::walls(cr, x, y, widget.board[x,y], &t);
-					Draw::contents(cr, x, y, widget.board[x,y], widget.active_robot, &t);
-				}
-			for (int y = RR::Height / 2 - 1; y < RR::Height/2 + 1; y++)
-				for (int x = RR::Width / 2 - 1; x < RR::Width/2 + 1; x++) {
-					Draw::background(cr, x, y, widget.board[x,y], &t);
-					Draw::walls(cr, x, y, widget.board[x,y], &t);
+					Draw::contents(cr, x, y, widget.board[x,y],
+						       active_target, widget.active_robot, &t);
 				}
 			Draw::target(cr, RR::Width / 2 - 1, RR::Height / 2 - 1,
-				     RR::active_target(&widget.board), &t);
+				     active_target, &t);
 			restore(cr);
 		}
 
@@ -78,7 +95,7 @@ extend namespace Nichrome {
 		}
 
 		void natural (cairo_t cr, &rrboard_widget_t widget) {
-			rectangle(cr, 0, 0, board_width, board_height);
+			rectangle(cr, 0, 0, total_width, total_height);
 		}
 
 		/* Override default widget configure function to also reposition
