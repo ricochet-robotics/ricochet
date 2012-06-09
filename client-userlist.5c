@@ -274,6 +274,7 @@ extend namespace Client {
 					Box::delete_row(ul->box, u + 2);
 					for (; u < dim(ul->names) - 1; u++)
 						ul->names[u] = ul->names[u+1];
+					setdim(ul->names, dim(ul->names) - 1);
 				});
 		}
 

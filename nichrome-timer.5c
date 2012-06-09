@@ -82,9 +82,9 @@ extend namespace Nichrome {
 
 		protected void set_timer (&timer_t widget, real time) {
 			twixt(Mutex::acquire(widget.lock); Mutex::release(widget.lock)) {
+				widget.visible = true;
 				widget.end = millis() + floor (time * 1000 + 0.5);
 				if (!widget.running) {
-					widget.visible = true;
 					widget.running = true;
 					widget.timer = fork run_timer(&widget);
 				}

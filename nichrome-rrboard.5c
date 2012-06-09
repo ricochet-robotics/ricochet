@@ -254,6 +254,7 @@ extend namespace Nichrome {
 		}
 
 		protected void hide_timer (&rrboard_widget_t widget) {
+			Timer::stop_timer(widget.timer);
 			Timer::hide(widget.timer);
 		}
 
