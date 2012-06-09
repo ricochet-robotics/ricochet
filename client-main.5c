@@ -181,7 +181,7 @@ extend namespace Client {
 			Box::set_active(&show_box, false);
 			union switch (current_state){
 			case NEW:
-				RRboard::stop_timer(&rrboard);
+				RRboard::hide_timer(&rrboard);
 				clear_bid();
 				Userlist::clear_bid(&userlist);
 				Userlist::clear_modes(&userlist);
@@ -198,7 +198,7 @@ extend namespace Client {
 				Box::set_active(&show_box, true);
 				break;
 			case DONE:
-				RRboard::stop_timer(&rrboard);
+				RRboard::hide_timer(&rrboard);
 				set_focus(&rrboard, false);
 				Box::set_active(&done_box, true);
 				Userlist::clear_showing(&userlist);

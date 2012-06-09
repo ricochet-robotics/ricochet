@@ -253,6 +253,14 @@ extend namespace Nichrome {
 			Timer::stop_timer(widget.timer);
 		}
 
+		protected void hide_timer (&rrboard_widget_t widget) {
+			Timer::hide(widget.timer);
+		}
+
+		protected void show_timer (&rrboard_widget_t widget) {
+			Timer::show(widget.timer);
+		}
+
 		public *rrboard_widget_t new(&nichrome_t nichrome,
 					     void(RR::Color color, RR::Direction dir) move_callback){
 			&rrboard_widget_t	widget = &(rrboard_widget_t) {};

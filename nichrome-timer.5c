@@ -24,11 +24,14 @@ extend namespace Nichrome {
 		public typedef widget_t + struct {
 			Mutex::mutex		lock;
 			bool			running;
+			bool			visible;
 			int			end;
 			thread			timer;
 		} timer_t;
 
 		void draw (cairo_t cr, &timer_t widget) {
+			if (!widget.visible)
+				return;
 			real	left;
 			if (widget.running) {
 				left = (widget.end - millis()) / 1000;
@@ -39,6 +42,7 @@ extend namespace Nichrome {
 					left = 60;
 			} else
 				left = 0;
+			real filled = 60 - left;
 			save (cr);
 			scale (cr, widget.geometry.width / 2, widget.geometry.height / 2);
 			move_to (cr, 1, 1);
@@ -46,7 +50,7 @@ extend namespace Nichrome {
 			     1, 1,				/* center */
 			     0.9,				/* radius */
 			     - π / 2,				/* start angle */
-			     2 * π * (left) / 60.0 - π/2);	/* end angle */
+			     2 * π * (filled) / 60.0 - π/2);	/* end angle */
 			close_path (cr);
 			set_source_rgba (cr, 0.0, 0.0, 0.0, 0.5);
 			fill (cr);
@@ -80,6 +84,7 @@ extend namespace Nichrome {
 			twixt(Mutex::acquire(widget.lock); Mutex::release(widget.lock)) {
 				widget.end = millis() + floor (time * 1000 + 0.5);
 				if (!widget.running) {
+					widget.visible = true;
 					widget.running = true;
 					widget.timer = fork run_timer(&widget);
 				}
@@ -92,6 +97,14 @@ extend namespace Nichrome {
 				if (widget.running)
 					Thread::send_signal(widget.timer, 0);
 			}
+		}
+
+		protected void hide(&timer_t widget) {
+			widget.visible = false;
+		}
+
+		protected void show(&timer_t widget) {
+			widget.visible = true;
 		}
 
 		void outline (cairo_t cr, &timer_t widget) {
@@ -109,6 +122,7 @@ extend namespace Nichrome {
 			widget.natural = natural;
 			widget.lock = Mutex::new();
 			widget.running = false;
+			widget.visible = false;
 		}
 
 		protected *timer_t new(*nichrome_t nichrome) {
