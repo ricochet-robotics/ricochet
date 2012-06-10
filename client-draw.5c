@@ -181,7 +181,7 @@ extend namespace Client {
 			case target target:
 				real alpha = 1;
 				if (object.target != active_target)
-					alpha = 0.5;
+					alpha = 0.25;
 				draw_cached_sprite(&targets[target.color][target.shape], cr, &t, alpha);
 				break;
 			}
