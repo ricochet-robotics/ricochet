@@ -1,3 +1,10 @@
+ricochet (0.3) unstable; urgency=low
+
+  * Improve appearance of board
+  * Fix user list when removing/adding same user
+
+ -- Keith Packard <keithp@keithp.com>  Mon, 11 Jun 2012 13:37:57 -0700
+
 ricochet (0.2) unstable; urgency=low
 
   * Rename 'rrclient' to 'ricochet'

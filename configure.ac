@@ -16,7 +16,7 @@ dnl 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
 
 AC_PREREQ([2.64])
 
-AC_INIT([server-main.5c],[0.2],[http://rr.nickle.org],[ricochet])
+AC_INIT([server-main.5c],[0.3],[http://rr.nickle.org],[ricochet])
 
 AC_CONFIG_SRCDIR([server-main.5c])
 AC_CONFIG_AUX_DIR(.)
