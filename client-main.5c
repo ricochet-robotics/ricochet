@@ -219,7 +219,7 @@ extend namespace Client {
 				      string_to_integer(u->reply[5]));
 		}
 
-		void handle_notice() {
+		void handle_notice(thread main) {
 			for (;;) {
 				try {
 					Link::message_t notice = Link::notice(link);
@@ -310,6 +310,7 @@ extend namespace Client {
 				Nichrome::redraw(&ui);
 				Games::handle_notice(notice);
 			}
+			Thread::send_signal(main, 0);
 		}
 
 		void move_callback(RR::Color color, RR::Direction dir) {
@@ -487,30 +488,11 @@ extend namespace Client {
 			if (!is_uninit(&font))
 				Widget::default_font = font;
 
-			if (is_uninit(&Host::host))
-				do_select_host();
-
-			for (;;) {
-				try {
-					link = Link::new(Host::host, port);
-
-					Link::message_t r = Link::command(link, "helo %s\n", Host::name);
-
-					if (r->reply[0] == "ERROR")
-						raise Link::link_error(sprintf("%s %s", r->reply[1], Host::name));
-					break;
-				} catch Link::link_error(string reason) {
-					Nichrome::Message::new("Connection failed",
-							       sprintf ("host \"%s\": %s", Host::host, reason));
-				}
-				do_select_host();
-			}
-
 			&ui = Nichrome::new("Ricochet Robots", board_width, board_height);
 			Nichrome::hide(&ui);
 			Nichrome::set_global_key(&ui, global_key);
 			&rrboard = RRboard::new(&ui, move_callback);
-			&userlist = Userlist::new(&ui, link);
+			&userlist = Userlist::new(&ui);
 			&messages = Messages::new(&ui, 20, message_done, Host::name);
 
 			&select_game = Button::new(&ui, "Switch Game",
@@ -622,20 +604,53 @@ extend namespace Client {
 								 Box::box_item(&top),
 								 Box::box_item(&hbox));
 
-			fork handle_notice();
-
-			if (is_uninit(&Games::current_game)) {
-				do_select_game();
-				Games::wait();
-			}
-
-			if (is_uninit(&Games::current_game))
-				do_quit();
 			set_box(&ui, &vbox);
 
-			Nichrome::show(&ui);
+			for (;;) {
+				if (is_uninit(&Host::host))
+					do_select_host();
 
-			main_loop(&ui);
+				try {
+					for (;;) {
+						try {
+							link = Link::new(Host::host, port);
+
+							Link::message_t r = Link::command(link, "helo %s\n", Host::name);
+
+							if (r->reply[0] == "ERROR")
+								raise Link::link_error(sprintf("%s %s", r->reply[1], Host::name));
+							break;
+						} catch Link::link_error(string reason) {
+							Nichrome::Message::new("Connection failed",
+									       sprintf ("host \"%s\": %s", Host::host, reason));
+						}
+						do_select_host();
+					}
+
+					thread	me = Thread::current();
+					fork handle_notice(me);
+
+					Userlist::set_link(&userlist, link);
+
+					if (is_uninit(&Games::current_game)) {
+						do_select_game();
+						Games::wait();
+					}
+
+					if (is_uninit(&Games::current_game))
+						do_quit();
+
+					Nichrome::show(&ui);
+
+					main_loop(&ui);
+				} catch Thread::signal(int sig) {
+					if (sig != 0)
+						raise Thread::signal(sig);
+					make_uninit(&Host::host);
+					Userlist::clear_link(&userlist);
+					Nichrome::hide(&ui);
+				}
+			}
 		}
 	}
 }

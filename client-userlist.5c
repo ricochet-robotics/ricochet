@@ -285,11 +285,17 @@ extend namespace Client {
 			}
 		}
 
-		protected void init (*userlist_t ul,
-				     *nichrome_t ui,
-				     Link::link_t link) {
-			ul->ui = ui;
+		protected void set_link(*userlist_t ul, Link::link_t link) {
 			ul->link = link;
+		}
+
+		protected void clear_link(*userlist_t ul) {
+			make_uninit(&ul->link);
+		}
+
+		protected void init (*userlist_t ul,
+				     *nichrome_t ui) {
+			ul->ui = ui;
 			ul->font = Widget::default_font;
 			ul->bold_font = sprintf("%s:bold", Widget::default_font);
 			ul->italic_font = sprintf("%s:italic", Widget::default_font);
@@ -330,9 +336,9 @@ extend namespace Client {
 			ul->showing = user_or_none_t.none;
 		}
 
-		public *userlist_t new (*nichrome_t ui, Link::link_t link) {
+		public *userlist_t new (*nichrome_t ui) {
 			*userlist_t	ul = &(userlist_t) {};
-			init(ul, ui, link);
+			init(ul, ui);
 			return ul;
 		}
 	}
