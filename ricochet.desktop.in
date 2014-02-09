@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Comment="Networked Multi-player Ricochet Robots"
+Name=Ricochet
+Keywords=Game Multiplayer Network
+Exec=%bindir%/ricochet
+Icon=ricochet-icon
+Type=Application
+Categories=Game;BoardGame;LogicGame

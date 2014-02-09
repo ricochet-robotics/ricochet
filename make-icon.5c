@@ -1,0 +1,84 @@
+#!/usr/bin/env nickle
+
+autoimport ParseArgs;
+
+string ricochet_lib = String::dirname(argv[0]);
+string target_file;
+
+argdesc argd = {
+	args = {
+		{
+			.var = (arg_var.arg_string) &ricochet_lib,
+			.name = "libdir",
+			.desc = "Directory containing Ricochet nickle files"
+		}
+	},
+	posn_args = {
+		{
+			.var = (arg_var.arg_string) &target_file,
+			.name = "targetfile",
+		}
+	}
+};
+
+parseargs(&argd, &argv)
+
+Command::nickle_path = ricochet_lib + ":" + Command::nickle_path;
+
+autoload Cairo;
+
+autoload Client;
+autoload Client::Svg;
+autoload RR;
+autoload Client::Draw;
+
+void main ()
+{
+	Cairo::cairo_t cr;
+
+	if (!is_uninit(&target_file))
+		cr = Cairo::new_svg(target_file, 32, 32);
+	else
+		cr = Cairo::new();
+	
+	RR::RobotOrNone robot = (RR::RobotOrNone) {
+		.robot = (RR::Robot) {
+			.color = RR::Color.Blue
+		}
+	};
+
+	RR::RobotOrNone robot_none = (RR::RobotOrNone) {
+		.none = ◊
+	};
+
+	RR::TargetOrNone target = (RR::TargetOrNone) {
+		.target = (RR::Target) { 
+			.color = RR::Color.Blue,
+			.shape = RR::Shape.Triangle,
+			.active = true
+		}
+	};
+
+	RR::Object object = (RR::Object) {
+		.target = target,
+		.robot = robot_none
+	};
+
+	Client::Draw::transform_t transform = (Client::Draw::transform_t) {
+		.xoff = 0,
+		.yoff = 0,
+		.xscale = 1,
+		.yscale = 1
+	};
+
+	Client::Draw::background(cr, 0, 0, object, &transform);
+
+	Client::Draw::contents(cr, 0, 0, object, target, robot, &transform);
+
+	if (dim(argv) <= 1)
+		sleep(10000);
+	else
+		Cairo::destroy(cr);
+}
+
+main();

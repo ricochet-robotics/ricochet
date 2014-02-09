@@ -70,6 +70,16 @@ endif
 
 MANSRC=ricochet.man.in rrserve.man.in
 
+desktopdir = $(datadir)/applications
+desktop_file = ricochet.desktop
+desktop_DATA = $(desktop_file)
+
+ICON=ricochet-icon.svg
+
+icondir = $(datadir)/icons/hicolor/scalable/apps
+
+icon_DATA = $(ICON)
+
 SVG=\
 	$(top_srcdir)/svg/cell1.svg \
 	$(top_srcdir)/svg/cell2.svg \
@@ -109,6 +119,8 @@ EXTRA_DIST = protocol \
 	$(NICKLESRC) \
 	ricochet.in rrserve.in \
 	svg/bin2cstring.5c \
+	make-icon.5c \
+	$(desktop_file).in \
 	$(SVG) $(DEBIAN) LICENSE $(MANSRC)
 
 ricochetlib_DATA = $(NICKLEFILES)
@@ -121,12 +133,18 @@ ricochet: ricochet.in
 rrserve: rrserve.in
 	sed -e 's#%ricochetlibdir%#@ricochetlibdir@#' ${srcdir}/rrserve.in > $@ && chmod +x $@
 
+$(desktop_file): $(desktop_file).in
+	sed -e 's#%bindir%#@bindir@#' ${srcdir}/ricochet.desktop.in > $@
+
+ricochet-icon.svg: make-icon.5c $(NICKLEFILES) $(SVG)
+	nickle ${srcdir}/make-icon.5c --libdir "${srcdir}":"." $@
+
 client-svg.5c: $(SVG) svg/bin2cstring.5c
 	$(RM) $@
 	nickle $(top_srcdir)/svg/bin2cstring.5c $(SVG) > $@
 
 clean-local:
-	$(RM) client-svg.5c ricochet rrserve
+	$(RM) client-svg.5c ricochet rrserve $(ICON) $(desktop_file)
 
 TARFILE=$(PACKAGE)-$(VERSION).tar.gz
 DEBFILE=$(PACKAGE)_$(VERSION)-1_all.deb
