@@ -1,0 +1,3 @@
+?package(ricochet):needs="X11" section="Games/Board"\
+ title="Ricochet Robots" command="/usr/games/ricochet"
+	
