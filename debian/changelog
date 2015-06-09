@@ -1,3 +1,11 @@
+ricochet (0.5) unstable; urgency=medium
+
+  * Make build reproducible by setting BUILD_DATE from changelog.
+    Closes #787675.
+  * Release version 0.5.
+
+ -- Keith Packard <keithp@keithp.com>  Tue, 09 Jun 2015 06:00:54 -0600
+
 ricochet (0.4) unstable; urgency=low
 
   * Bring up the host chooser UI when the server connection fails
