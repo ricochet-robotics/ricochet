@@ -9,6 +9,9 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
+BUILD_DATE=$(shell dpkg-parsechangelog -S Date | LC_ALL=C date -u "+%F" -f -)
+export BUILD_DATE
+
 configure_flags = --bindir=/usr/games --enable-gameman
 
 %:

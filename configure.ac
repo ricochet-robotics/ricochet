@@ -49,7 +49,9 @@ fi
 
 AC_SUBST(MAN_SECTION)
 
-BUILD_DATE=`date +%F`
+if test x$BUILD_DATE = x; then
+	BUILD_DATE=`date +%F`
+fi
 
 AC_SUBST(BUILD_DATE)
 
